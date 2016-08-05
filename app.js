@@ -1,0 +1,202 @@
+'use strict';
+
+var express = require('express');
+var path = require('path');
+var logger = require('morgan');
+var bodyParser = require('body-parser');
+var debug = require('debug')('portal-api:app');
+var correlationIdHandler = require('portal-env').CorrelationIdHandler();
+var kongAuth = require('./kong-auth');
+
+var healthApi = require('./routes/health');
+var users = require('./routes/users');
+var applications = require('./routes/applications');
+var utils = require('./routes/utils');
+var apis = require('./routes/apis');
+var content = require('./routes/content');
+var approvals = require('./routes/approvals');
+var webhooks = require('./routes/webhooks');
+var verifications = require('./routes/verifications');
+var systemhealth = require('./routes/systemhealth');
+var templates = require('./routes/templates');
+var deploy = require('./routes/deploy');
+
+//var routes = require('./routes/index');
+//var users = require('./routes/users');
+
+var app = express();
+
+app.use(correlationIdHandler);
+
+// Combined == Apache style logs
+logger.token('user-id', function (req, res) {
+    var userId = req.apiUserId;
+    return userId ? userId : '-';
+});
+logger.token('correlation-id', function (req, res) {
+    return req.correlationId;
+});
+if (app.get('env') == 'development') {
+    debug('Configuring "dev" logger.');
+    app.use(logger('dev'));
+} else {
+    debug('Configuring logger.');
+    app.use(logger('{"date":":date[clf]","method":":method","url":":url","remote-addr":":remote-addr","user-id":":user-id","version":":http-version","status":":status","content-length":":res[content-length]","referrer":":referrer","response-time":":response-time","correlation-id":":correlation-id"}'));
+}
+
+
+// ------- DEPLOYMENT - IMPORT/EXPORT -------
+
+app.use('/deploy', deploy);
+
+// ------- HEALTH API -------
+
+app.use('/health', healthApi);
+
+// ------- BODYPARSER -------
+
+// The /deploy end points handle their bodys themselves, as we partly
+// have binary data to deal with.
+
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: false }));
+
+// ------ OAUTH2.0 VIA KONG ------
+
+app.use(kongAuth.fillUserId);
+
+// ------ CACHING ------
+
+// Turn off caching
+app.disable('etag');
+
+// ------- APIS -------
+
+app.use('/apis', apis);
+
+// ----- USERS -----
+
+app.use('/users', users);
+app.post('/login', kongAuth.rejectFromKong, function (req, res, next) {
+     users.getUserByEmailAndPassword(app, res, req.body.email, req.body.password);
+});
+
+// ----- APPLICATIONS -----
+
+app.use('/applications', applications);
+
+// ----- CONTENT -----
+
+app.content = content;
+app.use('/content', content);
+
+// ----- APPROVALS ------
+
+app.use('/approvals', approvals);
+
+// ----- WEBHOOKS ------
+
+// Inject users module to webhooks; it's needed there.
+// webhooks are not allowed to be called via Kong (from outside docker)
+webhooks.setup(users);
+app.use('/webhooks', kongAuth.rejectFromKong, webhooks);
+
+// ----- VERIFICATIONS -----
+
+// Inject users module to verifications; it's needed there.
+verifications.setup(users);
+app.use('/verifications', verifications);
+
+// ------- PING -------
+
+app.get('/ping', function (req, res, next) {
+    res.json({ message: 'OK' });
+});
+
+app.get('/randomId', function (req, res, next) {
+    res.setHeader('Content-Type', 'text/plain');
+    res.send(utils.createRandomId());
+});
+
+// ------- STATIC DATA ------
+
+app.get('/plans', function (req, res, next) {
+    var plans = utils.loadPlans(app);
+    res.json(plans);
+});
+
+app.get('/groups', function (req, res, next) {
+    var groups = utils.loadGroups(app);
+    res.json(groups);
+});
+
+app.get('/globals', kongAuth.rejectFromKong, function (req, res, next) {
+    var globals = utils.loadGlobals(app);
+    res.json(globals);
+});
+
+// ------- SYSTEMHEALTH ------
+
+app.get('/systemhealth', function (req, res, next) {
+    systemhealth.getSystemHealth(app, res, req.apiUserId);
+});
+
+// ------- TEMPLATES -------
+
+app.use('/templates', templates);
+
+// ------- REGULAR EVENTS -------
+
+// Check if we need to fire hooks from times to times (every 10 seconds)
+var hookInterval = process.env.PORTAL_API_HOOK_INTERVAL || '10000';
+debug('Setting webhook interval to ' + hookInterval);
+setInterval(webhooks.checkAndFireHooks, hookInterval, app);
+
+// Clean up expired verification records once a minute
+var expiryInterval = process.env.PORTAL_API_EXPIRY_INTERVAL || '60000';
+debug('Setting verification expiry check time to ' + expiryInterval);
+setInterval(verifications.checkExpiredRecords, expiryInterval, app);
+
+// Check system health once in a while (every 30 seconds)
+var checkHealthInterval = process.env.PORTAL_API_HEALTH_INTERVAL || '30000';
+debug('Setting system check interval to ' + checkHealthInterval);
+setInterval(systemhealth.checkHealth, checkHealthInterval, app);
+
+// throw 404 for anything else
+app.use(function (req, res, next) {
+    debug('Not found: ' + req.path);
+    res.status(404).jsonp({ message: "Not found." });
+});
+
+// error handlers
+
+// development error handler
+// will print stacktrace
+if (app.get('env') === 'development') {
+    app.use(function (err, req, res, next) {
+        console.error(err.message);
+        console.error(err.stack);
+        //console.log(JSON.stringify(err, null, 2));
+        res.status(err.status || 500);
+        res.jsonp({
+            message: err.message,
+            error: err
+        });
+    });
+}
+
+// production error handler
+// no stacktraces leaked to user
+app.use(function (err, req, res, next) {
+    console.error(err.message);
+    console.error(err.stack);
+    console.log(JSON.stringify(err, null, 2));
+    res.status(err.status || 500);
+    res.jsonp({
+        message: err.message,
+        error: {}
+    });
+});
+
+
+module.exports = app;

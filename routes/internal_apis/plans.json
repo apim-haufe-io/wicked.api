@@ -1,0 +1,14 @@
+{
+    "plans": [
+        {
+            "id": "__internal_health",
+            "name": "Health API Plan",
+            "desc": "Access to the Health API.",
+            "needsApproval": false,
+            "requiredGroup": "admin",
+            "config": {
+                "plugins": []
+            }
+        }
+    ]
+}

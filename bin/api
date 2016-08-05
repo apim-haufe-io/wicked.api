@@ -1,0 +1,153 @@
+#!/usr/bin/env node
+
+'use strict';
+
+/**
+ * Module dependencies.
+ */
+
+var app = require('../app');
+var debug = require('debug')('portal-api:server');
+var http = require('http');
+var path = require('path');
+var envReader = require('portal-env'); // local npm module
+
+var initializer = require('../routes/initializer.js');
+var utils = require('../routes/utils.js');
+
+/**
+ * Get port from environment and store in Express.
+ */
+
+var port = normalizePort(process.env.PORT || '3001');
+app.set('port', port);
+
+console.log("Portal API environment: " + app.get('env'));
+
+var configKey = process.env.PORTAL_CONFIG_KEY;
+if (!configKey) {
+    console.log('INFO: PORTAL_CONFIG_KEY is not set, will not be able to decrypt encrypted environment variables.');
+}
+app.set('config_key', configKey);
+
+var environment = app.get('env');
+var staticConfigPath = envReader.resolveStaticConfig();
+// Populate all the environment variables.
+envReader.checkEnvironment(staticConfigPath, configKey, environment);
+
+var staticRepo = process.env.PORTAL_API_STATIC_CONFIG;
+if (!staticRepo)
+    throw Error('Environment variable PORTAL_API_STATIC_CONFIG not set.');
+app.set('static_config', staticRepo);
+debug('Static DB: ' + staticRepo);
+var dynamicRepo = process.env.PORTAL_API_DYNAMIC_CONFIG;
+if (!dynamicRepo)
+    throw Error('Environment variable PORTAL_API_DYNAMIC_CONFIG not set.');
+app.set('dynamic_config', dynamicRepo);
+debug('Dynamic DB: ' + dynamicRepo);
+
+var aesKey = process.env.PORTAL_API_AESKEY;
+if (!aesKey)
+    throw Error('Environment variable PORTAL_API_AESKEY not set. Needed for encrypting files.');
+app.set('aes_key', aesKey);
+debug('AES encryption key for file encryption set.');
+
+// Check if we need to update the static DB?
+try {
+    envReader.updateConfig(staticRepo, path.join(utils.getInitialConfigDir(), 'static'));
+} catch (dbErr) {
+    console.error(dbErr);
+    throw Error("The Configuration update steps failed. Check log files for details.");
+}
+
+// Sanity check environment variables
+if (!envReader.sanityCheckDir(staticRepo))
+    throw Error('Environment variables are missing. Check log files for details.');
+
+var server = null;
+// How does our dynamic config look?
+initializer.checkDynamicConfig(app, function (err, results) {
+    if (err) {
+        console.error('initializer.checkDynamicConfig() failed!');
+        console.error(err);
+        console.error(err.stack);
+        process.exit(1);
+    }
+    if (results) {
+        console.error('initializer.checkDynamicConfig() returned messages!');
+        console.error(JSON.stringify(results, null, 2));
+        process.exit(1);
+    }
+
+    // Create table of contents for contents
+    app.content.setup(app);
+
+    // Create HTTP server.
+    server = http.createServer(app);
+
+    // Listen on provided port, on all network interfaces.
+    server.listen(port);
+    server.on('error', onError);
+    server.on('listening', onListening);
+});
+
+
+/**
+ * Normalize a port into a number, string, or false.
+ */
+
+function normalizePort(val) {
+    var port = parseInt(val, 10);
+
+    if (isNaN(port)) {
+        // named pipe
+        return val;
+    }
+
+    if (port >= 0) {
+        // port number
+        return port;
+    }
+
+    return false;
+}
+
+/**
+ * Event listener for HTTP server "error" event.
+ */
+
+function onError(error) {
+    if (error.syscall !== 'listen') {
+        throw error;
+    }
+
+    var bind = typeof port === 'string' ?
+        'Pipe ' + port :
+        'Port ' + port;
+
+    // handle specific listen errors with friendly messages
+    switch (error.code) {
+        case 'EACCES':
+            console.error(bind + ' requires elevated privileges');
+            process.exit(1);
+            break;
+        case 'EADDRINUSE':
+            console.error(bind + ' is already in use');
+            process.exit(1);
+            break;
+        default:
+            throw error;
+    }
+}
+
+/**
+ * Event listener for HTTP server "listening" event.
+ */
+
+function onListening() {
+    var addr = server.address();
+    var bind = typeof addr === 'string' ? 
+        'pipe ' + addr :
+        'port ' + addr.port;
+    debug('Listening on ' + bind);
+}

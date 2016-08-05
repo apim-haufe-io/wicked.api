@@ -1,0 +1,7 @@
+FROM ${DOCKER_PREFIX}portal-env:${DOCKER_TAG}-onbuild
+
+EXPOSE 3001
+
+RUN cp -R /usr/src/portal-env/initial-config /var/portal-api
+
+CMD [ "npm", "start" ]

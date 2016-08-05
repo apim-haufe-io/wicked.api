@@ -1,0 +1,14 @@
+{
+    "PORTAL_TITLE": {
+        "value": "Portal Title"
+    },
+    "PORTAL_COMPANY": {
+        "value": "Company"
+    },
+    "PORTAL_REC1": {
+        "value": "${PORTAL_REC2} ${PORTAL_REC2}"
+    },
+    "PORTAL_REC2": {
+        "value": "Recursive"
+    }
+}
