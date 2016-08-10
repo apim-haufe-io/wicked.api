@@ -10,6 +10,7 @@ var kill = require('express').Router();
 
 // All /deploy end points need an "Authorization" header which has to contain the deployment
 // key which is used for decrypting/encrypting env variables and such.
+// This may change in the future.
 kill.use(authMiddleware.verifyConfigKey);
 
 // ===== ENDPOINTS =====
