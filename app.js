@@ -6,7 +6,7 @@ var logger = require('morgan');
 var bodyParser = require('body-parser');
 var debug = require('debug')('portal-api:app');
 var correlationIdHandler = require('portal-env').CorrelationIdHandler();
-var kongAuth = require('./kong-auth');
+var authMiddleware = require('./auth-middleware');
 
 var healthApi = require('./routes/health');
 var users = require('./routes/users');
@@ -20,6 +20,7 @@ var verifications = require('./routes/verifications');
 var systemhealth = require('./routes/systemhealth');
 var templates = require('./routes/templates');
 var deploy = require('./routes/deploy');
+var kill = require('./routes/kill');
 
 //var routes = require('./routes/index');
 //var users = require('./routes/users');
@@ -63,7 +64,7 @@ app.use(bodyParser.urlencoded({ extended: false }));
 
 // ------ OAUTH2.0 VIA KONG ------
 
-app.use(kongAuth.fillUserId);
+app.use(authMiddleware.fillUserId);
 
 // ------ CACHING ------
 
@@ -77,7 +78,7 @@ app.use('/apis', apis);
 // ----- USERS -----
 
 app.use('/users', users);
-app.post('/login', kongAuth.rejectFromKong, function (req, res, next) {
+app.post('/login', authMiddleware.rejectFromKong, function (req, res, next) {
      users.getUserByEmailAndPassword(app, res, req.body.email, req.body.password);
 });
 
@@ -99,7 +100,7 @@ app.use('/approvals', approvals);
 // Inject users module to webhooks; it's needed there.
 // webhooks are not allowed to be called via Kong (from outside docker)
 webhooks.setup(users);
-app.use('/webhooks', kongAuth.rejectFromKong, webhooks);
+app.use('/webhooks', authMiddleware.rejectFromKong, webhooks);
 
 // ----- VERIFICATIONS -----
 
@@ -130,7 +131,7 @@ app.get('/groups', function (req, res, next) {
     res.json(groups);
 });
 
-app.get('/globals', kongAuth.rejectFromKong, function (req, res, next) {
+app.get('/globals', authMiddleware.rejectFromKong, function (req, res, next) {
     var globals = utils.loadGlobals(app);
     res.json(globals);
 });
@@ -144,6 +145,10 @@ app.get('/systemhealth', function (req, res, next) {
 // ------- TEMPLATES -------
 
 app.use('/templates', templates);
+
+// ------- KILL SWITCH -------
+
+app.use('/kill', kill);
 
 // ------- REGULAR EVENTS -------
 

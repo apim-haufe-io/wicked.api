@@ -209,6 +209,22 @@ paths:
       responses:
         '200':
           description: Successful request
+  /kill:
+    post:
+      tags:
+        - misc
+      description: Kills the running API process (used for test automation)
+      parameters:
+        - name: Authorization
+          in: header
+          type: string
+          required: true
+          description: Pass the PORTAL_CONFIG_KEY here for Authorization
+      responses:
+        '204':
+          description: Successfully shut down API
+        '403':
+          description: Not allowed
 
 definitions:
   userType:

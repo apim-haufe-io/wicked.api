@@ -7,13 +7,13 @@ var debug = require('debug')('portal-api:users');
 var bcrypt = require('bcrypt-nodejs');
 var webhooks = require('./webhooks');
 var verifications = require('./verifications');
-var kongAuth = require('../kong-auth');
+var authMiddleware = require('../auth-middleware');
 
 var users = require('express').Router();
 
 // ===== ENDPOINTS =====
 
-users.post('/', kongAuth.rejectFromKong, function (req, res) {
+users.post('/', authMiddleware.rejectFromKong, function (req, res) {
     users.createUser(req.app, res, req.body);
 });
 

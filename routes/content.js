@@ -5,7 +5,6 @@ var fs = require('fs');
 var debug = require('debug')('portal-api:content');
 var users = require('./users');
 var utils = require('./utils');
-var kongAuth = require('../kong-auth');
 
 var content = require('express').Router();
 

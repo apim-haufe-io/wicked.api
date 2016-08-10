@@ -3,6 +3,7 @@
 var utils = require('./utils');
 var webhooks = require('./webhooks');
 var initializer = require('./initializer');
+var authMiddleware = require('../auth-middleware');
 var path = require('path');
 var fs = require('fs');
 var debug = require('debug')('portal-api:deploy');
@@ -16,20 +17,7 @@ var deploy = require('express').Router();
 
 // All /deploy end points need an "Authorization" header which has to contain the deployment
 // key which is used for decrypting/encrypting env variables and such.
-function verifyConfigKey(req, res, next) {
-    var configKey = req.get('Authorization');
-    if (!configKey)
-        return res.status(403).json({ message: 'Not allowed. Unauthorized.'} );
-    configKey = configKey.trim();
-    var deployConfigKey = req.app.get('config_key').trim();
-    if (configKey != deployConfigKey)
-        return res.status(403).json({ message: 'Not allowed. Unauthorized.'} );
-    // We're okay, let's do this.
-    next();
-}
-
-// Use the above as middleware
-deploy.use(verifyConfigKey);
+deploy.use(authMiddleware.verifyConfigKey);
 
 // ===== ENDPOINTS =====
 
