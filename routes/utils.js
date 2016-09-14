@@ -13,7 +13,7 @@ utils.getStaticDir = function (app) {
 
 utils.getInitialConfigDir = function () {
     var appDir = path.join(__dirname, '..');
-    var rootDir = path.join(appDir, '..');
+    var rootDir = path.join(appDir, 'node_modules');
     var envDir = path.join(rootDir, 'portal-env');
     return path.join(envDir, 'initial-config');
 };

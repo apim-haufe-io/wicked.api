@@ -41,14 +41,22 @@ function gatherLockFiles(dir, fileList) {
     }
 }
 
-initializer.cleanupLockFiles = function (app) {
+function cleanupLockFiles(app, glob, callback) {
     debug('cleanupLockFiles()');
-    var dynDir = app.get('dynamic_config');
-    cleanupDir(dynDir);
-    if (utils.hasGlobalLock(app))
-        utils.globalUnlock(app);
-    debug("checkForLocks() Done.");
-};
+    let error = null;
+    try {
+        const dynDir = app.get('dynamic_config');
+        cleanupDir(dynDir);
+        if (utils.hasGlobalLock(app))
+            utils.globalUnlock(app);
+        debug("checkForLocks() Done.");
+    } catch (err) {
+        console.error(err);
+        console.error(err.stack);
+        error = err;
+    }
+    callback(error);
+}
 
 initializer.hasLockFiles = function (app) {
     debug('hasLockFiles()');
@@ -59,12 +67,12 @@ initializer.hasLockFiles = function (app) {
 
 initializer.checkDynamicConfig = function (app, callback) {
     debug('checkDynamicConfig()');
-    // Check for locked files
-    initializer.cleanupLockFiles(app);
-    
+
     var glob = utils.loadGlobals(app);
 
     var checks = [
+        checkDynamicConfigDir,
+        cleanupLockFiles,
         addInitialUsers,
         checkApiPlans,
         checkSubscriptions
@@ -90,6 +98,69 @@ initializer.checkDynamicConfig = function (app, callback) {
             callback(err, checkResults);
         });
 };
+
+function isExistingDir(dirPath) {
+    if (!fs.existsSync(dirPath))
+        return false;
+    let dirStat = fs.statSync(dirPath);
+    return dirStat.isDirectory();
+}
+
+function checkDynamicConfigDir(app, glob, callback) {
+    debug('checkDynamicConfigDir()');
+
+    const neededFiles = [
+        {
+            dir: 'applications',
+            file: '_index.json'
+        },
+        {
+            dir: 'approvals',
+            file: '_index.json'
+        },
+        {
+            dir: 'subscriptions',
+            file: 'dummy'
+        },
+        {
+            dir: 'users',
+            file: '_index.json'
+        },
+        {
+            dir: 'verifications',
+            file: '_index.json'
+        },
+        {
+            dir: 'webhooks',
+            file: '_listeners.json'
+        }
+    ];
+    try {
+        let dynamicDir = utils.getDynamicDir(app);
+        if (!isExistingDir(dynamicDir)) {
+            debug('Creating dynamic base directory ' + dynamicDir);
+            fs.mkdirSync(dynamicDir);
+        }
+
+        for (let fileDescIndex in neededFiles) {
+            let fileDesc = neededFiles[fileDescIndex];
+            let subDir = path.join(dynamicDir, fileDesc.dir);
+            if (!isExistingDir(subDir)) {
+                debug('Creating dynamic directory ' + fileDesc.dir);
+                fs.mkdirSync(subDir);
+            }
+            let fileName = path.join(subDir, fileDesc.file);
+            if (!fs.existsSync(fileName)) {
+                debug('Creating file ' + fileName + ' with empty array.');
+                fs.writeFileSync(fileName, JSON.stringify([], null, 2), 'utf8');
+            }
+        }
+
+        callback(null);
+    } catch (err) {
+        callback(err);
+    }
+}
 
 function addInitialUsers(app, glob, callback) {
     debug('addInitialUsers()');

@@ -10,6 +10,7 @@ var app = require('../app');
 var debug = require('debug')('portal-api:server');
 var http = require('http');
 var path = require('path');
+var fs = require('fs');
 var envReader = require('portal-env'); // local npm module
 
 var initializer = require('../routes/initializer.js');
@@ -24,14 +25,22 @@ app.set('port', port);
 
 console.log("Portal API environment: " + app.get('env'));
 
+var environment = app.get('env');
+var staticConfigPath = envReader.resolveStaticConfig();
+
 var configKey = process.env.PORTAL_CONFIG_KEY;
 if (!configKey) {
-    console.log('INFO: PORTAL_CONFIG_KEY is not set, will not be able to decrypt encrypted environment variables.');
+    // Check if we have an *envkey file.
+    let configKeyFileName = findEnvKeyFileName(staticConfigPath);
+    if (configKeyFileName) {
+        console.log('Found config key file ' + configKeyFileName);
+        configKey = fs.readFileSync(configKeyFileName, 'utf8').trim();
+    } else {
+        console.log('INFO: PORTAL_CONFIG_KEY is not set, will not be able to decrypt encrypted environment variables.');
+    }
 }
 app.set('config_key', configKey);
 
-var environment = app.get('env');
-var staticConfigPath = envReader.resolveStaticConfig();
 // Populate all the environment variables.
 envReader.checkEnvironment(staticConfigPath, configKey, environment);
 
@@ -146,8 +155,18 @@ function onError(error) {
 
 function onListening() {
     var addr = server.address();
-    var bind = typeof addr === 'string' ? 
+    var bind = typeof addr === 'string' ?
         'pipe ' + addr :
         'port ' + addr.port;
-    debug('Listening on ' + bind);
+    console.log('Listening on ' + bind);
+}
+
+function findEnvKeyFileName(baseDir) {
+    var fileNames = fs.readdirSync(baseDir);
+    for (var i = 0; i < fileNames.length; ++i) {
+        var fileName = fileNames[i];
+        if (/[a-zA-Z0-9\._]*envkey/.test(fileName))
+            return path.join(baseDir, fileName);
+    }
+    return null;
 }
