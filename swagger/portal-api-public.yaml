@@ -883,7 +883,25 @@ paths:
           description: Successful response
         404:
           description: Not found
-
+  
+  '/auth-servers/{serverId}':
+    get:
+      description: Get information on a registered authorization serverId
+      tags:
+        - misc
+      parameters:
+        - name: serverId
+          in: path
+          required: true
+          description: The ID of the authorization server to retrieve
+          type: string
+      responses:
+        200:
+          description: Successful response
+          schema:
+            $ref: '#/definitions/authServerType'
+        404:
+          description: Not found
           
 definitions:
   apiType:
@@ -908,6 +926,9 @@ definitions:
         type: array
         items:
           type: string
+      authServer:
+        description: The authorization server for this API (this is optional and only applies to OAuth2 flows other than the client credentials flow)
+        type: string
   userType:
     title: UserInfo
     type: object
@@ -1158,3 +1179,13 @@ definitions:
       userId:
         type: string
         description: 'When retrieved, this field will contain the associated user ID'
+  authServerType:
+    type: object
+    properties:
+      name:
+        type: string
+      desc:
+        type: string
+      url:
+        type: string
+  

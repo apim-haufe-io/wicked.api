@@ -21,6 +21,7 @@ var systemhealth = require('./routes/systemhealth');
 var templates = require('./routes/templates');
 var deploy = require('./routes/deploy');
 var kill = require('./routes/kill');
+var authServers = require('./routes/authServers');
 
 //var routes = require('./routes/index');
 //var users = require('./routes/users');
@@ -117,6 +118,10 @@ app.use('/webhooks', authMiddleware.rejectFromKong, webhooks);
 // Inject users module to verifications; it's needed there.
 verifications.setup(users);
 app.use('/verifications', verifications);
+
+// ----- AUTH-SERVERS -----
+
+app.use('/auth-servers', authServers);
 
 // ------- PING -------
 
