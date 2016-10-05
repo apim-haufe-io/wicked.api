@@ -82,6 +82,16 @@ app.post('/login', authMiddleware.rejectFromKong, function (req, res, next) {
      users.getUserByEmailAndPassword(app, res, req.body.email, req.body.password);
 });
 
+// ----- SUBSCRIPTIONS -----
+
+// This is a special case; all other subscription end points can be found
+// under applications/<appId>/subscriptions, but this end point looks up an
+// application/subscription by the clientId which is connected to the
+// subscription, and this needs its own end point.
+app.get('/subscriptions/:clientId', authMiddleware.rejectFromKong, function (req, res, next) {
+    applications.getSubscriptionByClientId(req, res);
+});
+
 // ----- APPLICATIONS -----
 
 app.use('/applications', applications);

@@ -71,6 +71,7 @@ initializer.checkDynamicConfig = function (app, callback) {
     var glob = utils.loadGlobals(app);
 
     var checks = [
+        cleanupSubscriptionIndex,
         checkDynamicConfigDir,
         cleanupLockFiles,
         addInitialUsers,
@@ -106,6 +107,34 @@ function isExistingDir(dirPath) {
     return dirStat.isDirectory();
 }
 
+function getSubscriptionIndexDir(app) {
+    const dynamicDir = utils.getDynamicDir(app);
+    return path.join(dynamicDir, 'subscription_index');
+}
+
+function cleanupSubscriptionIndex(app, glob, callback) {
+    debug('cleanupSubscriptionIndex()');
+    try {
+        let dynamicDir = utils.getDynamicDir(app);
+        if (!isExistingDir(dynamicDir))
+            return callback(null); // We don't even have a dynamic dir yet; fine.
+        let subIndexDir = path.join(dynamicDir, 'subscription_index');
+        if (!isExistingDir(subIndexDir))
+            return callback(null); // We don't have an index yet, that's fine
+
+        // Now we know we have a subscription_index directory.
+        // Let's kill all files in there, as we'll rebuild this index anyway.
+        let filenameList = fs.readdirSync(subIndexDir);
+        for (let i=0; i<filenameList.length; ++i) {
+            const filename = path.join(subIndexDir, filenameList[i]);
+            fs.unlinkSync(filename);
+        }
+        callback(null);
+    } catch (err) {
+        callback(err);
+    }
+}
+
 function checkDynamicConfigDir(app, glob, callback) {
     debug('checkDynamicConfigDir()');
 
@@ -120,6 +149,10 @@ function checkDynamicConfigDir(app, glob, callback) {
         },
         {
             dir: 'subscriptions',
+            file: 'dummy'
+        },
+        {
+            dir: 'subscription_index',
             file: 'dummy'
         },
         {
@@ -236,19 +269,19 @@ function checkApiPlans(app, glob, callback) {
 
 function checkSubscriptions(app, glob, callback) {
     debug('checkSubscriptions()');
-    var error = null;
-    var messages = [];
+    let error = null;
+    const messages = [];
     try {
-        var apis = utils.loadApis(app);
-        var plans = utils.loadPlans(app);
+        const apis = utils.loadApis(app);
+        const plans = utils.loadPlans(app);
 
-        var apiMap = buildApiMap(apis);
-        var planMap = buildPlanMap(plans);
+        const apiMap = buildApiMap(apis);
+        const planMap = buildPlanMap(plans);
 
-        var apps = applications.loadAppsIndex(app);
+        const apps = applications.loadAppsIndex(app);
 
         // Closures are perversly useful.
-        var check = function (subsCheck, subs) {
+        const check = function (subsCheck, subs) {
             for (var i = 0; i < subs.length; ++i) {
                 var msg = subsCheck(apiMap, planMap, subs[i]);
                 if (msg)
@@ -256,12 +289,15 @@ function checkSubscriptions(app, glob, callback) {
             }
         };
 
+        const subsIndexDir = getSubscriptionIndexDir(app);
+
         for (var i = 0; i < apps.length; ++i) {
-            var thisApp = apps[i];
-            var subs = subscriptions.loadSubscriptions(app, thisApp.id);
+            const thisApp = apps[i];
+            const subs = subscriptions.loadSubscriptions(app, thisApp.id);
             check(thatPlanIsValid, subs);
             check(thatApiIsValid, subs);
             check(thatApiPlanIsValid, subs);
+            writeSubsIndex(app, subsIndexDir, thisApp, subs);
         }
     } catch (err) {
         console.error(err);
@@ -317,6 +353,21 @@ function thatApiPlanIsValid(apis, plans, sub) {
     if (found)
         return null;
     return 'ApiPlanIsValid: Application "' + sub.application + '" has a subscription to an invalid API Plan (plan not part of API "' + sub.api + '"): "' + sub.plan + '".';
+}
+
+function writeSubsIndex(app, subsIndexDir, thisApp, subs) {
+    for (var i = 0; i < subs.length; ++i) {
+        const thisSub = subs[i];
+        // Write subs index by client ID
+        if (!thisSub.clientId)
+            continue;
+        const clientId = thisSub.clientId;
+        const fileName = path.join(subsIndexDir, clientId + '.json');
+        fs.writeFileSync(fileName, JSON.stringify({
+            app: thisSub.app,
+            api: thisSub.api
+        }, null, 2), 'utf8');
+    }
 }
 
 module.exports = initializer;

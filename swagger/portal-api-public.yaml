@@ -995,6 +995,8 @@ definitions:
         type: string
       name:
         type: string
+      redirectUri:
+        type: string
       owners:
         title: OwnerList
         type: array
@@ -1012,6 +1014,8 @@ definitions:
       id:
         type: string
       name:
+        type: string
+      redirectUri:
         type: string
   ownerType:
     title: Owner
@@ -1047,6 +1051,7 @@ definitions:
         enum:
           - "key-auth"
           - "oauth2"
+          - "oauth2-implicit"
       apikey:
         type: string
         description: Used if key-auth API

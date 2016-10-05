@@ -68,6 +68,13 @@ applications.patch('/:appId/subscriptions/:apiId', function (req, res, next) {
     subscriptions.patchSubscription(req.app, res, applications, req.apiUserId, req.params.appId, req.params.apiId, req.body);
 });
 
+// ===== SPECIAL ENDPOINT, THIS IS REGISTERED IN app.js =====
+
+// '/subscriptions/:clientId'
+applications.getSubscriptionByClientId = function (req, res) {
+    subscriptions.getSubscriptionByClientId(req.app, res, applications, req.apiUserId, req.params.clientId);
+};
+
 // ===== IMPLEMENTATION =====
 
 applications.loadAppsIndex = function (app) {
@@ -109,6 +116,10 @@ var accessFlags = {
     ADMIN: 1,
     COLLABORATE: 2,
     READ: 4
+};
+
+applications.isValidRedirectUri = function (redirectUri) {
+    return (redirectUri && redirectUri.startsWith('https://'));
 };
 
 applications.getAllowedAccess = function (app, appInfo, userInfo) {
@@ -193,12 +204,15 @@ applications.createApplication = function (app, res, loggedInUserId, appCreateIn
     utils.withLockedAppsIndex(app, res, function () {
         var appsIndex = applications.loadAppsIndex(app);
         var appId = appCreateInfo.id.trim();
+        var redirectUri = appCreateInfo.redirectUri;
         // Load user information
         var userInfo = users.loadUser(app, loggedInUserId);
         if (!userInfo)
             return res.status(403).jsonp({ message: 'Not allowed. User invalid.' });
         if (!userInfo.validated)
             return res.status(403).jsonp({ message: 'Not allowed. Email address not validated.' });
+        if (redirectUri && !applications.isValidRedirectUri(redirectUri))
+            return res.status(400).jsonp({ message: 'redirectUri must be a https URI' });
 
         utils.withLockedUser(app, res, loggedInUserId, function () {
             var regex = /^[a-zA-Z0-9\-_]+$/;
@@ -219,6 +233,7 @@ applications.createApplication = function (app, res, loggedInUserId, appCreateIn
             var newApp = {
                 id: appId,
                 name: appCreateInfo.name,
+                redirectUri: appCreateInfo.redirectUri,
                 owners: [
                     {
                         userId: userInfo.id,
@@ -285,10 +300,16 @@ applications.patchApplication = function (app, res, loggedInUserId, appId, appPa
         return res.status(403).jsonp({ message: 'Not allowed, not sufficient rights to application.' });
     if (appId != appPatchInfo.id)
         return res.status(400).jsonp({ message: 'Changing application ID is not allowed. Sorry.' });
+    const redirectUri = appPatchInfo.redirectUri;
+    if (redirectUri && !applications.isValidRedirectUri(redirectUri))
+        return res.status(400).jsonp({ message: 'redirectUri must be a https URI' });
 
     utils.withLockedApp(app, res, appId, function () {
         // Update app
-        appInfo.name = appPatchInfo.name;
+        if (appPatchInfo.name)
+            appInfo.name = appPatchInfo.name;
+        if (redirectUri)
+            appInfo.redirectUri = redirectUri;
 
         // And persist
         applications.saveApplication(app, appInfo, loggedInUserId);
@@ -383,6 +404,14 @@ applications.deleteApplication = function (app, res, loggedInUserId, appId) {
                         fs.unlinkSync(appsFileName);
 
                     // And its subcriptions
+                    // Delete all subscriptions from the subscription index (if applicable)
+                    const appSubs = subscriptions.loadSubscriptions(app, appId);
+                    for (let i = 0; i < appSubs.length; ++i) {
+                        const appSub = appSubs[i];
+                        if (appSub.clientId)
+                            subscriptions.deleteSubscriptionIndexEntry(app, appSub.clientId);
+                    }
+                    // And now delete the subscription file
                     var subsFileName = path.join(appsDir, appId + '.subs.json');
                     if (fs.existsSync(subsFileName))
                         fs.unlinkSync(subsFileName);

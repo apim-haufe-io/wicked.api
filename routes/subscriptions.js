@@ -15,12 +15,16 @@ subscriptions.getSubsDir = function (app) {
     return path.join(utils.getDynamicDir(app), 'subscriptions');
 };
 
+subscriptions.getSubsIndexDir = function (app) {
+    return path.join(utils.getDynamicDir(app), 'subscription_index');
+};
+
 subscriptions.loadSubscriptions = function (app, appId) {
     debug('loadSubscriptions(): ' + appId);
     var subsDir = subscriptions.getSubsDir(app);
     var subsFileName = path.join(subsDir, appId + '.subs.json');
     var subs = JSON.parse(fs.readFileSync(subsFileName, 'utf8'));
-    for (var i=0; i<subs.length; ++i) {
+    for (var i = 0; i < subs.length; ++i) {
         var sub = subs[i];
         if (sub.apikey)
             sub.apikey = utils.apiDecrypt(app, sub.apikey);
@@ -35,10 +39,10 @@ subscriptions.loadSubscriptions = function (app, appId) {
 subscriptions.saveSubscriptions = function (app, appId, subsIndex) {
     debug('saveSubscriptions(): ' + appId);
     debug(subsIndex);
-    
+
     var subsDir = subscriptions.getSubsDir(app);
     var subsFileName = path.join(subsDir, appId + '.subs.json');
-    for (var i=0; i<subsIndex.length; ++i) {
+    for (var i = 0; i < subsIndex.length; ++i) {
         var sub = subsIndex[i];
         if (sub.apikey)
             sub.apikey = utils.apiEncrypt(app, sub.apikey);
@@ -48,6 +52,37 @@ subscriptions.saveSubscriptions = function (app, appId, subsIndex) {
             sub.clientSecret = utils.apiEncrypt(app, sub.clientSecret);
     }
     fs.writeFileSync(subsFileName, JSON.stringify(subsIndex, null, 2), 'utf8');
+};
+
+subscriptions.loadSubscriptionIndexEntry = function (app, clientId) {
+    debug('loadSubscriptionIndexEntry()');
+    const indexDir = subscriptions.getSubsIndexDir(app);
+    const fileName = path.join(indexDir, clientId + '.json');
+    debug('Trying to load ' + fileName);
+    if (!fs.existsSync(fileName))
+        return null;
+    return JSON.parse(fs.readFileSync(fileName, 'utf8'));
+};
+
+subscriptions.saveSubscriptionIndexEntry = function (app, clientId, subsInfo) {
+    debug('saveSubscriptionIndexEntry()');
+    const indexDir = subscriptions.getSubsIndexDir(app);
+    const fileName = path.join(indexDir, clientId + '.json');
+    const data = {
+        application: subsInfo.application,
+        api: subsInfo.api
+    };
+    debug('Writing to ' + fileName);
+    debug(data);
+    fs.writeFileSync(fileName, JSON.stringify(data, null, 2), 'utf8');
+};
+
+subscriptions.deleteSubscriptionIndexEntry = function (app, clientId) {
+    debug('loadSubscriptionIndexEntry()');
+    const indexDir = subscriptions.getSubsIndexDir(app);
+    const fileName = path.join(indexDir, clientId + '.json');
+    if (fs.existsSync(fileName))
+        fs.unlinkSync(fileName);
 };
 
 subscriptions.getOwnerRole = function (appInfo, userInfo) {
@@ -123,7 +158,7 @@ subscriptions.addSubscription = function (app, res, applications, loggedInUserId
         // OWNERs and COLLABORATORs may do this.
         if (access &&
             ((access == ownerRoles.OWNER) ||
-             (access == ownerRoles.COLLABORATOR)))
+                (access == ownerRoles.COLLABORATOR)))
             isAllowed = true;
     }
 
@@ -186,9 +221,15 @@ subscriptions.addSubscription = function (app, res, applications, loggedInUserId
         // If the user is admin, hasUserGroup will always return true
         let hasGroup = users.hasUserGroup(app, userInfo, apiPlan.requiredGroup);
         if (!hasGroup)
-            return res.status(403).jsonp({ message: 'Not allowed. User does not have access to the API Plan.'});
+            return res.status(403).jsonp({ message: 'Not allowed. User does not have access to the API Plan.' });
     }
-    
+
+    // Is it an oauth2-implicit API? If so, the app needs a redirectUri
+    if (selectedApi.auth === 'oauth2-implicit') {
+        if (!appInfo.redirectUri)
+            return res.status(400).jsonp({ message: 'Application does not have a redirectUri'});
+    }
+
     debug('All set to add subscription.');
 
     // It might not be necessary to actually lock the approvals,
@@ -201,7 +242,7 @@ subscriptions.addSubscription = function (app, res, applications, loggedInUserId
                 if (appSubs[i].api == subsCreateInfo.api)
                     return res.status(409).jsonp({ message: 'Application already has a subscription for API "' + subsCreateInfo.api + '".' });
             }
-            
+
             debug('Subscription is new.');
 
             // Do we need to create an API key? Or did we get one passed in?
@@ -217,7 +258,7 @@ subscriptions.addSubscription = function (app, res, applications, loggedInUserId
             var authMethod = "key-auth";
             if (!needsApproval) {
                 debug('Subscription does not need approval, creating keys.');
-                if ("oauth2" == selectedApi.auth) {
+                if (selectedApi.auth && selectedApi.auth.startsWith("oauth2")) { // oauth2, oauth2-implicit
                     clientId = utils.createRandomId();
                     clientSecret = utils.createRandomId();
                     authMethod = selectedApi.auth;
@@ -230,7 +271,7 @@ subscriptions.addSubscription = function (app, res, applications, loggedInUserId
             } else {
                 debug('Subscription needs approval.');
             }
-            
+
 
             var newSubscription = {
                 id: utils.createRandomId(),
@@ -255,8 +296,15 @@ subscriptions.addSubscription = function (app, res, applications, loggedInUserId
             // Push new subscription
             appSubs.push(newSubscription);
 
-            // Persist subscriptions
+            // Persist subscriptions; this will encrypt clientId and clientSecret
             subscriptions.saveSubscriptions(app, appId, appSubs);
+
+            // Add to subscription index, if it has a clientId
+            if (clientId) {
+                newSubscription.clientId = clientId;
+                newSubscription.clientSecret = clientSecret;
+                subscriptions.saveSubscriptionIndexEntry(app, clientId, newSubscription);
+            }
 
             if (needsApproval) {
                 approvalInfos.push({
@@ -296,7 +344,7 @@ subscriptions.addSubscription = function (app, res, applications, loggedInUserId
                     planId: apiPlan.id
                 }
             });
-            
+
             if (needsApproval) {
                 webhooks.logEvent(app, {
                     action: webhooks.ACTION_ADD,
@@ -305,7 +353,7 @@ subscriptions.addSubscription = function (app, res, applications, loggedInUserId
                         userId: userInfo.id,
                         applicationId: appInfo.id,
                         apiId: selectedApi.id,
-                        planId: apiPlan.id     
+                        planId: apiPlan.id
                     }
                 });
             }
@@ -340,19 +388,12 @@ subscriptions.getSubscription = function (app, res, applications, loggedInUserId
     if (!isAllowed)
         return res.status(403).jsonp({ message: 'Not allowed. User does not own application.' });
 
-    var appSubs = subscriptions.loadSubscriptions(app, appId);
-    var subsIndex = -1;
-    for (var i = 0; i < appSubs.length; ++i) {
-        if (appSubs[i].api == apiId) {
-            subsIndex = i;
-            break;
-        }
-    }
+    const appSub = loadAndFindSubscription(app, appId, apiId);
 
     // Did we find it?    
-    if (subsIndex < 0)
+    if (!appSub)
         return res.status(404).jsonp({ message: 'API subscription not found for application. App: ' + appId + ', API: ' + apiId });
-    var appSub = appSubs[subsIndex];
+    // var appSub = appSubs[subsIndex];
     if (adminOrCollab) {
         appSub._links.deleteSubscription = {
             href: '/applications/' + appId + '/subscriptions/' + appSub.api,
@@ -361,8 +402,22 @@ subscriptions.getSubscription = function (app, res, applications, loggedInUserId
     }
 
     // Return what we found
-    res.json(appSubs[subsIndex]);
+    res.json(appSub);
 };
+
+function loadAndFindSubscription(app, appId, apiId) {
+    const appSubs = subscriptions.loadSubscriptions(app, appId);
+    let subsIndex = -1;
+    for (var i = 0; i < appSubs.length; ++i) {
+        if (appSubs[i].api == apiId) {
+            subsIndex = i;
+            break;
+        }
+    }
+    if (subsIndex < 0)
+        return null;
+    return appSubs[subsIndex];
+}
 
 function findSubsIndex(appSubs, apiId) {
     var subsIndex = -1;
@@ -379,7 +434,7 @@ function findApprovalIndex(approvalInfos, appId, apiId) {
     var approvalIndex = -1;
     for (var i = 0; i < approvalInfos.length; ++i) {
         var appr = approvalInfos[i];
-        if (appr.application.id == appId && 
+        if (appr.application.id == appId &&
             appr.api.id == apiId) {
             approvalIndex = i;
             break;
@@ -406,7 +461,7 @@ subscriptions.deleteSubscription = function (app, res, applications, loggedInUse
         // OWNERs and COLLABORATORs may do this.
         if (access &&
             ((access == ownerRoles.OWNER) ||
-             (access == ownerRoles.COLLABORATOR))
+                (access == ownerRoles.COLLABORATOR))
         )
             isAllowed = true;
     }
@@ -421,6 +476,9 @@ subscriptions.deleteSubscription = function (app, res, applications, loggedInUse
             if (subsIndex < 0)
                 return res.status(404).jsonp({ message: 'Not found. Subscription to API "' + apiId + '" does not exist: ' + appId });
             var subscriptionId = appSubs[subsIndex].id;
+            var subscriptionData = appSubs[subsIndex];
+            // We need to remove the subscription from the index, if necessary
+            var clientId = subscriptionData.clientId;
 
             var approvalInfos = approvals.loadApprovals(app);
             var approvalIndex = findApprovalIndex(approvalInfos, appId, apiId);
@@ -435,6 +493,10 @@ subscriptions.deleteSubscription = function (app, res, applications, loggedInUse
             // If needed, persist approvals as well
             if (approvalIndex >= 0)
                 approvals.saveApprovals(app, approvalInfos);
+
+            // Now check the clientId
+            if (clientId)
+                subscriptions.deleteSubscriptionIndexEntry(app, clientId);
 
             res.status(204).send('');
 
@@ -484,10 +546,16 @@ subscriptions.patchSubscription = function (app, res, applications, loggedInUser
                 var thisSubs = appSubs[subsIndex];
                 thisSubs.approved = true;
 
+                // In case a clientId is created, we need to temporary store it here, too,
+                // as saveSubscriptions encrypts the ID.
+                let tempClientId = null;
+                let tempClientSecret = null;
                 // And generate an apikey
-                if ("oauth2" == thisSubs.auth) {
+                if (thisSubs.auth && thisSubs.auth.startsWith("oauth2")) { // oauth2, oauth2-implicit
                     thisSubs.clientId = utils.createRandomId();
+                    tempClientId = thisSubs.clientId;
                     thisSubs.clientSecret = utils.createRandomId();
+                    tempClientSecret = thisSubs.clientSecret;
                 } else {
                     thisSubs.apikey = utils.createRandomId();
                     thisSubs.auth = "key-auth";
@@ -501,6 +569,15 @@ subscriptions.patchSubscription = function (app, res, applications, loggedInUser
                 // If needed, persist approvals as well
                 if (approvalIndex >= 0)
                     approvals.saveApprovals(app, approvalInfos);
+
+                // And also possibly the subscription index
+                if (tempClientId) {
+                    // Replace the ID and Secret for returning, otherwise we'd return the encrypted
+                    // strings. We don't want that.
+                    thisSubs.clientId = tempClientId;
+                    thisSubs.clientSecret = tempClientSecret;
+                    subscriptions.saveSubscriptionIndexEntry(app, tempClientId, thisSubs);
+                }
 
                 res.json(thisSubs);
 
@@ -520,6 +597,34 @@ subscriptions.patchSubscription = function (app, res, applications, loggedInUser
         // No-op
         res.status(400).jsonp({ message: 'Bad request. Patching subscriptions can only be used to approve of subscriptions.' });
     }
+};
+
+subscriptions.getSubscriptionByClientId = function (app, res, applications, loggedInUserId, clientId) {
+    debug('getSubscriptionByClientId()');
+    var userInfo = users.loadUser(app, loggedInUserId);
+    if (!userInfo)
+        return res.status(403).jsonp({ message: 'Not allowed.' });
+    if (!userInfo.admin)
+        return res.status(403).jsonp({ message: 'Not allowed. Only admins may get subscriptions by client ID.' });
+    const indexEntry = subscriptions.loadSubscriptionIndexEntry(app, clientId);
+    if (!indexEntry)
+        return res.status(404).json({ message: 'Not found.' });
+    const appSub = loadAndFindSubscription(app, indexEntry.application, indexEntry.api);
+    if (!appSub) {
+        const errorMessage = 'Inconsistent state. Please notify operator: Subscription for app ' + indexEntry.application + ' to API ' + indexEntry.api + ' not found.'; 
+        console.error("getSubscriptionByClientId(): " + errorMessage);
+        return res.status(500).json({ message: errorMessage });
+    }
+    const appInfo = applications.loadApplication(app, indexEntry.application);
+    if (!appInfo) {
+        const errorMessage = 'Inconsistent state. Please notify operator: Application app ' + indexEntry.application + ' not found.'; 
+        console.error("getSubscriptionByClientId(): " + errorMessage);
+        return res.status(500).json({ message: errorMessage });
+    }
+    return res.json({
+        subscription: appSub,
+        application: appInfo
+    });
 };
 
 module.exports = subscriptions;

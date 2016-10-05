@@ -60,6 +60,29 @@ paths:
           description: Successful request
           schema:
             $ref: '#/definitions/userType'
+  /subscriptions/{client_id}:
+    get:
+      tags:
+        - subscriptions
+      description: For looking up a subscription by client_id (used for OAuth2 Implicit Grant)
+      parameters:
+        - name: client_id
+          required: true
+          description: The client_id created when creating a subscription
+          in: path
+          type: string
+      responses:
+        200:
+          description: Successful response
+          schema:
+            type: object
+            properties:
+              app:
+                type: object
+              subscription:
+                type: object
+        404:
+          description: Not found.
   /webhooks/listeners:
     get:
       tags:
