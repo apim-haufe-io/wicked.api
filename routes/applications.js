@@ -119,7 +119,11 @@ var accessFlags = {
 };
 
 applications.isValidRedirectUri = function (redirectUri) {
-    return (redirectUri && redirectUri.startsWith('https://') && (redirectUri !== 'https://'));
+    return redirectUri && 
+        (
+            (redirectUri.startsWith('https://') && (redirectUri !== 'https://')) ||
+            (redirectUri.startsWith('http://localhost'))
+        );
 };
 
 applications.getAllowedAccess = function (app, appInfo, userInfo) {
