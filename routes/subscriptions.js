@@ -305,6 +305,9 @@ subscriptions.addSubscription = function (app, res, applications, loggedInUserId
                 newSubscription.clientSecret = clientSecret;
                 subscriptions.saveSubscriptionIndexEntry(app, clientId, newSubscription);
             }
+            // For returning the subscription, include unencrypted key.
+            if (apiKey)
+                newSubscription.apikey = apiKey;
 
             if (needsApproval) {
                 approvalInfos.push({
@@ -550,6 +553,7 @@ subscriptions.patchSubscription = function (app, res, applications, loggedInUser
                 // as saveSubscriptions encrypts the ID.
                 let tempClientId = null;
                 let tempClientSecret = null;
+                let tempApiKey = null;
                 // And generate an apikey
                 if (thisSubs.auth && thisSubs.auth.startsWith("oauth2")) { // oauth2, oauth2-implicit
                     thisSubs.clientId = utils.createRandomId();
@@ -558,6 +562,7 @@ subscriptions.patchSubscription = function (app, res, applications, loggedInUser
                     tempClientSecret = thisSubs.clientSecret;
                 } else {
                     thisSubs.apikey = utils.createRandomId();
+                    tempApiKey = thisSubs.apikey;
                     thisSubs.auth = "key-auth";
                 }
                 thisSubs.changedBy = loggedInUserId;
@@ -577,6 +582,10 @@ subscriptions.patchSubscription = function (app, res, applications, loggedInUser
                     thisSubs.clientId = tempClientId;
                     thisSubs.clientSecret = tempClientSecret;
                     subscriptions.saveSubscriptionIndexEntry(app, tempClientId, thisSubs);
+                }
+                // For returning the subscription data, include the unencrypted key.
+                if (tempApiKey) {
+                    thisSubs.apikey = tempApiKey;
                 }
 
                 res.json(thisSubs);
