@@ -77,7 +77,7 @@ paths:
           schema:
             type: object
             properties:
-              app:
+              application:
                 type: object
               subscription:
                 type: object
