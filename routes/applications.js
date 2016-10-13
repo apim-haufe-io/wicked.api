@@ -457,7 +457,8 @@ applications.deleteApplication = function (app, res, loggedInUserId, appId) {
                         entity: webhooks.ENTITY_APPLICATION,
                         data: {
                             applicationId: appId,
-                            userId: userInfo.id
+                            userId: userInfo.id,
+                            subscriptions: appSubs
                         }
                     });
                 });
