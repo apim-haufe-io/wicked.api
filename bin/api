@@ -66,7 +66,7 @@ try {
     envReader.updateConfig(staticRepo, path.join(utils.getInitialConfigDir(), 'static'));
 } catch (dbErr) {
     console.error(dbErr);
-    console.error(dbErr.stackTrace);
+    console.error(dbErr.stack);
     throw Error("The Configuration update steps failed. Check log files for details.");
 }
 

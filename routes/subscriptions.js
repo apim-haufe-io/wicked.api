@@ -510,7 +510,8 @@ subscriptions.deleteSubscription = function (app, res, applications, loggedInUse
                     subscriptionId: subscriptionId,
                     applicationId: appId,
                     apiId: apiId,
-                    userId: loggedInUserId
+                    userId: loggedInUserId,
+                    auth: subscriptionData.auth
                 }
             });
         });

@@ -884,6 +884,19 @@ paths:
         404:
           description: Not found
   
+  '/auth-servers':
+    get:
+      description: Get a list of available authorization servers
+      tags:
+        - misc
+      responses:
+        200:
+          description: Successful response
+          schema:
+            type: array
+            items:
+              type: string
+
   '/auth-servers/{serverId}':
     get:
       description: Get information on a registered authorization serverId
