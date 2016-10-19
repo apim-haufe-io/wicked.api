@@ -364,7 +364,7 @@ function writeSubsIndex(app, subsIndexDir, thisApp, subs) {
         const clientId = thisSub.clientId;
         const fileName = path.join(subsIndexDir, clientId + '.json');
         fs.writeFileSync(fileName, JSON.stringify({
-            app: thisSub.app,
+            application: thisSub.application,
             api: thisSub.api
         }, null, 2), 'utf8');
     }
