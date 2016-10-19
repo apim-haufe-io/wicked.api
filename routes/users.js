@@ -118,8 +118,14 @@ users.loadUser = function (app, userId) {
         return null;
     //throw "users.loadUser - User not found: " + userId;
     var userInfo = JSON.parse(fs.readFileSync(userFileName, 'utf8'));
-    userInfo.name = userInfo.firstName + ' ' + userInfo.lastName;
-    userInfo.admin = users.isUserAdmin(app, userInfo);
+    if (userInfo.firstName && userInfo.lastName)
+        userInfo.name = userInfo.firstName + ' ' + userInfo.lastName;
+    else if (!userInfo.firstName && userInfo.lastName)
+        userInfo.name = userInfo.lastName;
+    else if (userInfo.firstName && !userInfo.lastName)
+        userInfo.name = userInfo.firstName;
+    else
+        userInfo.name = 'Unknown User';    userInfo.admin = users.isUserAdmin(app, userInfo);
     // Add generic links
     userInfo._links = {
         self: { href: '/users/' + userId },
