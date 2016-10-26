@@ -5,6 +5,7 @@ var fs = require('fs');
 var debug = require('debug')('portal-api:systemhealth');
 var request = require('request');
 var async = require('async');
+var uuid = require('node-uuid');
 
 // This looks really weird, but apparently the "request" library does not
 // consider "Let's Encrypt" SSL certificates as trusted (yet), and thus it
@@ -43,18 +44,21 @@ systemhealth.checkHealth = function (app) {
     // - Portal
     // - Kong 
 
-    var h = [];
+    // Use a correlation ID when calling
+    const correlationId = uuid.v4();
+
+    const h = [];
     async.parallel({
         portalPing: function (callback) {
-            var portalUri = glob.network.portalUrl + '/ping';
-            var req = { url: portalUri };
+            const portalUri = glob.network.portalUrl + '/ping';
+            const req = { url: portalUri, headers: { 'Correlation-Id': correlationId } };
             request.get(req, function(err, apiResult, apiBody) {
                 callback(null, makeHealthEntry('portal', portalUri, err, apiResult, apiBody));
             });
         },
         kongPing: function (callback) {
-            var kongUri = glob.network.schema + '://' + glob.network.apiHost + '/ping-portal';
-            var req = { url: kongUri };
+            const kongUri = glob.network.schema + '://' + glob.network.apiHost + '/ping-portal';
+            const req = { url: kongUri, headers: { 'Correlation-Id': correlationId } };
             // We'll only inject the "insecure" agent if we really need it.
             if ("https" == glob.network.schema)
                 req.agent = portalAgent;
@@ -85,7 +89,8 @@ systemhealth.checkHealth = function (app) {
             async.map(listeners, function (listener, callback) {
                 debug('checkHealth() - pinging ' + listener.id);
                 request.get({
-                    url: listener.url + 'ping'
+                    url: listener.url + 'ping',
+                    headers: { 'Correlation-Id': correlationId }
                 }, function (apiErr, apiResult, apiBody) {
                     var listenerHealth = makeHealthEntry(listener.id, listener.url + 'ping', apiErr, apiResult, apiBody);
                     callback(null, listenerHealth);

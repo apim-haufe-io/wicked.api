@@ -11,7 +11,8 @@
     "morgan": "1.7.0", 
     "js-yaml": "3.6.0", 
     "async": "2.0.1", 
-    "bcrypt-nodejs": "0.0.3"
+    "bcrypt-nodejs": "0.0.3",
+    "node-uuid": "1.4.7"
   }, 
   "scripts": {
     "start": "node ./bin/api"
