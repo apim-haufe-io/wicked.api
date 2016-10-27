@@ -28,7 +28,11 @@ systemhealth._health = [{
     message: 'Initializing',
     uptime: 0,
     healthy: 2,
-    pingUrl: 'http://portal-api:3001/ping'
+    pingUrl: 'http://portal-api:3001/ping',
+    version: utils.getVersion(),
+    gitBranch: '(uninitialized)',
+    gitLastCommit: '(uninitialized)',
+    buildDate: '(uninitialized)'
 }];
 
 systemhealth._startupSeconds = utils.getUtc();
@@ -52,7 +56,7 @@ systemhealth.checkHealth = function (app) {
         portalPing: function (callback) {
             const portalUri = glob.network.portalUrl + '/ping';
             const req = { url: portalUri, headers: { 'Correlation-Id': correlationId } };
-            request.get(req, function(err, apiResult, apiBody) {
+            request.get(req, function (err, apiResult, apiBody) {
                 callback(null, makeHealthEntry('portal', portalUri, err, apiResult, apiBody));
             });
         },
@@ -62,9 +66,9 @@ systemhealth.checkHealth = function (app) {
             // We'll only inject the "insecure" agent if we really need it.
             if ("https" == glob.network.schema)
                 req.agent = portalAgent;
-            request.get(req, function(err, apiResult, apiBody) {
+            request.get(req, function (err, apiResult, apiBody) {
                 callback(null, makeHealthEntry('kong', kongUri, err, apiResult, apiBody));
-            }); 
+            });
         }
     }, function (err, results) {
         if (err) {
@@ -75,12 +79,16 @@ systemhealth.checkHealth = function (app) {
                 error: JSON.stringify(err, null, 2),
                 uptime: (utils.getUtc() - systemhealth._startupSeconds),
                 healthy: 0,
-                pingUrl: 'http://portal-api:3001/ping'
+                pingUrl: 'http://portal-api:3001/ping',
+                version: utils.getVersion(),
+                gitLastCommit: utils.getGitLastCommit(),
+                gitBranch: utils.getGitBranch(),
+                buildDate: utils.getBuildDate()
             });
-            
+
             systemhealth._health = h;
         } else {
-            
+
             h.push(results.portalPing);
             h.push(results.kongPing);
 
@@ -108,6 +116,10 @@ systemhealth.checkHealth = function (app) {
                         healthy: 0,
                         pingUrl: 'http://portal-api:3001/ping',
                         pendingEvents: -1,
+                        version: utils.getVersion(),
+                        gitLastCommit: utils.getGitLastCommit(),
+                        gitBranch: utils.getGitBranch(),
+                        buildDate: utils.getBuildDate()
                     });
                 } else {
                     // We think we are healthy
@@ -117,7 +129,11 @@ systemhealth.checkHealth = function (app) {
                         uptime: (utils.getUtc() - systemhealth._startupSeconds),
                         healthy: 1,
                         pingUrl: 'http://portal-api:3001/ping',
-                        pendingEvents: -1
+                        pendingEvents: -1,
+                        version: utils.getVersion(),
+                        gitLastCommit: utils.getGitLastCommit(),
+                        gitBranch: utils.getGitBranch(),
+                        buildDate: utils.getBuildDate()
                     });
 
                     for (var i = 0; i < results.length; ++i) {
@@ -175,11 +191,23 @@ function makeHealthEntry(pingName, pingUrl, apiErr, apiResult, apiBody) {
             pendingEvents: -1,
         };
     }
-    
+
     var pingResponse = utils.getJson(apiBody);
     pingResponse.name = pingName;
     pingResponse.pingUrl = pingUrl;
     pingResponse.pendingEvents = -1; // May be overwritten
+
+    if (pingName === 'kong') {
+        // These are from the portal, should not be returned
+        if (pingResponse.version)
+            delete pingResponse.version;
+        if (pingResponse.gitBranch)
+            delete pingResponse.gitBranch;
+        if (pingResponse.gitLastCommit)
+            delete pingResponse.gitLastCommit;
+        if (pingResponse.buildDate)
+            delete pingResponse.buildDate;
+    }
 
     return pingResponse;
 }
