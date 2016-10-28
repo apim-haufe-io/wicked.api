@@ -224,9 +224,14 @@ subscriptions.addSubscription = function (app, res, applications, loggedInUserId
             return res.status(403).jsonp({ message: 'Not allowed. User does not have access to the API Plan.' });
     }
 
-    // Is it an oauth2-implicit API? If so, the app needs a redirectUri
-    if (selectedApi.auth === 'oauth2-implicit') {
-        if (!appInfo.redirectUri)
+    // Is it an oauth2 implicit/authorization code API? If so, the app needs a redirectUri
+    if (selectedApi.auth === 'oauth2') {
+        // In case the API only has implicit flow or authorization code grant flow,
+        // the application NEEDS a redirect URI (otherwise not).
+        if (!appInfo.redirectUri &&
+            selectedApi.settings &&
+            !selectedApi.settings.enable_client_credentials &&
+            !selectedApi.settings.enable_password_grant)
             return res.status(400).jsonp({ message: 'Application does not have a redirectUri'});
     }
 
@@ -258,7 +263,7 @@ subscriptions.addSubscription = function (app, res, applications, loggedInUserId
             var authMethod = "key-auth";
             if (!needsApproval) {
                 debug('Subscription does not need approval, creating keys.');
-                if (selectedApi.auth && selectedApi.auth.startsWith("oauth2")) { // oauth2, oauth2-implicit
+                if (selectedApi.auth && selectedApi.auth.startsWith("oauth2")) { // oauth2
                     clientId = utils.createRandomId();
                     clientSecret = utils.createRandomId();
                     authMethod = selectedApi.auth;
@@ -556,7 +561,7 @@ subscriptions.patchSubscription = function (app, res, applications, loggedInUser
                 let tempClientSecret = null;
                 let tempApiKey = null;
                 // And generate an apikey
-                if (thisSubs.auth && thisSubs.auth.startsWith("oauth2")) { // oauth2, oauth2-implicit
+                if (thisSubs.auth && thisSubs.auth.startsWith("oauth2")) { // oauth2
                     thisSubs.clientId = utils.createRandomId();
                     tempClientId = thisSubs.clientId;
                     thisSubs.clientSecret = utils.createRandomId();
