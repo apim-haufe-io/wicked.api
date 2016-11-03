@@ -1,11 +1,13 @@
 'use strict';
 
-var utils = require('./utils');
-var users = require('./users');
 var path = require('path');
 var fs = require('fs');
 var debug = require('debug')('portal-api:apis');
 var yaml = require('js-yaml');
+
+var utils = require('./utils');
+var users = require('./users');
+var subscriptions = require('./subscriptions');
 
 var apis = require('express').Router();
 
@@ -37,6 +39,10 @@ apis.get('/:apiId/plans', function (req, res, next) {
 
 apis.get('/:apiId/swagger', function (req, res, next) {
     apis.getSwagger(req.app, res, req.apiUserId, req.params.apiId);
+});
+
+apis.get('/:apiId/subscriptions', function (req, res, next) {
+    apis.getSubscriptions(req.app, res, req.apiUserId, req.params.apiId);
 });
 
 // ===== IMPLEMENTATION =====
@@ -452,5 +458,18 @@ function initPortalSwagger(app) {
     return swaggerYaml;
 }
 
+apis.getSubscriptions = function (app, res, loggedInUserId, apiId) {
+    debug('getSubscriptions() ' + apiId);
+    const userInfo = users.loadUser(app, loggedInUserId);
+    if (!userInfo ||
+        !userInfo.admin) {
+        return res.status(403).json({ message: 'Not Allowed. Only Admins can get subscriptions for an API.' });
+    }
+    const apiSubs = subscriptions.loadSubscriptionApiIndex(app, apiId);
+    if (apiSubs) {
+        return res.json(apiSubs);
+    }
+    res.status(404).json({ message: 'Not Found.' });
+};
 
 module.exports = apis;

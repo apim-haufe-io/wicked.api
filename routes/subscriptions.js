@@ -19,6 +19,10 @@ subscriptions.getSubsIndexDir = function (app) {
     return path.join(utils.getDynamicDir(app), 'subscription_index');
 };
 
+subscriptions.getSubsApiIndexDir = function (app) {
+    return path.join(utils.getDynamicDir(app), 'subscription_api_index');
+};
+
 subscriptions.loadSubscriptions = function (app, appId) {
     debug('loadSubscriptions(): ' + appId);
     var subsDir = subscriptions.getSubsDir(app);
@@ -83,6 +87,76 @@ subscriptions.deleteSubscriptionIndexEntry = function (app, clientId) {
     const fileName = path.join(indexDir, clientId + '.json');
     if (fs.existsSync(fileName))
         fs.unlinkSync(fileName);
+};
+
+subscriptions.loadSubscriptionApiIndex = function (app, apiId) {
+    debug('loadSubscriptionApiIndex(): ' + apiId);
+    const indexDir = subscriptions.getSubsApiIndexDir(app);
+    const fileName = path.join(indexDir, apiId + '.json');
+    if (!fs.existsSync(fileName))
+        return null;
+    return JSON.parse(fs.readFileSync(fileName, 'utf8'));
+};
+
+subscriptions.saveSubscriptionApiIndex = function (app, apiId, apiIndex) {
+    debug('saveSubscriptionApiIndex(): ' + apiId);
+    const indexDir = subscriptions.getSubsApiIndexDir(app);
+    const fileName = path.join(indexDir, apiId + '.json');
+    return fs.writeFileSync(fileName, JSON.stringify(apiIndex, null, 2), 'utf8');
+};
+
+subscriptions.addSubscriptionApiIndexEntry = function (app, subsInfo) {
+    debug('addSubscriptionApiIndexEntry(): ' + subsInfo.application + ', plan: ' + subsInfo.plan);
+    const appId = subsInfo.application;
+    const planId = subsInfo.plan;
+    const apiId = subsInfo.api;
+    let apiIndex = subscriptions.loadSubscriptionApiIndex(app, apiId);
+    if (!apiIndex) {
+        console.error('*** addSubscriptionApiIndexEntry: Could not find index; recreating.');
+        apiIndex = [];
+    }
+
+    const indexEntry = apiIndex.find(ie => ie.application === appId);
+    if (indexEntry) {
+        console.error('*** addSubscriptionApiIndexEntry() was called with an application which already has a subscription.');
+        // This is strange, and shouldn't happen.
+        indexEntry.plan = planId;
+    } else {
+        apiIndex.push({
+            application: appId,
+            plan: planId
+        });
+    }
+    subscriptions.saveSubscriptionApiIndex(app, apiId, apiIndex);
+};
+
+subscriptions.deleteSubscriptionApiIndexEntry = function (app, subsInfo) {
+    debug('deleteSubscriptionApiIndexEntry(): ' + subsInfo.api + ', application: ' + subsInfo.application);
+    const apiId = subsInfo.api;
+    const appId = subsInfo.application;
+
+    let apiIndex = subscriptions.loadSubscriptionApiIndex(app, apiId);
+    if (!apiIndex) {
+        console.error('*** deleteSubscriptionApiIndexEntry: Could not find index; recreating.');
+        apiIndex = [];
+    }
+    let indexOfApp = -1;
+    for (let i = 0; i < apiIndex.length; ++i) {
+        const entry = apiIndex[i];
+        if (entry.application == appId) {
+            indexOfApp = i;
+            break;
+        }
+    }
+    if (indexOfApp >= 0) {
+        // remove from index
+        // debug(apiIndex);
+        apiIndex.splice(indexOfApp, 1);
+        // debug(apiIndex);
+        subscriptions.saveSubscriptionApiIndex(app, apiId, apiIndex);
+    } else {
+        console.error('*** deleteSubscriptionApiIndexEntry called to remove entry for ' + appId + ' which is not present for API ' + apiId);
+    }
 };
 
 subscriptions.getOwnerRole = function (appInfo, userInfo) {
@@ -182,8 +256,12 @@ subscriptions.addSubscription = function (app, res, applications, loggedInUserId
     if (apiIndex < 0)
         return res.status(400).jsonp({ message: 'Bad request. Unknown API "' + subsCreateInfo.api + '".' });
 
-    // Valid plan?
+    // API deprecated? 
     var selectedApi = apis.apis[apiIndex];
+    if (selectedApi.deprecated)
+        return res.status(400).jsonp({ message: 'API is deprecated. Subscribing not possible.' });
+
+    // Valid plan?
     var foundPlan = false;
     for (let i = 0; i < selectedApi.plans.length; ++i) {
         if (selectedApi.plans[i] == subsCreateInfo.plan) {
@@ -232,7 +310,7 @@ subscriptions.addSubscription = function (app, res, applications, loggedInUserId
             selectedApi.settings &&
             !selectedApi.settings.enable_client_credentials &&
             !selectedApi.settings.enable_password_grant)
-            return res.status(400).jsonp({ message: 'Application does not have a redirectUri'});
+            return res.status(400).jsonp({ message: 'Application does not have a redirectUri' });
     }
 
     debug('All set to add subscription.');
@@ -310,6 +388,8 @@ subscriptions.addSubscription = function (app, res, applications, loggedInUserId
                 newSubscription.clientSecret = clientSecret;
                 subscriptions.saveSubscriptionIndexEntry(app, clientId, newSubscription);
             }
+            // Add API index for subscription
+            subscriptions.addSubscriptionApiIndexEntry(app, newSubscription);
             // For returning the subscription, include unencrypted key.
             if (apiKey)
                 newSubscription.apikey = apiKey;
@@ -505,6 +585,8 @@ subscriptions.deleteSubscription = function (app, res, applications, loggedInUse
             // Now check the clientId
             if (clientId)
                 subscriptions.deleteSubscriptionIndexEntry(app, clientId);
+            // Delete the subscription from the API index
+            subscriptions.deleteSubscriptionApiIndexEntry(app, subscriptionData);
 
             res.status(204).send('');
 
@@ -626,13 +708,13 @@ subscriptions.getSubscriptionByClientId = function (app, res, applications, logg
         return res.status(404).json({ message: 'Not found.' });
     const appSub = loadAndFindSubscription(app, indexEntry.application, indexEntry.api);
     if (!appSub) {
-        const errorMessage = 'Inconsistent state. Please notify operator: Subscription for app ' + indexEntry.application + ' to API ' + indexEntry.api + ' not found.'; 
+        const errorMessage = 'Inconsistent state. Please notify operator: Subscription for app ' + indexEntry.application + ' to API ' + indexEntry.api + ' not found.';
         console.error("getSubscriptionByClientId(): " + errorMessage);
         return res.status(500).json({ message: errorMessage });
     }
     const appInfo = applications.loadApplication(app, indexEntry.application);
     if (!appInfo) {
-        const errorMessage = 'Inconsistent state. Please notify operator: Application app ' + indexEntry.application + ' not found.'; 
+        const errorMessage = 'Inconsistent state. Please notify operator: Application app ' + indexEntry.application + ' not found.';
         console.error("getSubscriptionByClientId(): " + errorMessage);
         return res.status(500).json({ message: errorMessage });
     }

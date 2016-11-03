@@ -408,12 +408,13 @@ applications.deleteApplication = function (app, res, loggedInUserId, appId) {
                         fs.unlinkSync(appsFileName);
 
                     // And its subcriptions
-                    // Delete all subscriptions from the subscription index (if applicable)
+                    // Delete all subscriptions from the subscription indexes (if applicable)
                     const appSubs = subscriptions.loadSubscriptions(app, appId);
                     for (let i = 0; i < appSubs.length; ++i) {
                         const appSub = appSubs[i];
                         if (appSub.clientId)
                             subscriptions.deleteSubscriptionIndexEntry(app, appSub.clientId);
+                        subscriptions.deleteSubscriptionApiIndexEntry(app, appSub);
                     }
                     // And now delete the subscription file
                     var subsFileName = path.join(appsDir, appId + '.subs.json');

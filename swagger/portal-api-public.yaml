@@ -163,6 +163,39 @@ paths:
           description: Not allowed
         '404':
           description: Not found
+  '/apis/{apiId}/subscriptions':
+    get:
+      tags:
+        - apis
+      description: Retrieve all applications subscribed to this API
+      produces:
+        - application/json
+      parameters:
+        - name: apiId
+          in: path
+          type: string
+          required: true
+        - name: X-UserId
+          in: header
+          description: The ID of the logged in user
+          type: string
+          required: true
+      responses:
+        200:
+          description: Successful response
+          schema:
+            type: array
+            items:
+              type: object
+              properties:
+                application:
+                  type: string
+                plan:
+                  type: string
+        403:
+          description: Not allowed (Admins only)
+        404:
+          description: Not found (unknown API)
   /plans:
     get:
       tags:

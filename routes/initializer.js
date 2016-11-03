@@ -72,6 +72,7 @@ initializer.checkDynamicConfig = function (app, callback) {
 
     var checks = [
         cleanupSubscriptionIndex,
+        cleanupSubscriptionApiIndex,
         checkDynamicConfigDir,
         cleanupLockFiles,
         addInitialUsers,
@@ -112,20 +113,20 @@ function getSubscriptionIndexDir(app) {
     return path.join(dynamicDir, 'subscription_index');
 }
 
-function cleanupSubscriptionIndex(app, glob, callback) {
-    debug('cleanupSubscriptionIndex()');
+function cleanupDirectory(app, dirName, callback) {
+    debug('cleanupDirectory(): ' + dirName);
     try {
         let dynamicDir = utils.getDynamicDir(app);
         if (!isExistingDir(dynamicDir))
             return callback(null); // We don't even have a dynamic dir yet; fine.
-        let subIndexDir = path.join(dynamicDir, 'subscription_index');
+        let subIndexDir = path.join(dynamicDir, dirName);
         if (!isExistingDir(subIndexDir))
-            return callback(null); // We don't have an index yet, that's fine
+            return callback(null); // We don't have that directory yet, that's fine
 
-        // Now we know we have a subscription_index directory.
+        // Now we know we have a dirName directory.
         // Let's kill all files in there, as we'll rebuild this index anyway.
         let filenameList = fs.readdirSync(subIndexDir);
-        for (let i=0; i<filenameList.length; ++i) {
+        for (let i = 0; i < filenameList.length; ++i) {
             const filename = path.join(subIndexDir, filenameList[i]);
             fs.unlinkSync(filename);
         }
@@ -133,6 +134,16 @@ function cleanupSubscriptionIndex(app, glob, callback) {
     } catch (err) {
         callback(err);
     }
+}
+
+function cleanupSubscriptionIndex(app, glob, callback) {
+    debug('cleanupSubscriptionIndex()');
+    cleanupDirectory(app, 'subscription_index', callback);
+}
+
+function cleanupSubscriptionApiIndex(app, glob, callback) {
+    debug('cleanupSubscriptionApiIndex()');
+    cleanupDirectory(app, 'subscription_api_index', callback);
 }
 
 function checkDynamicConfigDir(app, glob, callback) {
@@ -153,6 +164,10 @@ function checkDynamicConfigDir(app, glob, callback) {
         },
         {
             dir: 'subscription_index',
+            file: 'dummy'
+        },
+        {
+            dir: 'subscription_api_index',
             file: 'dummy'
         },
         {
@@ -291,13 +306,21 @@ function checkSubscriptions(app, glob, callback) {
 
         const subsIndexDir = getSubscriptionIndexDir(app);
 
-        for (var i = 0; i < apps.length; ++i) {
+        for (let i = 0; i < apps.length; ++i) {
             const thisApp = apps[i];
             const subs = subscriptions.loadSubscriptions(app, thisApp.id);
             check(thatPlanIsValid, subs);
             check(thatApiIsValid, subs);
             check(thatApiPlanIsValid, subs);
+            check(thatApiIndexIsWritten, subs);
             writeSubsIndex(app, subsIndexDir, thisApp, subs);
+        }
+
+        // Finish by writing the API to Application index
+        for (let i=0; i<apis.apis.length; ++i) {
+            const thisApi = apis.apis[i];
+            subscriptions.saveSubscriptionApiIndex(app, thisApi.id, thisApi.subscriptions);
+            delete thisApi.subscriptions;
         }
     } catch (err) {
         console.error(err);
@@ -315,6 +338,8 @@ function buildApiMap(apis) {
     var apiMap = {};
     for (var i = 0; i < apis.apis.length; ++i) {
         var api = apis.apis[i];
+        // We'll fill this below.
+        api.subscriptions = [];
         apiMap[api.id] = api;
     }
     return apiMap;
@@ -353,6 +378,17 @@ function thatApiPlanIsValid(apis, plans, sub) {
     if (found)
         return null;
     return 'ApiPlanIsValid: Application "' + sub.application + '" has a subscription to an invalid API Plan (plan not part of API "' + sub.api + '"): "' + sub.plan + '".';
+}
+
+function thatApiIndexIsWritten(apis, plans, sub) {
+    if (!apis[sub.api] || !plans[sub.plan])
+        return null; // Shouldn't be possible
+    const api = apis[sub.api];
+    api.subscriptions.push({
+        application: sub.application,
+        plan: sub.plan
+    });
+    return null;
 }
 
 function writeSubsIndex(app, subsIndexDir, thisApp, subs) {
