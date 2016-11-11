@@ -26,19 +26,27 @@ authServers.getAuthServers = function (app, res) {
         try {
             const staticDir = utils.getStaticDir(app);
             const authServerDir = path.join(staticDir, 'auth-servers');
+            debug('Checking directory ' + authServerDir + ' for auth servers.');
             if (!fs.existsSync(authServerDir)) {
+                debug('No auth servers defined.');
                 authServers._authServerNames = [];
-            }
-            const fileNames = fs.readdirSync(authServerDir);
-            const serverNames = [];
-            for (let i=0; i<fileNames.length; ++i) {
-                const fileName = fileNames[i];
-                if (fileName.endsWith('.json')) {
-                    serverNames.push(fileName.substring(0, fileName.length - 5)); // strip .json
+            } else {
+                const fileNames = fs.readdirSync(authServerDir);
+                const serverNames = [];
+                for (let i = 0; i < fileNames.length; ++i) {
+                    const fileName = fileNames[i];
+                    if (fileName.endsWith('.json')) {
+                        const authServerName = fileName.substring(0, fileName.length - 5);
+                        debug('Found auth server ' + authServerName);
+                        serverNames.push(authServerName); // strip .json
+                    }
                 }
+                authServers._authServerNames = serverNames;
             }
-            authServers._authServerNames = serverNames;
         } catch (ex) {
+            console.error('getAuthServers threw an exception:');
+            console.error(ex);
+            console.error(ex.stack);
             return res.status(500).json({ message: ex.message });
         }
     }
@@ -72,8 +80,8 @@ authServers.getAuthServer = function (app, res, serverId) {
         }
     }
 
-    const authServer = authServers._authServers[serverId]; 
-    
+    const authServer = authServers._authServers[serverId];
+
     if (!authServer.exists)
         return res.status(404).jsonp({ message: 'Not found.' });
     return res.json(authServer.data);
