@@ -122,7 +122,9 @@ applications.isValidRedirectUri = function (redirectUri) {
     return redirectUri && 
         (
             (redirectUri.startsWith('https://') && (redirectUri !== 'https://')) ||
-            (redirectUri.startsWith('http://localhost'))
+            (redirectUri.startsWith('http://localhost')) ||
+            (redirectUri.startsWith('http://127.0.0.1')) ||
+            (redirectUri.startsWith('http://portal.local'))
         );
 };
 
