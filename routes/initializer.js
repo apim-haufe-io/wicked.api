@@ -230,13 +230,23 @@ function addInitialUsers(app, glob, callback) {
             }
             doneSomething = true;
             debug('Creating user "' + thisUser.email + '".');
-            userIndex.push({
+            const indexEntry = {
                 id: thisUser.id,
                 name: thisUser.firstName + ' ' + thisUser.lastName,
                 email: thisUser.email.toLowerCase()
-            });
+            };
+            // Allow predefined custom IDs, e.g. for immediate GitHub user admins
+            if (thisUser.customId)
+                indexEntry.customId = thisUser.customId;
 
-            thisUser.password = bcrypt.hashSync(thisUser.password);
+            userIndex.push(indexEntry);
+
+            if (thisUser.password) {
+                if (!thisUser.customId)
+                    thisUser.password = bcrypt.hashSync(thisUser.password);
+                else
+                    console.error('Initial user with ID ' + thisUser.id + ' has both password and customId; password NOT added.');
+            }
             thisUser.applications = [];
             thisUser.validated = true;
 
@@ -317,7 +327,7 @@ function checkSubscriptions(app, glob, callback) {
         }
 
         // Finish by writing the API to Application index
-        for (let i=0; i<apis.apis.length; ++i) {
+        for (let i = 0; i < apis.apis.length; ++i) {
             const thisApi = apis.apis[i];
             subscriptions.saveSubscriptionApiIndex(app, thisApi.id, thisApi.subscriptions);
             delete thisApi.subscriptions;
