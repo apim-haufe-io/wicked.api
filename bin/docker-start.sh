@@ -11,8 +11,6 @@ if [ "$runtimeEnv" != "Linux" ] || [ ! -f /.dockerenv ]; then
     exit 1
 fi
 
-exit 1
-
 if [ ! -z "$GIT_CREDENTIALS" ] && [ ! -z "$GIT_REPO" ]; then
 
     tmpDir=$(mktemp -d)
