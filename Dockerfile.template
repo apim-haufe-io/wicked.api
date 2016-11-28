@@ -4,4 +4,4 @@ EXPOSE 3001
 
 RUN cp -R /usr/src/portal-env/initial-config /var/portal-api
 
-CMD [ "npm", "start" ]
+CMD [ "/usr/src/app/bin/docker-start.sh" ]
