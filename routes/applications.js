@@ -119,8 +119,9 @@ var accessFlags = {
 };
 
 applications.isValidRedirectUri = function (redirectUri) {
-    return redirectUri && 
-        (
+    return redirectUri &&
+        (redirectUri.indexOf('#') < 0) && 
+        (   
             (redirectUri.startsWith('https://') && (redirectUri !== 'https://')) ||
             (redirectUri.startsWith('http://localhost')) ||
             (redirectUri.startsWith('http://127.0.0.1')) ||
