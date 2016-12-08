@@ -48,6 +48,11 @@ else
     echo "Assuming /var/portal-api/static is prepopulated, not cloning configuration repo."
 fi
 
+echo "Calculating config hash..."
+
+tempMd5Hash=$(find . -type f -exec md5sum {} \; | sort -k 2 | md5sum)
+printf ${tempMd5Hash:0:32} > /var/portal-api/static/confighash
+
 echo "Starting API..."
 
 npm start

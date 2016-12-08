@@ -22,6 +22,7 @@ var templates = require('./routes/templates');
 var deploy = require('./routes/deploy');
 var kill = require('./routes/kill');
 var authServers = require('./routes/authServers');
+var versionizer = require('./routes/versionizer');
 
 //var routes = require('./routes/index');
 //var users = require('./routes/users');
@@ -46,7 +47,6 @@ if (app.get('env') == 'development') {
     app.use(logger('{"date":":date[clf]","method":":method","url":":url","remote-addr":":remote-addr","user-id":":user-id","version":":http-version","status":":status","content-length":":res[content-length]","referrer":":referrer","response-time":":response-time","correlation-id":":correlation-id"}'));
 }
 
-
 // ------- DEPLOYMENT - IMPORT/EXPORT -------
 
 app.use('/deploy', deploy);
@@ -55,6 +55,12 @@ app.use('/deploy', deploy);
 
 app.use('/health', healthApi);
 
+// ------- PING -------
+
+app.get('/ping', function (req, res, next) {
+    res.json({ message: 'OK' });
+});
+
 // ------- BODYPARSER -------
 
 // The /deploy end points handle their bodys themselves, as we partly
@@ -62,6 +68,11 @@ app.use('/health', healthApi);
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
+
+// ------ VERSION CHECKING ------
+
+app.get('/confighash', versionizer.getConfigHash);
+app.use(versionizer.checkVersions);
 
 // ------ OAUTH2.0 VIA KONG ------
 
@@ -122,12 +133,6 @@ app.use('/verifications', verifications);
 // ----- AUTH-SERVERS -----
 
 app.use('/auth-servers', authServers);
-
-// ------- PING -------
-
-app.get('/ping', function (req, res, next) {
-    res.json({ message: 'OK' });
-});
 
 app.get('/randomId', function (req, res, next) {
     res.setHeader('Content-Type', 'text/plain');
