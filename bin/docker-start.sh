@@ -33,6 +33,10 @@ if [ ! -z "$GIT_CREDENTIALS" ] && [ ! -z "$GIT_REPO" ]; then
         exit 1
     fi
 
+    echo Adding metadata to static directory...
+    git log -1 > static/last_commit
+    date -u "+%Y-%m-%d %H:%M:%S" > static/build_date
+
     echo "Cleaning up old configuration (if applicable)"
     rm -rf /var/portal-api/static
     echo "Copying configuration to /var/portal-api/static"
