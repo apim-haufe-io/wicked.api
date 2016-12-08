@@ -11,19 +11,29 @@ if [ "$runtimeEnv" != "Linux" ] || [ ! -f /.dockerenv ]; then
     exit 1
 fi
 
-if [ ! -z "$GIT_CREDENTIALS" ] && [ ! -z "$GIT_REPO" ]; then
+if [ ! -z "$GIT_REPO" ]; then
 
     tmpDir=$(mktemp -d)
 
     echo "Cloning configuration repository from $GIT_REPO into $tmpDir..."
     pushd $tmpDir
 
-    if [ -z "$GIT_BRANCH" ]; then
+    if [ -z "$GIT_BRANCH" ]; t  hen
         echo "Checking out branch 'master'..."
-        git clone https://${GIT_CREDENTIALS}@${GIT_REPO} --depth 1 .
+        if [ ! -z "$GIT_CREDENTIALS" ]; then
+            git clone https://${GIT_CREDENTIALS}@${GIT_REPO} --depth 1 .
+        else
+            echo "Assuming public repository, GIT_CREDENTIALS is empty"
+            git clone https://${GIT_REPO} --depth 1 .
+        fi
     else
         echo "Checking out branch '$GIT_BRANCH'..."
-        git clone https://${GIT_CREDENTIALS}@${GIT_REPO} --depth 1 --branch ${GIT_BRANCH} .
+        if [ ! -z "$GIT_CREDENTIALS" ]; then
+            git clone https://${GIT_CREDENTIALS}@${GIT_REPO} --depth 1 --branch ${GIT_BRANCH} .
+        else
+            echo "Assuming public repository, GIT_CREDENTIALS is empty"
+            git clone https://${GIT_REPO} --depth 1 --branch ${GIT_BRANCH} .
+        fi
     fi
 
     if [ ! -d "$tmpDir/static" ]; then
