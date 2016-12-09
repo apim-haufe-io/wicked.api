@@ -18,22 +18,34 @@ if [ ! -z "$GIT_REPO" ]; then
     echo "Cloning configuration repository from $GIT_REPO into $tmpDir..."
     pushd $tmpDir
 
-    if [ -z "$GIT_BRANCH" ]; t  hen
+    if [ ! -z "$GIT_BRANCH" ] && [ ! -z "$GIT_REVISION" ]; then
+        echo "===================================================================================="
+        echo "ERROR: GIT_REVISION and GIT_BRANCH are mutually exclusive (both are defined)!"
+        echo "===================================================================================="
+        exit 1
+    fi
+
+    if [ -z "$GIT_BRANCH" ]; then
         echo "Checking out branch 'master'..."
         if [ ! -z "$GIT_CREDENTIALS" ]; then
-            git clone https://${GIT_CREDENTIALS}@${GIT_REPO} --depth 1 .
+            git clone https://${GIT_CREDENTIALS}@${GIT_REPO} .
         else
             echo "Assuming public repository, GIT_CREDENTIALS is empty"
-            git clone https://${GIT_REPO} --depth 1 .
+            git clone https://${GIT_REPO} .
         fi
     else
         echo "Checking out branch '$GIT_BRANCH'..."
         if [ ! -z "$GIT_CREDENTIALS" ]; then
-            git clone https://${GIT_CREDENTIALS}@${GIT_REPO} --depth 1 --branch ${GIT_BRANCH} .
+            git clone https://${GIT_CREDENTIALS}@${GIT_REPO} --branch ${GIT_BRANCH} .
         else
             echo "Assuming public repository, GIT_CREDENTIALS is empty"
-            git clone https://${GIT_REPO} --depth 1 --branch ${GIT_BRANCH} .
+            git clone https://${GIT_REPO} --branch ${GIT_BRANCH} .
         fi
+    fi
+
+    if [ ! -z "$GIT_REVISION" ]; then
+        echo "Checking out specific revision with SHA ${GIT_REVISION}..."
+        git checkout $GIT_REVISION
     fi
 
     if [ ! -d "$tmpDir/static" ]; then
