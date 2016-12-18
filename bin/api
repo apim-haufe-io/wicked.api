@@ -99,6 +99,14 @@ initializer.checkDynamicConfig(app, function (err, results) {
     server.listen(port);
     server.on('error', onError);
     server.on('listening', onListening);
+
+    // Graceful shutdown
+    const shutdown = function() {
+        debug("Gracefully shutting down.");
+        process.exit();
+    };
+    process.on('SIGINT', shutdown);
+    process.on('SIGTERM', shutdown);
 });
 
 
