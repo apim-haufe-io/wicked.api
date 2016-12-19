@@ -81,4 +81,6 @@ printf ${tempMd5Hash:0:32} > /var/portal-api/static/confighash
 
 echo "Starting API..."
 
-npm start
+# Use direct starting via node, as npm prevents
+# SIGTERM being passed in to the node process.
+node bin/api
