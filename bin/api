@@ -101,12 +101,12 @@ initializer.checkDynamicConfig(app, function (err, results) {
     server.on('listening', onListening);
 
     // Graceful shutdown
-    const shutdown = function() {
-        debug("Gracefully shutting down.");
+    const shutdown = function(signal) {
+        console.log("Received " + signal + ". Gracefully shutting down.");
         process.exit();
     };
-    process.on('SIGINT', shutdown);
-    process.on('SIGTERM', shutdown);
+    process.on('SIGINT', () => shutdown("SIGINT"));
+    process.on('SIGTERM', () => shutdown("SIGTERM"));
 });
 
 
