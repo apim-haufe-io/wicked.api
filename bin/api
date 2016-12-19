@@ -104,7 +104,7 @@ initializer.checkDynamicConfig(app, function (err, results) {
     const shutdown = function(signal) {
         app.shuttingDown = true;
         console.log("Received " + signal + ". Gracefully shutting down.");
-        setTimeout(process.exit, 1000)
+        setTimeout(process.exit, 1000);
     };
     process.on('SIGINT', () => shutdown("SIGINT"));
     process.on('SIGTERM', () => shutdown("SIGTERM"));
