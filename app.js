@@ -29,6 +29,11 @@ var versionizer = require('./routes/versionizer');
 
 var app = express();
 
+app.use(function (req, res, next) {
+    if (app.shuttingDown)
+        return res.status(503).json({message: 'Shutting down. Try again soon.'});
+    next();
+});
 app.use(correlationIdHandler);
 
 // Combined == Apache style logs
