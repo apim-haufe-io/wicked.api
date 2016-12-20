@@ -78,6 +78,7 @@ echo "Calculating config hash..."
 
 tempMd5Hash=$(find . -type f -exec md5sum {} \; | sort -k 2 | md5sum)
 printf ${tempMd5Hash:0:32} > /var/portal-api/static/confighash
+echo "Hash: $(cat /var/portal-api/static/confighash)"
 
 echo "Starting API..."
 
