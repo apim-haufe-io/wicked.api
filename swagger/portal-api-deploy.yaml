@@ -122,7 +122,7 @@ paths:
       tags:
         - deploy
       consumes:
-        - application/application/octet-stream
+        - application/octet-stream
       parameters:
         - name: Authorization
           in: header
@@ -135,7 +135,7 @@ paths:
           schema:
             type: object
             properties:
-              restoreId:
+              importId:
                 type: string
               _links:
                 type: object
