@@ -82,8 +82,12 @@ printf ${tempMd5Hash:0:32} > /var/portal-api/static/confighash
 echo "Hash: $(cat /var/portal-api/static/confighash)"
 popd
 
+export
+
+echo "Setting owner of /var/portal-api to wicked:wicked"
+chown -R wicked:wicked /var/portal-api
+
 echo "Starting API..."
 
-# Use direct starting via node, as npm prevents
-# SIGTERM being passed in to the node process.
-node bin/api
+# Use gosu to start node as the user "wicked"
+gosu wicked node bin/api

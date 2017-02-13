@@ -24,6 +24,8 @@ var port = normalizePort(process.env.PORT || '3001');
 app.set('port', port);
 
 console.log("Portal API environment: " + app.get('env'));
+const osUsername = getOsUsername();
+console.log("Running as user '" + osUsername + "'");
 
 var environment = app.get('env');
 var staticConfigPath = envReader.resolveStaticConfig();
@@ -101,7 +103,7 @@ initializer.checkDynamicConfig(app, function (err, results) {
     server.on('listening', onListening);
 
     // Graceful shutdown
-    const shutdown = function(signal) {
+    const shutdown = function (signal) {
         app.shuttingDown = true;
         console.log("Received " + signal + ". Gracefully shutting down.");
         setTimeout(process.exit, 1000);
@@ -179,4 +181,9 @@ function findEnvKeyFileName(baseDir) {
             return path.join(baseDir, fileName);
     }
     return null;
+}
+
+function getOsUsername() {
+    var username = require('child_process').execSync("whoami", { encoding: 'utf8', timeout: 1000 });
+    return String(username).trim();
 }
