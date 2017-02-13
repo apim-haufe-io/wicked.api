@@ -82,8 +82,6 @@ printf ${tempMd5Hash:0:32} > /var/portal-api/static/confighash
 echo "Hash: $(cat /var/portal-api/static/confighash)"
 popd
 
-export
-
 echo "Setting owner of /var/portal-api to wicked:wicked"
 chown -R wicked:wicked /var/portal-api
 
