@@ -4,6 +4,8 @@ set -e
 
 runtimeEnv=$(uname)
 
+echo "Running as $(whoami)."
+
 if [ "$runtimeEnv" != "Linux" ] || [ ! -f /.dockerenv ]; then
     echo "Do not use this script in non-dockerized environments."
     echo "Detected non-Linux runtime $runtimeEnv, or /.dockerenv is not present."
@@ -85,7 +87,7 @@ popd
 echo "Setting owner of /var/portal-api to wicked:wicked"
 chown -R wicked:wicked /var/portal-api
 
-echo "Starting API..."
+echo "Starting API, running as user 'wicked'..."
 
 # Use gosu to start node as the user "wicked"
 gosu wicked node bin/api
