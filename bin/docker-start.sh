@@ -85,7 +85,7 @@ echo "Hash: $(cat /var/portal-api/static/confighash)"
 popd
 
 echo "Setting owner of /var/portal-api to wicked:wicked"
-chown -R wicked:wicked /var/portal-api
+chown wicked:wicked $(find . | grep -v .snapshot)
 
 echo "Starting API, running as user 'wicked'..."
 
