@@ -65,7 +65,7 @@ debug('AES encryption key for file encryption set.');
 
 // Check if we need to update the static DB?
 try {
-    envReader.updateConfig(staticRepo, path.join(utils.getInitialConfigDir(), 'static'));
+    envReader.updateConfig(staticRepo, path.join(utils.getInitialConfigDir(), 'static'), configKey);
 } catch (dbErr) {
     console.error(dbErr);
     console.error(dbErr.stack);
