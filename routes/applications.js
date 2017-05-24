@@ -120,8 +120,8 @@ var accessFlags = {
 
 applications.isValidRedirectUri = function (redirectUri) {
     return redirectUri &&
-        (redirectUri.indexOf('#') < 0) && 
-        (   
+        (redirectUri.indexOf('#') < 0) &&
+        (
             (redirectUri.startsWith('https://') && (redirectUri !== 'https://')) ||
             (redirectUri.startsWith('http://localhost')) ||
             (redirectUri.startsWith('http://127.0.0.1')) ||
@@ -220,14 +220,16 @@ applications.createApplication = function (app, res, loggedInUserId, appCreateIn
             return res.status(403).jsonp({ message: 'Not allowed. Email address not validated.' });
         if (redirectUri && !applications.isValidRedirectUri(redirectUri))
             return res.status(400).jsonp({ message: 'redirectUri must be a https URI' });
+        if (!appCreateInfo.name || appCreateInfo.name.length < 1)
+            return res.status(400).jsonp({ message: 'Friendly name of application cannot be empty.' });
 
         utils.withLockedUser(app, res, loggedInUserId, function () {
             var regex = /^[a-zA-Z0-9\-_]+$/;
 
             if (!regex.test(appId))
                 return res.status(400).jsonp({ message: 'Invalid application ID, allowed chars are: a-z, A-Z, -, _' });
-            if (appId.length < 4 || appId.length > 20)
-                return res.status(400).jsonp({ message: 'Invalid application ID, must have at least 4, max 20 characters.' });
+            if (appId.length < 4 || appId.length > 50)
+                return res.status(400).jsonp({ message: 'Invalid application ID, must have at least 4, max 50 characters.' });
 
             // Check for dupes
             for (var i = 0; i < appsIndex.length; ++i) {
@@ -239,7 +241,7 @@ applications.createApplication = function (app, res, loggedInUserId, appCreateIn
             // Now we can add the application
             var newApp = {
                 id: appId,
-                name: appCreateInfo.name,
+                name: appCreateInfo.name.substring(0, 128),
                 redirectUri: appCreateInfo.redirectUri,
                 owners: [
                     {
@@ -294,7 +296,7 @@ applications.createApplication = function (app, res, loggedInUserId, appCreateIn
 applications.patchApplication = function (app, res, loggedInUserId, appId, appPatchInfo) {
     debug('patchApplication(): ' + appId);
     debug(appPatchInfo);
-    
+
     var appInfo = applications.loadApplication(app, appId);
     if (!appInfo)
         return res.status(404).jsonp({ message: 'Not found: ' + appId });
@@ -314,7 +316,7 @@ applications.patchApplication = function (app, res, loggedInUserId, appId, appPa
     utils.withLockedApp(app, res, appId, function () {
         // Update app
         if (appPatchInfo.name)
-            appInfo.name = appPatchInfo.name;
+            appInfo.name = appPatchInfo.name.substring(0, 128);
         if (redirectUri)
             appInfo.redirectUri = redirectUri;
 
@@ -493,8 +495,8 @@ applications.addOwner = function (app, res, loggedInUserId, appId, ownerCreateIn
     if (!userToAdd)
         return res.status(400).jsonp({ message: 'Bad request. User with email "' + email + '" not found.' });
     if (!(ownerRoles.OWNER == role ||
-          ownerRoles.COLLABORATOR == role ||
-          ownerRoles.READER == role))
+        ownerRoles.COLLABORATOR == role ||
+        ownerRoles.READER == role))
         return res.status(400).jsonp({ message: 'Bad request. Unknown role "' + role + '".' });
 
     // Does this user already know this application?
