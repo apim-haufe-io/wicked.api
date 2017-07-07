@@ -39,3 +39,7 @@ fi
 kill -2 $TEMP_API_PID
 
 rm -rf $TMP_TEST
+
+####
+
+./run-bash-tests.sh
