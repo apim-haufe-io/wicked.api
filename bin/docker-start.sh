@@ -2,7 +2,8 @@
 
 set -e
 
-. create-git-url.sh
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+. ${DIR}/create-git-url.sh
 
 runtimeEnv=$(uname)
 
