@@ -8,6 +8,10 @@ For more information, see the main documentation repository at
 
 This README is intentionally left without content.
 
+## Test framework
+
+Integration tests can be found in the [wicked.portal-test](https://github.com/Haufe-Lexware/wicked.portal-test) repository.
+
 ## License
 
 Copyright 2016 Haufe-Lexware GmbH & Co. KG
