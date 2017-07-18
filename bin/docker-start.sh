@@ -83,6 +83,11 @@ popd
 echo "Setting owner of /var/portal-api to wicked:wicked"
 chown wicked:wicked $(find /var/portal-api | grep -v .snapshot)
 
+if [ ! -z "${MINIKUBE_IP}" ]; then
+    echo "Adding minikube IP for ${PORTAL_NETWORK_PORTALHOST} and ${PORTAL_NETWORK_APIHOST} to /etc/hosts"
+    echo ${MINIKUBE_IP} ${PORTAL_NETWORK_PORTALHOST} ${PORTAL_NETWORK_APIHOST} | tee -a /etc/hosts
+fi
+
 echo "Starting API, running as user 'wicked'..."
 
 # Use gosu to start node as the user "wicked"
