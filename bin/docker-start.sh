@@ -2,6 +2,9 @@
 
 set -e
 
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+. ${DIR}/create-git-url.sh
+
 runtimeEnv=$(uname)
 
 echo "Running as $(whoami)."
@@ -27,22 +30,15 @@ if [ ! -z "$GIT_REPO" ]; then
         exit 1
     fi
 
+	# this will create and set the GIT_URL variable
+	create_git_url $GIT_REPO $GIT_CREDENTIALS
+
     if [ -z "$GIT_BRANCH" ]; then
         echo "Checking out branch 'master'..."
-        if [ ! -z "$GIT_CREDENTIALS" ]; then
-            git clone https://${GIT_CREDENTIALS}@${GIT_REPO} .
-        else
-            echo "Assuming public repository, GIT_CREDENTIALS is empty"
-            git clone https://${GIT_REPO} .
-        fi
+        git clone ${GIT_URL} .
     else
         echo "Checking out branch '$GIT_BRANCH'..."
-        if [ ! -z "$GIT_CREDENTIALS" ]; then
-            git clone https://${GIT_CREDENTIALS}@${GIT_REPO} --branch ${GIT_BRANCH} .
-        else
-            echo "Assuming public repository, GIT_CREDENTIALS is empty"
-            git clone https://${GIT_REPO} --branch ${GIT_BRANCH} .
-        fi
+        git clone ${GIT_URL} --branch ${GIT_BRANCH} .
     fi
 
     if [ ! -z "$GIT_REVISION" ]; then
