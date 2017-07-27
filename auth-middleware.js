@@ -4,14 +4,25 @@ var debug = require('debug')('portal-api:auth-middleware');
 // ===== MIDDLEWARE =====
 
 authMiddleware.fillUserId = function (req, res, next) {
-    var kongCustomId = req.get('x-consumer-custom-id'); 
-    if (kongCustomId) {
-        req.apiUserId = kongCustomId;
-        req.kongRequest = true;
-        return next();
-    }
+    // var kongCustomId = req.get('x-consumer-custom-id'); 
+    // if (kongCustomId) {
+    //     req.apiUserId = kongCustomId;
+    //     req.kongRequest = true;
+    //     return next();
+    // }
+
     req.kongRequest = false;
-    req.apiUserId = req.get('x-userid');
+    if (req.get('x-consumer-custom-id')) {
+        req.kongRequest = true;
+    }
+
+    // This header cannot be injected _through_ Kong, but only from
+    // inside the network, which is how the wicked SDK does it to
+    // inject the user id for the machine users.
+    const authenticatedUserId = req.get('x-authenticated-userid');
+    if (authenticatedUserId)
+        req.apiUserId = authenticatedUserId;
+
     return next();
 };
 

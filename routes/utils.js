@@ -115,6 +115,12 @@ function getLastCommit(app) {
     return fs.readFileSync(commitPath, 'utf8');
 }
 
+utils.verifyScope = function (req, res, requiredScope) {
+    if (!requiredScope)
+        return true;
+    
+};
+
 utils.replaceEnvVars = function (someObject) {
     debug('replaceEnvVars()');
     replaceEnvVarsInternal(someObject);

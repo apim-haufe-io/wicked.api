@@ -1,0 +1,17 @@
+{
+  "api": {
+    "name": "portal-api",
+    "upstream_url": "${PORTAL_API_URL}",
+    "request_path": "/api/v1",
+    "strip_request_path": true
+  },
+  "plugins": [
+    {
+      "config": {
+        "header_name": "Correlation-Id",
+        "generator": "uuid"
+      },
+      "name": "correlation-id"
+    }
+  ]
+}

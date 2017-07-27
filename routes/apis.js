@@ -26,7 +26,7 @@ apis.get('/:apiId', function (req, res, next) {
 });
 
 apis.get('/:apiId/config', function (req, res, next) {
-    apis.getConfig(req.app, res, req.params.apiId);
+    apis.getConfig(req.app, res, req.apiUserId, req.params.apiId);
 });
 
 apis.get('/:apiId/desc', function (req, res, next) {
@@ -237,13 +237,26 @@ function loadApiConfig(app, apiId) {
     return configJson;
 }
 
-apis.getConfig = function (app, res, apiId) {
+apis.getConfig = function (app, res, loggedInUserId, apiId) {
     debug('getConfig(): ' + apiId);
     // Do we know this API?
     if (!apis.isValidApi(app, apiId))
         return res.status(404).jsonp({ message: 'Not found: ' + apiId });
+    if (!apis.checkAccess(app, res, loggedInUserId, apiId))
+        return;
     var configJson = loadApiConfig(app, apiId);
-    res.json(configJson);
+    var configReturn = configJson;
+    if (!users.isUserIdAdmin(app, loggedInUserId)) {
+        // Restrict what we return in case it's a non-admin user,
+        // only return the request path, not the backend URL.
+        configReturn = {
+            api: {
+                request_path: configJson.api.request_path
+            }
+        };
+    }
+
+    res.json(configReturn);
 };
 
 apis.getApiDesc = function (app, res, loggedInUserId, apiId) {

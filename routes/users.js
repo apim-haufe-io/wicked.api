@@ -60,6 +60,14 @@ users.isGoodPassword = function (password) {
     return true;
 };
 
+users.isUserIdAdmin = function (app, userId) {
+    debug('isUserIdAdmin()');
+    if (!userId)
+        return false;
+    var user = users.loadUser(app, userId);
+    return users.isUserAdmin(app, user);
+};
+
 users.isUserAdmin = function (app, user) {
     debug('isUserAdmin()');
     var groups = utils.loadGroups(app);

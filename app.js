@@ -63,7 +63,7 @@ app.use('/health', healthApi);
 // ------- PING -------
 
 app.get('/ping', function (req, res, next) {
-    res.json({ message: 'OK' });
+    res.json({ message: 'OK', version: utils.getVersion() });
 });
 
 // ------- BODYPARSER -------

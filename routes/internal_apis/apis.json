@@ -11,6 +11,32 @@
                 "__internal_health"
             ],
             "internal": true
+        },
+        {
+            "id": "portal-api",
+            "name": "Portal API",
+            "desc": "This is the API for wicked, which is used to store the entire state of the portal. Can e.g. be used for automation.",
+            "auth": "oauth2",
+            "settings": {
+                "enable_client_credentials": true,
+                "enable_implicit_grant": true,
+                "enable_authorization_code": true,
+                "enable_password_grant": true,
+                "token_expiration": "1800",
+                "scopes": ""
+            },
+            "authServers": [
+                "auth-google",
+                "idesk-auth",
+                "auth-passport"
+            ],
+            "tags": [],
+            "requiredGroup": null,
+            "plans": [
+                "__internal_api_basic",
+                "__internal_api_unlimited"
+            ],
+            "internal": true
         }
     ]
 }

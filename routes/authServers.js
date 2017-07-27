@@ -4,6 +4,7 @@ var fs = require('fs');
 var path = require('path');
 var debug = require('debug')('portal-api:auth-servers');
 var utils = require('./utils');
+var users = require('./users');
 
 var authServers = require('express').Router();
 
@@ -14,7 +15,7 @@ authServers.get('/', function (req, res, next) {
 });
 
 authServers.get('/:serverId', function (req, res, next) {
-    authServers.getAuthServer(req.app, res, req.params.serverId);
+    authServers.getAuthServer(req.app, res, req.apiUserId, req.params.serverId);
 });
 
 // ===== IMPLEMENTATION =====
@@ -54,7 +55,7 @@ authServers.getAuthServers = function (app, res) {
 };
 
 authServers._authServers = {};
-authServers.getAuthServer = function (app, res, serverId) {
+authServers.getAuthServer = function (app, res, loggedInUserId, serverId) {
     debug('getAuthServer() ' + serverId);
 
     if (!authServers._authServers[serverId]) {
@@ -84,6 +85,21 @@ authServers.getAuthServer = function (app, res, serverId) {
 
     if (!authServer.exists)
         return res.status(404).jsonp({ message: 'Not found.' });
+
+    if (!users.isUserIdAdmin(app, loggedInUserId)) {
+        // Restrict what we return in case it's a non-admin user (or no user),
+        // only return the request path, not the backend URL or any other
+        // type of information (like used plugins).
+        var tempConfig = authServer.config;
+        if (tempConfig && tempConfig.api) {
+            authServer.config = {
+                api: {
+                    request_path: tempConfig.api.request_path
+                }
+            };
+        }
+    }
+
     return res.json(authServer.data);
 };
 
