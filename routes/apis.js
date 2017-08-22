@@ -372,9 +372,9 @@ apis.getSwagger = function (app, res, loggedInUserId, apiId) {
     var globalSettings = utils.loadGlobals(app);
     var configJson = loadApiConfig(app, apiId);
 
-    if (!configJson || !configJson.api || !configJson.api.request_path)
-        return res.status(500).jsonp({ message: 'Invalid API configuration; does not contain request_path.' });
-    var requestPath = configJson.api.request_path;
+    if (!configJson || !configJson.api || !configJson.api.uris || !configJson.api.uris.length)
+        return res.status(500).jsonp({ message: 'Invalid API configuration; does not contain uris array.' });
+    var requestPath = configJson.api.uris[0];
 
     var apiList = utils.loadApis(app);
     var apiInfo = apiList.apis.find(function (anApi) { return anApi.id == apiId; });
