@@ -112,7 +112,7 @@ tags:
   - name: verifications
     description: Email verification functionality
 paths:
-  /ping:
+  '/ping':
     get:
       security:
       - accessCode: []
@@ -130,7 +130,7 @@ paths:
             properties:
               message:
                 type: string
-  /apis:
+  '/apis':
     get:
       security:
       - accessCode: ['read_apis']
@@ -158,7 +158,7 @@ paths:
                     $ref: '#/definitions/hrefType'
                   plans:
                     $ref: '#/definitions/hrefType'
-  /apis/desc:
+  '/apis/desc':
     get:
       security:
       - accessCode: ['read_apis']
@@ -301,7 +301,7 @@ paths:
           description: Not allowed (Admins only)
         404:
           description: Not found (unknown API)
-  /plans:
+  '/plans':
     get:
       security:
       - accessCode: ['read_plans']
@@ -319,7 +319,7 @@ paths:
             type: array
             items:
               $ref: '#/definitions/planType'
-  /groups:
+  '/groups':
     get:
       security:
       - accessCode: ['read_groups']
@@ -356,7 +356,7 @@ paths:
                 properties:
                   self:
                     $ref: '#/definitions/hrefType'
-  /users:
+  '/users':
     get:
       security:
       - accessCode: ['read_users']
@@ -477,7 +477,11 @@ paths:
           description: Not allowed
         '404':
           description: Not found
-  /applications:
+  '/users/{userId}/registrations':
+  
+  '/users/{userId}/registrations/{poolId}':
+  
+  '/applications':
     get:
       description: Retrieve a list of all applications (admin)
       security:
@@ -517,7 +521,7 @@ paths:
           description: Created
           schema:
             $ref: '#/definitions/applicationType'
-  /application/roles:
+  '/application/roles':
     get:
       security:
       - accessCode: ['read_applications']
@@ -811,7 +815,7 @@ paths:
           description: Succesfully updated
           schema:
             $ref: '#/definitions/subscriptionType'
-  /content/*:
+  '/content/*':
     get:
       security:
       - accessCode: ['read_content']
@@ -833,7 +837,7 @@ paths:
           description: Not allowed
         '404':
           description: Not found
-  /approvals:
+  '/approvals':
     get:
       security:
       - accessCode: ['read_approvals']
@@ -850,7 +854,7 @@ paths:
             items:
               $ref: '#/definitions/approvalType'
 
-  /verifications:
+  '/verifications':
     post:
       security:
       - clientCredentials: []
@@ -968,7 +972,7 @@ paths:
         403:
           description: Not allowed
   
-  /templates/chatbot:
+  '/templates/chatbot':
     get:
       security:
       - accessCode: ['read_templates']
@@ -1003,7 +1007,7 @@ paths:
                 type: string
               verifyEmailRequest: 
                 type: string
-  /templates/email/{templateId}:
+  '/templates/email/{templateId}':
     get:
       security:
       - accessCode: ['read_templates']
@@ -1069,7 +1073,7 @@ paths:
         404:
           description: Not found
 
-  /subscriptions/{client_id}:
+  '/subscriptions/{client_id}':
     get:
       security:
       - accessCode: ['read_subscriptions']
@@ -1096,7 +1100,7 @@ paths:
                 type: object
         404:
           description: Not found.
-  /webhooks/listeners:
+  '/webhooks/listeners':
     get:
       security:
       - accessCode: ['webhooks']
@@ -1114,7 +1118,7 @@ paths:
               $ref: '#/definitions/listenerType'
         '403':
           description: Not allowed
-  /webhooks/listeners/{listenerId}:
+  '/webhooks/listeners/{listenerId}':
     put:
       security:
       - accessCode: ['webhooks']
@@ -1158,7 +1162,7 @@ paths:
           description: Not allowed
         '404':
           description: Not found
-  /webhooks/events/{listenerId}:
+  '/webhooks/events/{listenerId}':
     get:
       security:
       - accessCode: ['webhooks']
@@ -1215,7 +1219,7 @@ paths:
         '403':
           description: Not allowed
           
-  /webhooks/events/{listenerId}/{eventId}:
+  '/webhooks/events/{listenerId}/{eventId}':
     delete:
       security:
       - accessCode: ['webhooks']
@@ -1238,6 +1242,26 @@ paths:
           description: Successfully deleted
         '403':
           description: Not allowed
+  '/registrations/{poolId}':
+    get:
+      security:
+      - accessCode: ['webhooks']
+      - implicit: ['webhooks']
+      - password: ['webhooks']
+      tags:
+      - registration
+      description: Retrieve all registrations
+      parameters:
+      - name: poolId
+        in: path
+        type: string
+        required: true
+      # TODO: Paging!
+      responses:
+        '403':
+          description: Forbiddem
+        '200':
+          description: List of registered users
 
 definitions:
   apiType:
