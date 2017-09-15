@@ -15,7 +15,7 @@ fi
 if [[ "haufelexware/wicked." == "$DOCKER_PREFIX" ]] && [[ "$1" == "--push" ]]; then
     echo "INFO: Resolving portal-env base tag for target tag ${DOCKER_TAG}..."
     docker pull haufelexware/wicked.portal-env:next-onbuild-alpine
-    export DOCKER_ENV_TAG=$(docker run -it --rm haufelexware/wicked.portal-env:next-onbuild-alpine node node_modules/portal-env/getMatchingTag.js haufelexware wicked.portal-env ${DOCKER_TAG})
+    export DOCKER_ENV_TAG=$(docker run --rm haufelexware/wicked.portal-env:next-onbuild-alpine node node_modules/portal-env/getMatchingTag.js haufelexware wicked.portal-env ${DOCKER_TAG})
     if [ -z "$DOCKER_ENV_TAG" ]; then
         echo "ERROR: Could not resolve portal-env base tag!"
         exit 1
