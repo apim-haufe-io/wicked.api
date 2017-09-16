@@ -3,3 +3,4 @@ Dockerfile-alpine
 node_modules
 docker-api.log
 docker-portal.log
+git_*
