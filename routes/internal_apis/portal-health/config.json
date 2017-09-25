@@ -2,8 +2,8 @@
   "api": {
     "name": "portal-health",
     "upstream_url": "${PORTAL_API_URL}/health",
-    "request_path": "/portal-health/v1",
-    "strip_request_path": true
+    "uris": ["/portal-health/v1"],
+    "strip_uri": true
   },
   "plugins": [
     {

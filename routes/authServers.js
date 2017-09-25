@@ -71,6 +71,13 @@ authServers.getAuthServer = function (app, res, loggedInUserId, serverId) {
         } else {
             const data = JSON.parse(fs.readFileSync(authServerFileName, 'utf8'));
             utils.replaceEnvVars(data);
+            // Name and id of the Auth Server is used to identify the generated
+            // API within the Kong Adapter; if those are missing, add them automatically
+            // to the answer.
+            if (!data.name)
+                data.name = serverId;
+            if (!data.id)
+                data.id = serverId;
             debug('Found auth server "' + serverId + '"');
             debug(data);
             authServers._authServers[serverId] = {
