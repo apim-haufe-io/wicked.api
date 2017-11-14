@@ -31,7 +31,7 @@ var app = express();
 
 app.use(function (req, res, next) {
     if (app.shuttingDown)
-        return res.status(503).json({message: 'Shutting down. Try again soon.'});
+        return res.status(503).json({ message: 'Shutting down. Try again soon.' });
     next();
 });
 app.use(correlationIdHandler);
@@ -96,7 +96,9 @@ app.use('/apis', apis);
 
 app.use('/users', users);
 app.post('/login', authMiddleware.rejectFromKong, function (req, res, next) {
-     users.getUserByEmailAndPassword(app, res, req.body.email, req.body.password);
+    const username = req.body.email || req.body.username;
+    const password = req.body.password;
+    users.getUserByEmailAndPassword(app, res, username, password);
 });
 
 // ----- SUBSCRIPTIONS -----

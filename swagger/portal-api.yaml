@@ -16,9 +16,9 @@ securityDefinitions:
   accessCode:
     type: oauth2
     # This should be updated to the Token URL of your OAuth provider.
-    tokenUrl: https://api.portal.com/portal-api/v1/oauth2/token
+    tokenUrl: https://api.portal.com/auth/local/portal-api/oauth2/token
     # This should be updated to the Authorization URL of your OAuth provider.
-    authorizationUrl: https://api.portal.com/portal-api/v1/oauth2/authorize
+    authorizationUrl: https://api.portal.com/auth/local/portal-api/oauth2/authorize
     flow: accessCode
     scopes:
       read_plans: Read plans
@@ -477,9 +477,9 @@ paths:
           description: Not allowed
         '404':
           description: Not found
-  '/users/{userId}/registrations':
+#  '/users/{userId}/registrations':
   
-  '/users/{userId}/registrations/{poolId}':
+#  '/users/{userId}/registrations/{poolId}':
   
   '/applications':
     get:
@@ -809,6 +809,8 @@ paths:
             title: SubscriptionPatch
             properties:
               approved:
+                type: boolean
+              trusted:
                 type: boolean
       responses:
         '200':
@@ -1378,6 +1380,8 @@ definitions:
         type: string
       redirectUri:
         type: string
+      confidential:
+        type: boolean
       owners:
         title: OwnerList
         type: array
@@ -1432,7 +1436,6 @@ definitions:
         enum:
           - "key-auth"
           - "oauth2"
-          - "oauth2-implicit"
       apikey:
         type: string
         description: Used if key-auth API
@@ -1443,6 +1446,8 @@ definitions:
         type: string
         description: Used if oauth2 API
       approved:
+        type: boolean
+      trusted:
         type: boolean
       _links:
         type: object
@@ -1465,6 +1470,9 @@ definitions:
         type: string
       plan:
         type: string
+      trusted:
+        description: Only an Admin can create trusted subscriptions
+        type: boolean
       apikey:
         description: Optional
         type: string

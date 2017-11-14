@@ -17,19 +17,72 @@
             "name": "Portal API",
             "desc": "This is the API for wicked, which is used to store the entire state of the portal. Can e.g. be used for automation.",
             "auth": "oauth2",
+            "authServers": [
+                "default"
+            ],
+            "authMethods": [
+                "default:local"
+            ],
             "settings": {
                 "enable_client_credentials": true,
                 "enable_implicit_grant": true,
                 "enable_authorization_code": true,
                 "enable_password_grant": true,
-                "token_expiration": "1800",
-                "scopes": ""
+                "token_expiration": "10",
+                "scopes": {
+                    "read_plans": {
+                        "description": "Read plans"
+                    },
+                    "read_groups": {
+                        "description": "Read user group definitions"
+                    },
+                    "read_content": {
+                        "description": "Read custom/markdown/HTML content"
+                    },
+                    "health": {
+                        "description": "Read out health information"
+                    },
+                    "read_templates": {
+                        "description": "Read templates"
+                    },
+                    "read_auth_servers": {
+                        "description": "Read authorization servers"
+                    },
+                    "read_apis": {
+                        "description": "Read API definitions"
+                    },
+                    "read_users": {
+                        "description": "Read user information"
+                    },
+                    "write_users": {
+                        "description": "Write user information"
+                    },
+                    "read_applications": {
+                        "description": "Read application data"
+                    },
+                    "write_applications": {
+                        "description": "Write application data"
+                    },
+                    "read_subscriptions": {
+                        "description": "Read subscriptions"
+                    },
+                    "write_subscriptions": {
+                        "description": "Write/edit/delete subscriptions"
+                    },
+                    "read_approvals": {
+                        "description": "Read pending approvals"
+                    },
+                    "read_verifications": {
+                        "description": "Read email and password verifications"
+                    },
+                    "write_verifications": {
+                        "description": "Create or delete verifications"
+                    },
+                    "webhooks": {
+                        "description": "Access and change webhooks"
+                    }
+                }
             },
-            "authServers": [
-                "auth-google",
-                "idesk-auth",
-                "auth-passport"
-            ],
             "tags": [],
             "requiredGroup": null,
             "plans": [

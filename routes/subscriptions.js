@@ -355,6 +355,8 @@ subscriptions.addSubscription = function (app, res, applications, loggedInUserId
                 debug('Subscription needs approval.');
             }
 
+            const allowTrusted = isAdmin;
+            const isTrusted = allowTrusted && subsCreateInfo.trusted;
 
             var newSubscription = {
                 id: utils.createRandomId(),
@@ -366,6 +368,7 @@ subscriptions.addSubscription = function (app, res, applications, loggedInUserId
                 clientSecret: clientSecret,
                 auth: selectedApi.auth,
                 approved: !needsApproval,
+                trusted: isTrusted,
                 changedBy: loggedInUserId,
                 changedDate: utils.getUtc(),
                 _links: {
@@ -618,7 +621,7 @@ subscriptions.patchSubscription = function (app, res, applications, loggedInUser
     var subsIndex = findSubsIndex(appSubs, apiId);
     if (subsIndex < 0)
         return res.status(404).jsonp({ message: 'Not found. Subscription to API "' + apiId + '" does not exist: ' + appId });
-    if (patchBody.approved) {
+    if (patchBody.approved || patchBody.hasOwnProperty('trusted')) {
         // We want to approve of this subscriptions
 
         utils.withLockedSubscriptions(app, res, appId, function () {
@@ -633,26 +636,36 @@ subscriptions.patchSubscription = function (app, res, applications, loggedInUser
                 if (approvalIndex >= 0)
                     approvalInfos.splice(approvalIndex, 1);
 
-                // Now set to approved
                 var thisSubs = appSubs[subsIndex];
-                thisSubs.approved = true;
-
                 // In case a clientId is created, we need to temporary store it here, too,
                 // as saveSubscriptions encrypts the ID.
                 let tempClientId = null;
                 let tempClientSecret = null;
                 let tempApiKey = null;
-                // And generate an apikey
-                if (thisSubs.auth && thisSubs.auth.startsWith("oauth2")) { // oauth2
-                    thisSubs.clientId = utils.createRandomId();
-                    tempClientId = thisSubs.clientId;
-                    thisSubs.clientSecret = utils.createRandomId();
-                    tempClientSecret = thisSubs.clientSecret;
-                } else {
-                    thisSubs.apikey = utils.createRandomId();
-                    tempApiKey = thisSubs.apikey;
-                    thisSubs.auth = "key-auth";
+
+                if (patchBody.approved) {
+
+                    // Now set to approved
+                    thisSubs.approved = true;
+
+                    // And generate an apikey
+                    if (thisSubs.auth && thisSubs.auth.startsWith("oauth2")) { // oauth2
+                        thisSubs.clientId = utils.createRandomId();
+                        tempClientId = thisSubs.clientId;
+                        thisSubs.clientSecret = utils.createRandomId();
+                        tempClientSecret = thisSubs.clientSecret;
+                    } else {
+                        thisSubs.apikey = utils.createRandomId();
+                        tempApiKey = thisSubs.apikey;
+                        thisSubs.auth = "key-auth";
+                    }
                 }
+
+                if (patchBody.hasOwnProperty('trusted')) {
+                    // This can go both ways
+                    thisSubs.trusted = !!patchBody.trusted;
+                }
+
                 thisSubs.changedBy = loggedInUserId;
                 thisSubs.changedDate = utils.getUtc();
 

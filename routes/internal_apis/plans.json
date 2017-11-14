@@ -31,7 +31,7 @@
         {
             "id": "__internal_api_unlimited",
             "name": "Portal API Unlimited Plan",
-            "desc": "Unlimited access to the Health API.",
+            "desc": "Unlimited access to the Portal API.",
             "needsApproval": false,
             "requiredGroup": "admin",
             "config": {

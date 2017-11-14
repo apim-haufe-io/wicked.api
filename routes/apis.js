@@ -251,7 +251,7 @@ apis.getConfig = function (app, res, loggedInUserId, apiId) {
         // only return the request path, not the backend URL.
         configReturn = {
             api: {
-                request_path: configJson.api.request_path
+                uris: configJson.api.uris
             }
         };
     }

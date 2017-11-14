@@ -125,7 +125,8 @@ applications.isValidRedirectUri = function (redirectUri) {
             (redirectUri.startsWith('https://') && (redirectUri !== 'https://')) ||
             (redirectUri.startsWith('http://localhost')) ||
             (redirectUri.startsWith('http://127.0.0.1')) ||
-            (redirectUri.startsWith('http://portal.local'))
+            (redirectUri.startsWith('http://portal.local')) ||
+            (redirectUri.startsWith('http://') && process.env.NODE_ENV == 'localhost') // Allow unsafe redirects for local development
         );
 };
 
@@ -243,6 +244,7 @@ applications.createApplication = function (app, res, loggedInUserId, appCreateIn
                 id: appId,
                 name: appCreateInfo.name.substring(0, 128),
                 redirectUri: appCreateInfo.redirectUri,
+                confidential: !!appCreateInfo.confidential,
                 owners: [
                     {
                         userId: userInfo.id,
@@ -319,6 +321,8 @@ applications.patchApplication = function (app, res, loggedInUserId, appId, appPa
             appInfo.name = appPatchInfo.name.substring(0, 128);
         if (redirectUri)
             appInfo.redirectUri = redirectUri;
+        if (appPatchInfo.hasOwnProperty('confidential'))
+            appInfo.confidential = !!appPatchInfo.confidential;
 
         // And persist
         applications.saveApplication(app, appInfo, loggedInUserId);
