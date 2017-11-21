@@ -20,6 +20,7 @@ var portalAgent = new https.Agent(agentOptions);
 var utils = require('./utils');
 var users = require('./users');
 var webhooks = require('./webhooks');
+var dao = require('../dao/dao');
 
 var systemhealth = function () { };
 
@@ -93,58 +94,71 @@ systemhealth.checkHealth = function (app) {
             h.push(results.kongPing);
 
             // Check our webhook listeners
-            var listeners = webhooks.loadListeners(app);
-            async.map(listeners, function (listener, callback) {
-                debug('checkHealth() - pinging ' + listener.id);
-                request.get({
-                    url: listener.url + 'ping',
-                    headers: { 'Correlation-Id': correlationId }
-                }, function (apiErr, apiResult, apiBody) {
-                    var listenerHealth = makeHealthEntry(listener.id, listener.url + 'ping', apiErr, apiResult, apiBody);
-                    callback(null, listenerHealth);
-                });
-            }, function (err, results) {
-                debug('checkHealth() - pings are done');
-
+            // var listeners = webhooks.loadListeners(app);
+            dao.webhooks.listeners.getAll((err, listeners) => {
                 if (err) {
-                    // Uuuh. This is bad.
-                    h.push({
-                        name: 'api',
-                        message: err.message,
-                        error: JSON.stringify(err, null, 2),
-                        uptime: (utils.getUtc() - systemhealth._startupSeconds),
-                        healthy: 0,
-                        pingUrl: 'http://portal-api:3001/ping',
-                        pendingEvents: -1,
-                        version: utils.getVersion(),
-                        gitLastCommit: utils.getGitLastCommit(),
-                        gitBranch: utils.getGitBranch(),
-                        buildDate: utils.getBuildDate()
-                    });
-                } else {
-                    // We think we are healthy
-                    h.push({
-                        name: 'api',
-                        message: 'Up and running',
-                        uptime: (utils.getUtc() - systemhealth._startupSeconds),
-                        healthy: 1,
-                        pingUrl: 'http://portal-api:3001/ping',
-                        pendingEvents: -1,
-                        version: utils.getVersion(),
-                        gitLastCommit: utils.getGitLastCommit(),
-                        gitBranch: utils.getGitBranch(),
-                        buildDate: utils.getBuildDate()
-                    });
-
-                    for (var i = 0; i < results.length; ++i) {
-                        // Add pending events info
-                        results[i].pendingEvents = webhooks.loadEvents(app, results[i].name).length;
-                        h.push(results[i]);
-                    }
+                    // UURGhrghgrl
+                    console.error(err);
+                    return;
                 }
+                async.map(listeners, function (listener, callback) {
+                    debug('checkHealth() - pinging ' + listener.id);
+                    request.get({
+                        url: listener.url + 'ping',
+                        headers: { 'Correlation-Id': correlationId }
+                    }, function (apiErr, apiResult, apiBody) {
+                        var listenerHealth = makeHealthEntry(listener.id, listener.url + 'ping', apiErr, apiResult, apiBody);
+                        callback(null, listenerHealth);
+                    });
+                }, function (err, results) {
+                    debug('checkHealth() - pings are done');
 
-                systemhealth._health = h;
-                debug(h);
+                    if (err) {
+                        // Uuuh. This is bad.
+                        h.push({
+                            name: 'api',
+                            message: err.message,
+                            error: JSON.stringify(err, null, 2),
+                            uptime: (utils.getUtc() - systemhealth._startupSeconds),
+                            healthy: 0,
+                            pingUrl: 'http://portal-api:3001/ping',
+                            pendingEvents: -1,
+                            version: utils.getVersion(),
+                            gitLastCommit: utils.getGitLastCommit(),
+                            gitBranch: utils.getGitBranch(),
+                            buildDate: utils.getBuildDate()
+                        });
+                    } else {
+                        // We think we are healthy
+                        h.push({
+                            name: 'api',
+                            message: 'Up and running',
+                            uptime: (utils.getUtc() - systemhealth._startupSeconds),
+                            healthy: 1,
+                            pingUrl: 'http://portal-api:3001/ping',
+                            pendingEvents: -1,
+                            version: utils.getVersion(),
+                            gitLastCommit: utils.getGitLastCommit(),
+                            gitBranch: utils.getGitBranch(),
+                            buildDate: utils.getBuildDate()
+                        });
+
+                        async.map(results, (result, callback) => {
+                            dao.webhooks.events.getByListener(result.name, (err, pendingEvents) => {
+                                result.pendingEvents = pendingEvents;
+                                h.push(result);
+                                callback(null);
+                            });
+                        }, (err, results) => {
+                            if (err) {
+                                console.error(err);
+                            }
+                            systemhealth._health = h;
+                            debug(h);
+                        });
+                    }
+
+                });
             });
         }
     });
@@ -218,11 +232,14 @@ systemhealth.getSystemHealthInternal = function (app) {
 
 systemhealth.getSystemHealth = function (app, res, loggedInUserId) {
     debug('getSystemHealth()');
-    var userInfo = users.loadUser(app, loggedInUserId);
-    if (!userInfo ||
-        !userInfo.admin)
-        return res.status(403).jsonp({ message: 'Not allowed. Only Admins may do this.' });
-    return res.json(systemhealth._health);
+    users.loadUser(app, loggedInUserId, (err, userInfo) => {
+        if (err)
+            return utils.fail(res, 500, 'getSystemHealth: loadUser failed', err);
+        if (!userInfo ||
+            !userInfo.admin)
+            return utils.fail(res, 403, 'Not allowed. Only Admins may do this.');
+        return res.json(systemhealth._health);
+    });
 };
 
 module.exports = systemhealth;

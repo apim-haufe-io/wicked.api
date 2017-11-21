@@ -19,15 +19,20 @@ var webhooks = require('./routes/webhooks');
 var verifications = require('./routes/verifications');
 var systemhealth = require('./routes/systemhealth');
 var templates = require('./routes/templates');
-var deploy = require('./routes/deploy');
+// var deploy = require('./routes/deploy');
 var kill = require('./routes/kill');
 var authServers = require('./routes/authServers');
 var versionizer = require('./routes/versionizer');
+var pgUtils = require('./dao/postgres/pg-utils');
 
 //var routes = require('./routes/index');
 //var users = require('./routes/users');
 
 var app = express();
+
+// Inject app to various places.
+pgUtils.init(app);
+utils.init(app);
 
 app.use(function (req, res, next) {
     if (app.shuttingDown)
@@ -52,9 +57,9 @@ if (app.get('env') == 'development') {
     app.use(logger('{"date":":date[clf]","method":":method","url":":url","remote-addr":":remote-addr","user-id":":user-id","version":":http-version","status":":status","content-length":":res[content-length]","referrer":":referrer","response-time":":response-time","correlation-id":":correlation-id"}'));
 }
 
-// ------- DEPLOYMENT - IMPORT/EXPORT -------
-
-app.use('/deploy', deploy);
+// // ------- DEPLOYMENT - IMPORT/EXPORT -------
+// 
+// app.use('/deploy', deploy);
 
 // ------- HEALTH API -------
 

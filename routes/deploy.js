@@ -13,6 +13,7 @@ var async = require('async');
 
 var deploy = require('express').Router();
 
+/*
 // ===== MIDDLEWARE =====
 
 // All /deploy end points need an "Authorization" header which has to contain the deployment
@@ -211,14 +212,7 @@ function doExport(app) {
 
         debug('Export finished successfully.');
         setNewStatus(app, deploy.DONE, 'Finished export');
-        // Notify
-        // This will not work, as we have a global lock in place!
-        /*
-        webhooks.logEvent(app, {
-            entity: webhooks.ENTITY_EXPORT,
-            action: webhooks.ACTION_DONE
-        });
-        */
+
         return;
     });
 }
@@ -689,5 +683,6 @@ function sendBinary(res, fileName) {
         });
     });
 }
+*/
 
 module.exports = deploy;

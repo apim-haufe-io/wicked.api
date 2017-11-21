@@ -25,7 +25,7 @@ authServers.getAuthServers = function (app, res) {
     debug('getAuthServers()');
     if (!authServers._authServerNames) {
         try {
-            const staticDir = utils.getStaticDir(app);
+            const staticDir = utils.getStaticDir();
             const authServerDir = path.join(staticDir, 'auth-servers');
             debug('Checking directory ' + authServerDir + ' for auth servers.');
             if (!fs.existsSync(authServerDir)) {
@@ -59,7 +59,7 @@ authServers.getAuthServer = function (app, res, loggedInUserId, serverId) {
     debug('getAuthServer() ' + serverId);
 
     if (!authServers._authServers[serverId]) {
-        const staticDir = utils.getStaticDir(app);
+        const staticDir = utils.getStaticDir();
         const authServerFileName = path.join(staticDir, 'auth-servers', serverId + '.json');
 
         if (!fs.existsSync(authServerFileName)) {
@@ -91,23 +91,25 @@ authServers.getAuthServer = function (app, res, loggedInUserId, serverId) {
     const authServer = authServers._authServers[serverId];
 
     if (!authServer.exists)
-        return res.status(404).jsonp({ message: 'Not found.' });
+        return utils.fail(res, 404, 'Not found.');
 
-    if (!users.isUserIdAdmin(app, loggedInUserId)) {
-        // Restrict what we return in case it's a non-admin user (or no user),
-        // only return the request path, not the backend URL or any other
-        // type of information (like used plugins).
-        var tempConfig = authServer.config;
-        if (tempConfig && tempConfig.api) {
-            authServer.config = {
-                api: {
-                    request_path: tempConfig.api.request_path
-                }
-            };
+    users.isUserIdAdmin(app, loggedInUserId, (err, isAdmin) => {
+        if (!isAdmin) {
+            // Restrict what we return in case it's a non-admin user (or no user),
+            // only return the request path, not the backend URL or any other
+            // type of information (like used plugins).
+            var tempConfig = authServer.config;
+            if (tempConfig && tempConfig.api) {
+                authServer.config = {
+                    api: {
+                        request_path: tempConfig.api.request_path
+                    }
+                };
+            }
         }
-    }
 
-    return res.json(authServer.data);
+        return res.json(authServer.data);
+    });
 };
 
 module.exports = authServers;

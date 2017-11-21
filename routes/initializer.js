@@ -11,83 +11,38 @@ var users = require('./users');
 var applications = require('./applications');
 var subscriptions = require('./subscriptions');
 
+var dao = require('../dao/dao');
+
 var initializer = function () { };
 
-function cleanupDir(dir) {
-    debug('cleanupDir(): ' + dir);
-    var fileList = [];
-    gatherLockFiles(dir, fileList);
-
-    for (var i = 0; i < fileList.length; ++i) {
-        debug('cleanupDir: Deleting ' + fileList[i]);
-        fs.unlinkSync(fileList[i]);
-    }
-}
-
-function gatherLockFiles(dir, fileList) {
-    var fileNames = fs.readdirSync(dir);
-    for (var i = 0; i < fileNames.length; ++i) {
-        var fileName = path.join(dir, fileNames[i]);
-        var stat = fs.statSync(fileName);
-        if (stat.isDirectory())
-            gatherLockFiles(fileName, fileList);
-        if (stat.isFile()) {
-            if (fileName.endsWith('.lock') &&
-                !fileName.endsWith('global.lock')) {
-                debug("Found lock file " + fileName);
-                fileList.push(fileName);
-            }
-        }
-    }
-}
-
-function cleanupLockFiles(app, glob, callback) {
-    debug('cleanupLockFiles()');
-    let error = null;
-    try {
-        const dynDir = app.get('dynamic_config');
-        cleanupDir(dynDir);
-        if (utils.hasGlobalLock(app))
-            utils.globalUnlock(app);
-        debug("checkForLocks() Done.");
-    } catch (err) {
-        console.error(err);
-        console.error(err.stack);
-        error = err;
-    }
-    callback(error);
-}
-
-initializer.hasLockFiles = function (app) {
-    debug('hasLockFiles()');
-    var fileList = [];
-    gatherLockFiles(app.get('dynamic_config'), fileList);
-    return (fileList.length > 0);
-};
-
-initializer.checkDynamicConfig = function (app, callback) {
+initializer.checkDynamicConfig = (callback) => {
     debug('checkDynamicConfig()');
 
-    var glob = utils.loadGlobals(app);
+    var glob = utils.loadGlobals();
 
-    var checks = [
-        cleanupSubscriptionIndex,
-        cleanupSubscriptionApiIndex,
-        checkDynamicConfigDir,
-        cleanupLockFiles,
-        addInitialUsers,
-        checkApiPlans,
-        checkSubscriptions
-    ];
+    // Get checking functions from the DAO
+    const daoChecks = dao.meta.getInitChecks();
+
+    const checks = [];
+    for (let i = 0; i < daoChecks.length; ++i)
+        checks.push(daoChecks[i]);
+
+    checks.push(addInitialUsers);
+    checks.push(checkApiPlans);
+    checks.push(checkSubscriptions);
 
     async.mapSeries(checks,
         function (checkFunction, callback) {
             // Make sure we're async.
             process.nextTick(function () {
-                checkFunction(app, glob, callback);
+                checkFunction(glob, callback);
             });
         },
         function (err, results) {
+            if (err) {
+                console.error(err);
+            }
+
             var checkResults = [];
             for (var i = 0; i < results.length; ++i) {
                 if (results[i]) {
@@ -101,175 +56,46 @@ initializer.checkDynamicConfig = function (app, callback) {
         });
 };
 
-function isExistingDir(dirPath) {
-    if (!fs.existsSync(dirPath))
-        return false;
-    let dirStat = fs.statSync(dirPath);
-    return dirStat.isDirectory();
-}
-
-function getSubscriptionIndexDir(app) {
-    const dynamicDir = utils.getDynamicDir(app);
-    return path.join(dynamicDir, 'subscription_index');
-}
-
-function cleanupDirectory(app, dirName, callback) {
-    debug('cleanupDirectory(): ' + dirName);
-    try {
-        let dynamicDir = utils.getDynamicDir(app);
-        if (!isExistingDir(dynamicDir))
-            return callback(null); // We don't even have a dynamic dir yet; fine.
-        let subIndexDir = path.join(dynamicDir, dirName);
-        if (!isExistingDir(subIndexDir))
-            return callback(null); // We don't have that directory yet, that's fine
-
-        // Now we know we have a dirName directory.
-        // Let's kill all files in there, as we'll rebuild this index anyway.
-        let filenameList = fs.readdirSync(subIndexDir);
-        for (let i = 0; i < filenameList.length; ++i) {
-            const filename = path.join(subIndexDir, filenameList[i]);
-            fs.unlinkSync(filename);
-        }
-        callback(null);
-    } catch (err) {
-        callback(err);
-    }
-}
-
-function cleanupSubscriptionIndex(app, glob, callback) {
-    debug('cleanupSubscriptionIndex()');
-    cleanupDirectory(app, 'subscription_index', callback);
-}
-
-function cleanupSubscriptionApiIndex(app, glob, callback) {
-    debug('cleanupSubscriptionApiIndex()');
-    cleanupDirectory(app, 'subscription_api_index', callback);
-}
-
-function checkDynamicConfigDir(app, glob, callback) {
-    debug('checkDynamicConfigDir()');
-
-    const neededFiles = [
-        {
-            dir: 'applications',
-            file: '_index.json'
-        },
-        {
-            dir: 'approvals',
-            file: '_index.json'
-        },
-        {
-            dir: 'subscriptions',
-            file: 'dummy'
-        },
-        {
-            dir: 'subscription_index',
-            file: 'dummy'
-        },
-        {
-            dir: 'subscription_api_index',
-            file: 'dummy'
-        },
-        {
-            dir: 'users',
-            file: '_index.json'
-        },
-        {
-            dir: 'verifications',
-            file: '_index.json'
-        },
-        {
-            dir: 'webhooks',
-            file: '_listeners.json'
-        }
-    ];
-    try {
-        let dynamicDir = utils.getDynamicDir(app);
-        if (!isExistingDir(dynamicDir)) {
-            debug('Creating dynamic base directory ' + dynamicDir);
-            fs.mkdirSync(dynamicDir);
-        }
-
-        for (let fileDescIndex in neededFiles) {
-            let fileDesc = neededFiles[fileDescIndex];
-            let subDir = path.join(dynamicDir, fileDesc.dir);
-            if (!isExistingDir(subDir)) {
-                debug('Creating dynamic directory ' + fileDesc.dir);
-                fs.mkdirSync(subDir);
-            }
-            let fileName = path.join(subDir, fileDesc.file);
-            if (!fs.existsSync(fileName)) {
-                debug('Creating file ' + fileName + ' with empty array.');
-                fs.writeFileSync(fileName, JSON.stringify([], null, 2), 'utf8');
-            }
-        }
-
-        callback(null);
-    } catch (err) {
-        callback(err);
-    }
-}
-
-function addInitialUsers(app, glob, callback) {
+function addInitialUsers(glob, callback) {
     debug('addInitialUsers()');
     var error = null;
-    try {
-        if (!glob.initialUsers) {
-            debug('Global config does not contain initial users.');
-            return;
-        }
+    if (!glob.initialUsers) {
+        debug('Global config does not contain initial users.');
+        return;
+    }
 
-        var userIndex = users.loadUserIndex(app);
-        var doneSomething = false;
-        for (var i = 0; i < glob.initialUsers.length; ++i) {
-            var thisUser = glob.initialUsers[i];
-            var userInfo = users.loadUser(app, glob.initialUsers[i].id);
+    async.mapSeries(glob.initialUsers, (thisUser, callback) => {
+        dao.users.getById(thisUser.id, (err, userInfo) => {
+            if (err)
+                return callback(err);
             if (userInfo) {
                 debug('User "' + thisUser.email + "' already exists.");
-                continue;
+                return callback(null);
             }
-            doneSomething = true;
-            debug('Creating user "' + thisUser.email + '".');
-            const indexEntry = {
-                id: thisUser.id,
-                name: thisUser.firstName + ' ' + thisUser.lastName,
-                email: thisUser.email.toLowerCase()
-            };
-            // Allow predefined custom IDs, e.g. for immediate GitHub user admins
-            if (thisUser.customId)
-                indexEntry.customId = thisUser.customId;
 
-            userIndex.push(indexEntry);
-
-            if (thisUser.password) {
-                if (!thisUser.customId)
-                    thisUser.password = bcrypt.hashSync(thisUser.password);
-                else
-                    console.error('Initial user with ID ' + thisUser.id + ' has both password and customId; password NOT added.');
+            if (thisUser.password && thisUser.customId) {
+                console.error('Initial user with ID ' + thisUser.id + ' has both password and customId; password NOT added.');
+                delete thisUser.password;
             }
             thisUser.applications = [];
             thisUser.validated = true;
 
-            users.saveUser(app, thisUser, '1');
-        }
-        if (doneSomething)
-            users.saveUserIndex(app, userIndex);
-    } catch (err) {
-        console.error(err);
-        console.error(err.stack);
-        error = err;
-    }
-
-    callback(error);
+            dao.users.create(thisUser, callback);
+        });
+    }, (err) => {
+        // This does not generate any messages; it either fails,
+        // or it succeeds.
+        return callback(err);
+    });
 }
 
-function checkApiPlans(app, glob, callback) {
+function checkApiPlans(glob, callback) {
     debug('checkApiPlans()');
     var error = null;
     var messages = [];
     try {
-        var apis = utils.loadApis(app);
-        var plans = utils.loadPlans(app);
+        var apis = utils.loadApis();
+        var plans = utils.loadPlans();
 
         var planMap = buildPlanMap(plans);
 
@@ -292,18 +118,30 @@ function checkApiPlans(app, glob, callback) {
     callback(error, resultMessages);
 }
 
-function checkSubscriptions(app, glob, callback) {
+// I think this is one of the worst functions I have ever written.
+// No, seriously, it's horrible. It's full of side effects and bad
+// hacks. It does some very useful checks, like ensuring that all
+// subscriptions are pointing to (a) an API and (b) a plan which is
+// still present.
+//
+// As a side effect, if you're using the JSON DAO, it rebuilds the
+// index of subscriptions. And that's really really hacky.
+function checkSubscriptions(glob, callback) {
     debug('checkSubscriptions()');
-    let error = null;
+
     const messages = [];
-    try {
-        const apis = utils.loadApis(app);
-        const plans = utils.loadPlans(app);
 
-        const apiMap = buildApiMap(apis);
-        const planMap = buildPlanMap(plans);
+    const apis = utils.loadApis();
+    const plans = utils.loadPlans();
 
-        const apps = applications.loadAppsIndex(app);
+    const apiMap = buildApiMap(apis);
+    const planMap = buildPlanMap(plans);
+
+    // Work on 100 applications at once
+    const PAGE = 100;
+    dao.applications.getCount((err, appCount) => {
+        if (err)
+            return callback(err);
 
         // Closures are perversly useful.
         const check = function (subsCheck, subs) {
@@ -314,34 +152,52 @@ function checkSubscriptions(app, glob, callback) {
             }
         };
 
-        const subsIndexDir = getSubscriptionIndexDir(app);
+        const loops = Math.ceil(appCount / PAGE);
+        async.timesSeries(loops, (loop, callback) => {
+            const offset = loop * PAGE;
+            dao.applications.getIndex(offset, PAGE, (err, apps) => {
+                if (err)
+                    return callback(err);
+                async.map(apps, (thisApp, callback) => {
+                    debug(thisApp);
+                    dao.subscriptions.getByAppId(thisApp.id, (err, subs) => {
+                        if (err)
+                            return callback(err);
+                        check(thatPlanIsValid, subs);
+                        check(thatApiIsValid, subs);
+                        check(thatApiPlanIsValid, subs);
+                        // Waaa, thisApi.subscriptions is filled here by side-effect
+                        check(thatApiIndexIsWritten, subs);
+                        // This is only necessary for the JSON DAO, and
+                        // it is synchronous.
+                        dao.subscriptions.legacyWriteSubsIndex(thisApp, subs);
 
-        for (let i = 0; i < apps.length; ++i) {
-            const thisApp = apps[i];
-            const subs = subscriptions.loadSubscriptions(app, thisApp.id);
-            check(thatPlanIsValid, subs);
-            check(thatApiIsValid, subs);
-            check(thatApiPlanIsValid, subs);
-            check(thatApiIndexIsWritten, subs);
-            writeSubsIndex(app, subsIndexDir, thisApp, subs);
-        }
+                        // Yay
+                        callback(null);
+                    });
+                }, callback);
+            });
+        }, (err) => {
+            if (err) {
+                console.error(err);
+                console.error(err.stack);
+            }
+            var resultMessages = null;
+            if (messages.length > 0)
+                resultMessages = messages;
 
-        // Finish by writing the API to Application index
-        for (let i = 0; i < apis.apis.length; ++i) {
-            const thisApi = apis.apis[i];
-            subscriptions.saveSubscriptionApiIndex(app, thisApi.id, thisApi.subscriptions);
-            delete thisApi.subscriptions;
-        }
-    } catch (err) {
-        console.error(err);
-        console.error(err.stack);
-        error = err;
-    }
+            // This is legacy functionality which is not necessary for future DAOs,
+            // but we will need to keep it in for now.
+            // Finish by writing the API to Application index
+            for (let i = 0; i < apis.apis.length; ++i) {
+                const thisApi = apis.apis[i];
+                dao.subscriptions.legacySaveSubscriptionApiIndex(thisApi.id, thisApi.subscriptions);
+                delete thisApi.subscriptions;
+            }
 
-    var resultMessages = null;
-    if (messages.length > 0)
-        resultMessages = messages;
-    callback(error, resultMessages);
+            callback(err, resultMessages); // err may be null, hopefully is, actually
+        });
+    });
 }
 
 function buildApiMap(apis) {
@@ -399,21 +255,6 @@ function thatApiIndexIsWritten(apis, plans, sub) {
         plan: sub.plan
     });
     return null;
-}
-
-function writeSubsIndex(app, subsIndexDir, thisApp, subs) {
-    for (var i = 0; i < subs.length; ++i) {
-        const thisSub = subs[i];
-        // Write subs index by client ID
-        if (!thisSub.clientId)
-            continue;
-        const clientId = thisSub.clientId;
-        const fileName = path.join(subsIndexDir, clientId + '.json');
-        fs.writeFileSync(fileName, JSON.stringify({
-            application: thisSub.application,
-            api: thisSub.api
-        }, null, 2), 'utf8');
-    }
 }
 
 module.exports = initializer;

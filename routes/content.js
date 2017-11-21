@@ -65,7 +65,7 @@ function addApisToToc(app, toc) {
 }
 
 function addContentToToc(app, toc) {
-    var contentBase = path.join(utils.getStaticDir(app), 'content');
+    var contentBase = path.join(utils.getStaticDir(), 'content');
 
     addContentDirToToc(app, contentBase, '/content/', toc);
 }
@@ -112,6 +112,7 @@ function addContentDirToToc(app, dir, uriPart, toc) {
 }
 
 content.getToc = function (app, res, loggedInUserId) {
+    debug('getToc()');
     if (!content._toc)
         return res.status(500).json({ message: 'Internal Server Error. Table of Content not initialized.' });
 
@@ -123,18 +124,26 @@ content.getToc = function (app, res, loggedInUserId) {
         groupRights[groups.groups[i].id] = false;
     }
     if (loggedInUserId) {
-        var userInfo = users.loadUser(app, loggedInUserId);
-        if (!userInfo)
-            return res.status(400).json({ message: 'Bad Request. Unknown User ID.' });
-
-        if (userInfo.groups) {
-            for (let i = 0; i < groups.groups.length; ++i) {
-                var groupId = groups.groups[i].id;
-                groupRights[groupId] = users.hasUserGroup(app, userInfo, groupId);
+        users.loadUser(app, loggedInUserId, (err, userInfo) => {
+            if (err)
+                return utils.fail(res, 500, 'getToc: loadUser failed', err);
+            if (!userInfo)
+                return utils.fail(res, 400, 'Bad Request. Unknown User ID.');
+            if (userInfo.groups) {
+                for (let i = 0; i < groups.groups.length; ++i) {
+                    var groupId = groups.groups[i].id;
+                    groupRights[groupId] = users.hasUserGroup(app, userInfo, groupId);
+                }
             }
-        }
+            return res.json(filterToc(groupRights));
+        });
+    } else {
+        // No group rights (empty set {})
+        res.json(filterToc(groupRights));
     }
+};
 
+function filterToc(groupRights) {
     var userToc = [];
     for (let i = 0; i < content._toc.length; ++i) {
         var tocEntry = content._toc[i];
@@ -147,9 +156,8 @@ content.getToc = function (app, res, loggedInUserId) {
         if (addThis)
             userToc.push(tocEntry);
     }
-
-    res.json(userToc);
-};
+    return userToc;
+}
 
 content.isPublic = function (uriName) {
     return uriName.endsWith('jpg') ||
@@ -181,7 +189,7 @@ content.getContent = function (app, res, loggedInUserId, pathUri) {
 
     // QUICK AND DIRTY?!
     var contentPath = pathUri.replace('/', path.sep);
-    var staticDir = utils.getStaticDir(app);
+    var staticDir = utils.getStaticDir();
 
     var filePath = path.join(staticDir, 'content', contentPath);
 
@@ -225,21 +233,30 @@ content.getContent = function (app, res, loggedInUserId, pathUri) {
         metaInfo = JSON.parse(fs.readFileSync(metaName, 'utf8'));
     }
     if (metaInfo.requiredGroup) {
-        var userInfo = users.loadUser(app, loggedInUserId);
-        if (!userInfo || // requiredGroup but no user, can't be right
-            !users.hasUserGroup(app, userInfo, metaInfo.requiredGroup))
-            return res.status(403).jsonp({ message: 'Not allowed.' });
+        users.loadUser(app, loggedInUserId, (err, userInfo) => {
+            if (err)
+                return utils.fail(res, 500, 'getContent: loadUser failed', err);
+            if (!userInfo || // requiredGroup but no user, can't be right
+                !users.hasUserGroup(app, userInfo, metaInfo.requiredGroup))
+                return utils.fail(res, 403, 'Not allowed.');
+            sendContent(res, metaInfo, fileName, contentType);
+        });
+    } else {
+        sendContent(res, metaInfo, fileName, contentType);
     }
+};
 
+function sendContent(res, metaInfo, fileName, contentType) {
+    debug('sendContent()');
     // Yay! We're good!
     var metaInfo64 = new Buffer(JSON.stringify(metaInfo)).toString("base64");
     fs.readFile(fileName, function (err, content) {
         if (err)
-            return res.status(500).jsonp({ message: 'Unexpected error: ' + err });
+            return utils.fail(res, 500, 'Unexpected error', err);
         res.setHeader('X-MetaInfo', metaInfo64);
         res.setHeader('Content-Type', contentType);
         res.send(content);
     });
-};
+}
 
 module.exports = content;

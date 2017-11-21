@@ -2,6 +2,8 @@
 
 var systemhealth = require('./systemhealth');
 var users = require('./users');
+var utils = require('./utils');
+
 var healthApi = require('express').Router();
 
 // ===== MIDDLEWARE =====
@@ -11,11 +13,16 @@ healthApi.use(function (req, res, next) {
         return res.status(403).json({ message: 'Not Allowed.' });
     var customId = req.get('x-consumer-custom-id');
     if (customId) {
-        var userInfo = users.loadUser(req.app, customId);
-        if (userInfo)
-            return res.status(404).json({ message: 'Not found.' });
+        users.loadUser(req.app, customId, (err, userInfo) => {
+            if (err)
+                return utils.fail(res, 500, 'healthApi: loadUser failed', err);
+            if (userInfo)
+                return res.status(404).json({ message: 'Not found.' });
+            next();
+        });
+    } else {
+        next();
     }
-    next();
 });
 
 // ===== ENDPOINTS =====

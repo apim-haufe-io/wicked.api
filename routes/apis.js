@@ -11,6 +11,9 @@ var subscriptions = require('./subscriptions');
 
 var apis = require('express').Router();
 
+var dao = require('../dao/dao');
+var daoUtils = require('../dao/dao-utils');
+
 // ===== ENDPOINTS =====
 
 apis.get('/', function (req, res, next) {
@@ -56,16 +59,22 @@ apis.getApis = function (app, res, loggedInUserId) {
     var isAdmin = false;
 
     if (loggedInUserId) {
-        var user = users.loadUser(app, loggedInUserId);
-        if (!user)
-            return res.status(403).jsonp({ message: 'Not allowed. User unknown.' });
-        isAdmin = users.isUserAdmin(app, user);
-        if (!isAdmin)
-            userGroups = user.groups;
+        users.loadUser(app, loggedInUserId, (err, userInfo) => {
+            if (!userInfo)
+                return res.status(403).jsonp({ message: 'Not allowed. User unknown.' });
+            isAdmin = daoUtils.isUserAdmin(userInfo);
+            if (!isAdmin)
+                userGroups = userInfo.groups;
+            return res.json(filterApiList(isAdmin, userGroups, apiList));
+        });
+    } else {
+        return res.json(filterApiList(isAdmin, userGroups, apiList));
     }
+};
 
+function filterApiList(isAdmin, userGroups, apiList) {
     if (isAdmin)
-        return res.json(apiList);
+        return apiList;
 
     var groupDict = {};
     for (let i = 0; i < userGroups.length; ++i) {
@@ -87,12 +96,12 @@ apis.getApis = function (app, res, loggedInUserId) {
             filteredApiList.push(api);
     }
 
-    res.json({ apis: filteredApiList });
-};
+    return { apis: filteredApiList };
+}
 
 apis.getDesc = function (app, res) {
     debug('getDesc()');
-    var staticDir = utils.getStaticDir(app);
+    var staticDir = utils.getStaticDir();
     var apisDir = path.join(staticDir, 'apis');
     var descFileName = path.join(apisDir, 'desc.md');
 
@@ -119,8 +128,10 @@ apis.isValidApi = function (app, apiId) {
     return (apiIndex >= 0);
 };
 
-apis.checkAccess = function (app, res, userId, apiId) {
+apis.checkAccess = function (app, res, userId, apiId, callback) {
     debug('checkAccess(), userId: ' + userId + ', apiId: ' + apiId);
+    if (!callback || typeof (callback) !== 'function')
+        return callback(utils.makeError(500, 'checkAccess: callback is null or not a function'));
     var apiList = utils.loadApis(app);
     // Is it a valid API id?
     var apiIndex = -1;
@@ -132,96 +143,100 @@ apis.checkAccess = function (app, res, userId, apiId) {
     }
     if (apiIndex < 0) {
         // Not, it's not.
-        res.status(404).jsonp({ message: 'Not found: ' + apiId });
-        return false;
+        return callback(utils.makeError(404, 'Not found.'));
     }
     // Check for the user
-    var userInfo = null;
-    if (userId) {
-        userInfo = users.loadUser(app, userId);
-        if (!userInfo) {
-            res.status(403).jsonp({ message: 'Not allowed. Invalid user.' });
-            return false;
+    users.loadUser(app, userId, (err, userInfo) => {
+        if (err)
+            return callback(err);
+        if (userId) {
+            if (!userInfo) {
+                return callback(utils.makeError(403, 'Not allowed. Invalid user.'));
+            }
         }
-    }
-    var selectedApi = apiList.apis[apiIndex];
-    if (!selectedApi.requiredGroup) // Public
-        return true;
+        var selectedApi = apiList.apis[apiIndex];
+        if (!selectedApi.requiredGroup) // Public
+            return callback(null, true);
 
-    // If we didn't have a logged in user, we're out
-    if (!userInfo) {
-        res.status(403).jsonp({ message: 'Not allowed. API is restricted.' });
-        return false;
-    }
+        // If we didn't have a logged in user, we're out
+        if (!userInfo) {
+            return callback(utils.makeError(403, 'Not allowed. API is restricted.'));
+        }
 
-    for (let i = 0; i < userInfo.groups.length; ++i) {
-        if (userInfo.groups[i] == selectedApi.requiredGroup)
-            return true;
-    }
+        for (let i = 0; i < userInfo.groups.length; ++i) {
+            if (userInfo.groups[i] == selectedApi.requiredGroup)
+                return callback(null, true);
+        }
 
-    // We're still here... Admin the last resort
-    if (users.isUserAdmin(app, userInfo))
-        return true;
+        // We're still here... Admin the last resort
+        if (daoUtils.isUserAdmin(userInfo))
+            return callback(null, true);
 
-    // Nope. Not allowed.
-    res.status(403).jsonp({ message: 'Not allowed. Insufficient rights.' });
-    return false;
+        // Nope. Not allowed.
+        return callback(utils.makeError(403, 'Not allowed. Insufficient rights.'));
+    });
 };
 
 apis.getApi = function (app, res, loggedInUserId, apiId) {
     debug('getApi(): ' + apiId);
-    if (!apis.checkAccess(app, res, loggedInUserId, apiId))
-        return;
-
-    var apiList = utils.loadApis(app);
-    var apiIndex = -1;
-    for (var i = 0; i < apiList.apis.length; ++i) {
-        if (apiList.apis[i].id == apiId) {
-            apiIndex = i;
-            break;
+    apis.checkAccess(app, res, loggedInUserId, apiId, (err) => {
+        if (err)
+            return utils.fail(res, 403, 'Access denied', err);
+        var apiList = utils.loadApis(app);
+        var apiIndex = -1;
+        for (var i = 0; i < apiList.apis.length; ++i) {
+            if (apiList.apis[i].id == apiId) {
+                apiIndex = i;
+                break;
+            }
         }
-    }
-    res.json(apiList.apis[apiIndex]);
+        res.json(apiList.apis[apiIndex]);
+    });
 };
 
 apis.getApiPlans = function (app, res, loggedInUserId, apiId) {
     debug('getApiPlans(): ' + apiId);
-    if (!apis.checkAccess(app, res, loggedInUserId, apiId))
-        return;
-    var apiList = utils.loadApis(app);
-    var apiIndex = -1;
-    for (let i = 0; i < apiList.apis.length; ++i) {
-        if (apiList.apis[i].id == apiId) {
-            apiIndex = i;
-            break;
+    apis.checkAccess(app, res, loggedInUserId, apiId, (err) => {
+        if (err)
+            return utils.fail(res, 403, 'Access denied', err);
+        var apiList = utils.loadApis(app);
+        var apiIndex = -1;
+        for (let i = 0; i < apiList.apis.length; ++i) {
+            if (apiList.apis[i].id == apiId) {
+                apiIndex = i;
+                break;
+            }
         }
-    }
-    if (apiIndex < 0)
-        return res.status(404).jsonp({ message: 'API not found:' + apiId });
-    var selectedApi = apiList.apis[apiIndex];
-    var allPlans = utils.loadPlans(app);
-    var planMap = {};
-    for (var i = 0; i < allPlans.plans.length; ++i)
-        planMap[allPlans.plans[i].id] = allPlans.plans[i];
-    var apiPlans = [];
-    var userInfo = users.loadUser(app, loggedInUserId);
-    if (userInfo) {
-        for (let i = 0; i < selectedApi.plans.length; ++i) {
-            var plan = planMap[selectedApi.plans[i]];
-            if (!plan.requiredGroup ||
-                (plan.requiredGroup && users.hasUserGroup(app, userInfo, plan.requiredGroup)))
-                apiPlans.push(plan);
-        }
-        res.json(apiPlans);
-    } else {
-        // No plans when not logged in.
-        res.json([]);
-    }
+        if (apiIndex < 0)
+            return res.status(404).jsonp({ message: 'API not found:' + apiId });
+        var selectedApi = apiList.apis[apiIndex];
+        var allPlans = utils.loadPlans(app);
+        var planMap = {};
+        for (var i = 0; i < allPlans.plans.length; ++i)
+            planMap[allPlans.plans[i].id] = allPlans.plans[i];
+        var apiPlans = [];
+        users.loadUser(app, loggedInUserId, (err, userInfo) => {
+            if (err)
+                return utils.fail(res, 500, 'could not load user', err);
+            if (userInfo) {
+                for (let i = 0; i < selectedApi.plans.length; ++i) {
+                    var plan = planMap[selectedApi.plans[i]];
+                    if (!plan.requiredGroup ||
+                        (plan.requiredGroup && users.hasUserGroup(app, userInfo, plan.requiredGroup)))
+                        apiPlans.push(plan);
+                }
+                res.json(apiPlans);
+            } else {
+                // No plans when not logged in.
+                res.json([]);
+            }
+        });
+    });
 };
 
 function loadApiConfig(app, apiId) {
     debug('loadApiConfig()');
-    var staticDir = utils.getStaticDir(app);
+    var staticDir = utils.getStaticDir();
     var configFileName = path.join(staticDir, 'apis', apiId, 'config.json');
     // Default to empty but valid json.
     var configJson = {};
@@ -241,39 +256,45 @@ apis.getConfig = function (app, res, loggedInUserId, apiId) {
     debug('getConfig(): ' + apiId);
     // Do we know this API?
     if (!apis.isValidApi(app, apiId))
-        return res.status(404).jsonp({ message: 'Not found: ' + apiId });
-    if (!apis.checkAccess(app, res, loggedInUserId, apiId))
-        return;
-    var configJson = loadApiConfig(app, apiId);
-    var configReturn = configJson;
-    if (!users.isUserIdAdmin(app, loggedInUserId)) {
-        // Restrict what we return in case it's a non-admin user,
-        // only return the request path, not the backend URL.
-        configReturn = {
-            api: {
-                uris: configJson.api.uris
+        return utils.fail(res, 404, 'Not found: ' + apiId);
+    apis.checkAccess(app, res, loggedInUserId, apiId, (err) => {
+        if (err)
+            return utils.fail(res, 403, 'Access denied', err);
+        var configJson = loadApiConfig(app, apiId);
+        var configReturn = configJson;
+        users.isUserIdAdmin(app, loggedInUserId, (err, isAdmin) => {
+            // Restrict what we return in case it's a non-admin user,
+            // only return the request path, not the backend URL.
+            if (!isAdmin) {
+                configReturn = {
+                    api: {
+                        uris: configJson.api.uris
+                    }
+                };
             }
-        };
-    }
+            res.json(configReturn);
 
-    res.json(configReturn);
+        });
+    });
 };
 
 apis.getApiDesc = function (app, res, loggedInUserId, apiId) {
     debug('getApiDesc(): ' + apiId);
-    if (!apis.checkAccess(app, res, loggedInUserId, apiId))
-        return;
-    var staticDir = utils.getStaticDir(app);
-    var descFileName = path.join(staticDir, 'apis', apiId, 'desc.md');
-    res.setHeader('Content-Type', 'text/markdown');
-    // Even if there is no desc.md, default to empty 200 OK
-    if (!fs.existsSync(descFileName)) {
-        // Check internal APIs.
-        descFileName = path.join(__dirname, 'internal_apis', apiId, 'desc.md');
-        if (!fs.existsSync(descFileName))
-            return res.send('');
-    }
-    res.send(fs.readFileSync(descFileName, 'utf8'));
+    apis.checkAccess(app, res, loggedInUserId, apiId, (err) => {
+        if (err)
+            return utils.fail(res, 403, 'Access denied', err);
+        var staticDir = utils.getStaticDir();
+        var descFileName = path.join(staticDir, 'apis', apiId, 'desc.md');
+        res.setHeader('Content-Type', 'text/markdown');
+        // Even if there is no desc.md, default to empty 200 OK
+        if (!fs.existsSync(descFileName)) {
+            // Check internal APIs.
+            descFileName = path.join(__dirname, 'internal_apis', apiId, 'desc.md');
+            if (!fs.existsSync(descFileName))
+                return res.send('');
+        }
+        res.send(fs.readFileSync(descFileName, 'utf8'));
+    });
 };
 
 function injectParameter(swaggerJson, newParameter) {
@@ -371,66 +392,68 @@ apis.getSwagger = function (app, res, loggedInUserId, apiId) {
     debug('getSwagger(): ' + apiId);
     if (apiId == '_portal')
         return getPortalSwagger(app, res);
-    if (!apis.checkAccess(app, res, loggedInUserId, apiId))
-        return;
-    var staticDir = utils.getStaticDir(app);
-    var swaggerFileName = path.join(staticDir, 'apis', apiId, 'swagger.json');
-    if (!fs.existsSync(swaggerFileName)) {
-        // Check internal APIs
-        swaggerFileName = path.join(__dirname, 'internal_apis', apiId, 'swagger.json');
-        if (!fs.existsSync(swaggerFileName))
-            return res.status(404).jsonp({ message: 'Not found. This is a bad sign; the Swagger definition must be there!' });
-    }
-
-    var globalSettings = utils.loadGlobals(app);
-    var configJson = loadApiConfig(app, apiId);
-
-    if (!configJson || !configJson.api || !configJson.api.uris || !configJson.api.uris.length)
-        return res.status(500).jsonp({ message: 'Invalid API configuration; does not contain uris array.' });
-    var requestPath = configJson.api.uris[0];
-
-    var apiList = utils.loadApis(app);
-    var apiInfo = apiList.apis.find(function (anApi) { return anApi.id == apiId; });
-
-    // Read it, we want to do stuff with it.
-    try {
-        var swaggerJson = require(swaggerFileName);
-
-        if (!apiInfo.auth || apiInfo.auth == "key-auth") {
-            // Inject a new parameter for the API key.
-            // globalSettings.api.headerName,
-            var apikeyParam = {
-                in: "header",
-                name: globalSettings.api.headerName,
-                required: false,
-                type: "string",
-                description: "API Key to authorize with API Gateway"
-            };
-            injectParameter(swaggerJson, apikeyParam);
-        } else if (apiInfo.auth == "oauth2") {
-            debug('Injecting OAuth2');
-            var authParam = {
-                in: "header",
-                name: "Authorization",
-                required: true,
-                type: "string",
-                description: 'The OAuth2 Bearer token, "Bearer ..."'
-            };
-            injectParameter(swaggerJson, authParam);
-
-            injectTokenEndpoint(globalSettings, swaggerJson);
+    apis.checkAccess(app, res, loggedInUserId, apiId, (err) => {
+        if (err)
+            return utils.fail(res, 403, 'Access denied', err);
+        var staticDir = utils.getStaticDir();
+        var swaggerFileName = path.join(staticDir, 'apis', apiId, 'swagger.json');
+        if (!fs.existsSync(swaggerFileName)) {
+            // Check internal APIs
+            swaggerFileName = path.join(__dirname, 'internal_apis', apiId, 'swagger.json');
+            if (!fs.existsSync(swaggerFileName))
+                return res.status(404).jsonp({ message: 'Not found. This is a bad sign; the Swagger definition must be there!' });
         }
 
-        swaggerJson.host = globalSettings.network.apiHost;
-        swaggerJson.basePath = requestPath;
-        swaggerJson.schemes = [globalSettings.network.schema];
-        //swaggerJson.schemes = ["http"];
+        var globalSettings = utils.loadGlobals(app);
+        var configJson = loadApiConfig(app, apiId);
 
-        // OK, that worked
-        return res.json(swaggerJson);
-    } catch (err) {
-        return res.status(500).jsonp({ message: 'Internal Server Error! Could not parse Swagger, check your files.' + err });
-    }
+        if (!configJson || !configJson.api || !configJson.api.uris || !configJson.api.uris.length)
+            return res.status(500).jsonp({ message: 'Invalid API configuration; does not contain uris array.' });
+        var requestPath = configJson.api.uris[0];
+
+        var apiList = utils.loadApis(app);
+        var apiInfo = apiList.apis.find(function (anApi) { return anApi.id == apiId; });
+
+        // Read it, we want to do stuff with it.
+        try {
+            var swaggerJson = require(swaggerFileName);
+
+            if (!apiInfo.auth || apiInfo.auth == "key-auth") {
+                // Inject a new parameter for the API key.
+                // globalSettings.api.headerName,
+                var apikeyParam = {
+                    in: "header",
+                    name: globalSettings.api.headerName,
+                    required: false,
+                    type: "string",
+                    description: "API Key to authorize with API Gateway"
+                };
+                injectParameter(swaggerJson, apikeyParam);
+            } else if (apiInfo.auth == "oauth2") {
+                debug('Injecting OAuth2');
+                var authParam = {
+                    in: "header",
+                    name: "Authorization",
+                    required: true,
+                    type: "string",
+                    description: 'The OAuth2 Bearer token, "Bearer ..."'
+                };
+                injectParameter(swaggerJson, authParam);
+
+                injectTokenEndpoint(globalSettings, swaggerJson);
+            }
+
+            swaggerJson.host = globalSettings.network.apiHost;
+            swaggerJson.basePath = requestPath;
+            swaggerJson.schemes = [globalSettings.network.schema];
+            //swaggerJson.schemes = ["http"];
+
+            // OK, that worked
+            return res.json(swaggerJson);
+        } catch (err) {
+            return res.status(500).jsonp({ message: 'Internal Server Error! Could not parse Swagger, check your files.' + err });
+        }
+    });
 };
 
 apis._portalSwagger = null;
@@ -473,16 +496,25 @@ function initPortalSwagger(app) {
 
 apis.getSubscriptions = function (app, res, loggedInUserId, apiId) {
     debug('getSubscriptions() ' + apiId);
-    const userInfo = users.loadUser(app, loggedInUserId);
-    if (!userInfo ||
-        !userInfo.admin) {
-        return res.status(403).json({ message: 'Not Allowed. Only Admins can get subscriptions for an API.' });
-    }
-    const apiSubs = subscriptions.loadSubscriptionApiIndex(app, apiId);
-    if (apiSubs) {
-        return res.json(apiSubs);
-    }
-    res.status(404).json({ message: 'Not Found.' });
+    // TODO: Paging parameters
+    const limit = 0;
+    const offset = 0;
+    users.loadUser(app, loggedInUserId, (err, userInfo) => {
+        if (err)
+            return utils.fail(res, 500, 'getSubscriptions: Could not load user', err);
+        if (!userInfo ||
+            !userInfo.admin) {
+            return utils.fail(res, 403, 'Not Allowed. Only Admins can get subscriptions for an API.');
+        }
+        dao.subscriptions.getByApi(apiId, limit, offset, (err, apiSubs) => {
+            if (err)
+                return utils.fail(res, 500, 'api.getSubscriptions: DAO failed to get subscriptions per API', err);
+            if (apiSubs) {
+                return res.json(apiSubs);
+            }
+            utils.fail(res, 404, 'Not Found.');
+        });
+    });
 };
 
 module.exports = apis;

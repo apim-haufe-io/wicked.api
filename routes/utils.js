@@ -7,8 +7,16 @@ var debug = require('debug')('portal-api:utils');
 
 var utils = function () { };
 
-utils.getStaticDir = function (app) {
-    return app.get('static_config');
+utils._app = null;
+utils.init = (app) => {
+    debug('init()');
+    utils._app = app;
+};
+
+function getApp() { return utils._app; }
+
+utils.getStaticDir = function () {
+    return getApp().get('static_config');
 };
 
 utils.getInitialConfigDir = function () {
@@ -18,8 +26,8 @@ utils.getInitialConfigDir = function () {
     return path.join(envDir, 'initial-config');
 };
 
-utils.getDynamicDir = function (app) {
-    return app.get('dynamic_config');
+utils.getDynamicDir = function () {
+    return getApp().get('dynamic_config');
 };
 
 utils.createRandomId = function () {
@@ -31,8 +39,12 @@ utils.getUtc = function () {
 };
 
 utils.getJson = function (ob) {
-    if (ob instanceof String || typeof ob === "string")
-        return JSON.parse(ob);
+    if (ob instanceof String || typeof ob === "string") {
+        const obTrim = ob.trim();
+        if (obTrim.startsWith('{') || obTrim.startsWith('['))
+            return JSON.parse(obTrim);
+        return { warning: 'Expected JSON, received a plain string?', message: obTrim };
+    }
     return ob;
 };
 
@@ -42,11 +54,27 @@ utils.getText = function (ob) {
     return JSON.stringify(ob, null, 2);
 };
 
+utils.fail = function (res, statusCode, message, err) {
+    if (err) {
+        console.error(err);
+        const status = err.status || statusCode || 500;
+        res.status(status).json({ status: status, message: message, error: err.message });
+    } else {
+        res.status(statusCode).json({ status: statusCode, message: message });
+    }
+};
+
+utils.makeError = (statusCode, message) => {
+    const err = new Error(message);
+    err.status = statusCode;
+    return err;
+};
+
 var _groups = null;
-utils.loadGroups = function (app) {
+utils.loadGroups = function () {
     debug('loadGroups()');
     if (!_groups) {
-        var groupsDir = path.join(utils.getStaticDir(app), 'groups');
+        var groupsDir = path.join(utils.getStaticDir(), 'groups');
         var groupsFile = path.join(groupsDir, 'groups.json');
         _groups = require(groupsFile);
         utils.replaceEnvVars(_groups);
@@ -55,25 +83,45 @@ utils.loadGroups = function (app) {
 };
 
 var _apis = null;
-utils.loadApis = function (app) {
+utils.loadApis = function () {
     debug('loadApis()');
     if (!_apis) {
-        var apisDir = path.join(utils.getStaticDir(app), 'apis');
+        var apisDir = path.join(utils.getStaticDir(), 'apis');
         var apisFile = path.join(apisDir, 'apis.json');
         _apis = require(apisFile);
         var internalApisFile = path.join(__dirname, 'internal_apis', 'apis.json');
         var internalApis = require(internalApisFile);
+        injectGroupScopes(internalApis);
         _apis.apis.push.apply(_apis.apis, internalApis.apis);
         utils.replaceEnvVars(_apis);
     }
     return _apis;
 };
 
+function injectGroupScopes(apis) {
+    debug('injectGroupScopes()');
+    const groups = utils.loadGroups();
+    const portalApi = apis.apis.find(api => api.id === 'portal-api');
+    if (!portalApi)
+        throw utils.makeError(500, 'Internal API portal-api not found in internal APIs list');
+    if (portalApi.settings && portalApi.settings.scopes) {
+        const scopes = portalApi.settings.scopes;
+        for (let groupIndex = 0; groupIndex < groups.groups.length; ++groupIndex) {
+            const group = groups.groups[groupIndex];
+            scopes[`wicked_group:${group.id}`] = {
+                description: `Group: ${group.name}`
+            };
+        }
+    } else {
+        throw utils.makeError(500, 'Internal API portal-api does not have a settings.scopes property');
+    }
+}
+
 var _plans = null;
-utils.loadPlans = function (app) {
+utils.loadPlans = function () {
     debug('loadPlans()');
     if (!_plans) {
-        var plansDir = path.join(utils.getStaticDir(app), 'plans');
+        var plansDir = path.join(utils.getStaticDir(), 'plans');
         var plansFile = path.join(plansDir, 'plans.json');
         _plans = require(plansFile);
         var internalPlansFile = path.join(__dirname, 'internal_apis', 'plans.json');
@@ -85,31 +133,31 @@ utils.loadPlans = function (app) {
 };
 
 var _globalSettings = null;
-utils.loadGlobals = function (app) {
+utils.loadGlobals = function () {
     debug('loadGlobals()');
     //    var globalsFile = path.join(utils.getStaticDir(app), 'globals.json');
     //    return require(globalsFile);
     if (!_globalSettings) {
-        var globalsFile = path.join(utils.getStaticDir(app), 'globals.json');
+        var globalsFile = path.join(utils.getStaticDir(), 'globals.json');
         _globalSettings = JSON.parse(fs.readFileSync(globalsFile, 'utf8'));
         utils.replaceEnvVars(_globalSettings);
-        _globalSettings.configDate = getConfigDate(app);
-        _globalSettings.lastCommit = getLastCommit(app);
+        _globalSettings.configDate = getConfigDate();
+        _globalSettings.lastCommit = getLastCommit();
     }
     return _globalSettings;
 };
 
-function getConfigDate(app) {
+function getConfigDate() {
     debug('getConfigDate()');
-    var buildDatePath = path.join(utils.getStaticDir(app), 'build_date');
+    var buildDatePath = path.join(utils.getStaticDir(), 'build_date');
     if (!fs.existsSync(buildDatePath))
         return "(no config date found)";
     return fs.readFileSync(buildDatePath, 'utf8');
 }
 
-function getLastCommit(app) {
+function getLastCommit() {
     debug('getLastCommit()');
-    var commitPath = path.join(utils.getStaticDir(app), 'last_commit');
+    var commitPath = path.join(utils.getStaticDir(), 'last_commit');
     if (!fs.existsSync(commitPath))
         return "(no last commit found)";
     return fs.readFileSync(commitPath, 'utf8');
@@ -118,7 +166,7 @@ function getLastCommit(app) {
 utils.verifyScope = function (req, res, requiredScope) {
     if (!requiredScope)
         return true;
-    
+    // TODO
 };
 
 utils.replaceEnvVars = function (someObject) {
@@ -146,7 +194,7 @@ function replaceEnvVarsInString(s) {
             !tempString.startsWith("${")) {
             let envVarName = tempString.substring(1);
             if (process.env[envVarName]) {
-                debug('Replacing ' + envVarName + ' with "' + process.env[envVarName] + '" in "' + tempString + '".' );
+                debug('Replacing ' + envVarName + ' with "' + process.env[envVarName] + '" in "' + tempString + '".');
                 tempString = process.env[envVarName];
             }
         } else {
@@ -157,7 +205,7 @@ function replaceEnvVarsInString(s) {
                 let envVarName = match[1]; // Capture group 1
                 // Replace regexp with value of env var
                 if (process.env[envVarName]) {
-                    debug('Replacing ' + envVarName + ' with "' + process.env[envVarName] + '" in "' + tempString + '".' );
+                    debug('Replacing ' + envVarName + ' with "' + process.env[envVarName] + '" in "' + tempString + '".');
                     tempString = tempString.replace(match[0], process.env[envVarName]);
                 }
             }
@@ -175,331 +223,17 @@ function replaceEnvVarsInternal(someObject) {
         if (typeof propValue == "string") {
             if (hasEnvVars(propValue)) {
                 debug('Detected env var in ' + propName + ': ' + propValue);
-                someObject[propName] = replaceEnvVarsInString(propValue);            
+                someObject[propName] = replaceEnvVarsInString(propValue);
             }
         } else if (typeof propValue == "object") {
-	        replaceEnvVarsInternal(propValue);
+            replaceEnvVarsInternal(propValue);
         }
     }
 }
 
-utils.globalLock = function (app) {
-    var globalLockFileName = path.join(utils.getDynamicDir(app), 'global.lock');
-    if (fs.existsSync(globalLockFileName))
-        throw "utils.globalLock - System already is globally locked!";
-    fs.writeFileSync(globalLockFileName, '');
-    return true;
-}; 
-
-utils.globalUnlock = function (app) {
-    var globalLockFileName = path.join(utils.getDynamicDir(app), 'global.lock');
-    if (!fs.existsSync(globalLockFileName))
-        throw "utils.globalUnlock - System isn't locked, cannot unlock!";
-    fs.unlinkSync(globalLockFileName);
-    return true;
-};
-
-utils.hasGlobalLock = function (app) {
-    var globalLockFileName = path.join(utils.getDynamicDir(app), 'global.lock');
-    return fs.existsSync(globalLockFileName);    
-};
-
-utils.lockFile = function (app, subDir, fileName) {
-    debug('lockFile(): ' + subDir + '/' + fileName);
-    if (utils.hasGlobalLock(app))
-        return false;
-    var baseDir = path.join(utils.getDynamicDir(app), subDir);
-    var fullFileName = path.join(baseDir, fileName);
-    var lockFileName = fullFileName + '.lock';
-
-    if (!fs.existsSync(fullFileName))
-        throw "utils.lockFile - File not found: " + fileName;
-
-    if (fs.existsSync(lockFileName))
-        return false;
-
-    fs.writeFileSync(lockFileName, '');
-    return true;
-};
-
-utils.unlockFile = function (app, subDir, fileName) {
-    debug('unlockFile(): ' + subDir + '/' + fileName);
-    var baseDir = path.join(utils.getDynamicDir(app), subDir);
-    var lockFileName = path.join(baseDir, fileName + '.lock');
-
-    if (fs.existsSync(lockFileName))
-        fs.unlinkSync(lockFileName);
-};
-
-// SPECIFIC LOCKS
-
-// USERS
-
-utils.lockUserIndex = function (app) {
-    return utils.lockFile(app, 'users', '_index.json');
-};
-
-utils.unlockUserIndex = function (app) {
-    utils.unlockFile(app, 'users', '_index.json');
-};
-
-utils.lockUser = function (app, userId) {
-    return utils.lockFile(app, 'users', userId + '.json');
-};
-
-utils.unlockUser = function (app, userId) {
-    utils.unlockFile(app, 'users', userId + '.json');
-};
-
-// APPLICATIONS
-
-utils.lockAppsIndex = function (app) {
-    return utils.lockFile(app, 'applications', '_index.json');
-};
-
-utils.unlockAppsIndex = function (app) {
-    utils.unlockFile(app, 'applications', '_index.json');
-};
-
-utils.lockApplication = function (app, appId) {
-    return utils.lockFile(app, 'applications', appId + '.json');
-};
-
-utils.unlockApplication = function (app, appId) {
-    utils.unlockFile(app, 'applications', appId + '.json');
-};
-
-utils.getAppsDir = function (app) {
-    return path.join(utils.getDynamicDir(app), 'applications');
-};
-
-// SUBSCRIPTIONS
-
-utils.lockSubscriptions = function (app, appId) {
-    return utils.lockFile(app, 'subscriptions', appId + '.subs.json');
-};
-
-utils.unlockSubscriptions = function (app, appId) {
-    utils.unlockFile(app, 'subscriptions', appId + '.subs.json');
-};
-
-// APPROVALS
-
-utils.lockApprovals = function (app) {
-    return utils.lockFile(app, 'approvals', '_index.json');
-};
-
-utils.unlockApprovals = function (app) {
-    return utils.unlockFile(app, 'approvals', '_index.json');
-};
-
-// WEBHOOKS
-
-utils.LISTENER_FILE = '_listeners.json';
-
-utils.lockListeners = function (app) {
-    return utils.lockFile(app, 'webhooks', utils.LISTENER_FILE);
-};
-
-utils.unlockListeners = function (app) {
-    return utils.unlockFile(app, 'webhooks', utils.LISTENER_FILE);
-};
-
-utils.lockEvents = function (app, listenerId) {
-    return utils.lockFile(app, 'webhooks', listenerId + '.json');
-};
-
-utils.unlockEvents = function (app, listenerId) {
-    utils.unlockFile(app, 'webhooks', listenerId + '.json');
-};
-
-// VERIFICATIONS
-
-utils.lockVerifications = function (app) {
-    return utils.lockFile(app, 'verifications', '_index.json');
-};
-
-utils.unlockVerifications = function (app) {
-    return utils.unlockFile(app, 'verifications', '_index.json');
-};
-
-// LOCKING UTILITY FUNCTIONS
-
-utils.withLockedUserList = function (app, res, userIdList, actionHook) {
-    debug('withLockedUserList()');
-    debug(userIdList);
-    var lockedUsers = [];
-    try {
-        for (let i = 0; i < userIdList.length; ++i) {
-            if (!utils.lockUser(app, userIdList[i]))
-                return res.status(423).jsonp({ message: 'User with id ' + userIdList[i] + ' is locked. Try again later.' });
-            lockedUsers.push(userIdList[i]);
-        }
-
-        actionHook();
-
-        debug('withLockedUserList() finished');
-    } finally {
-        for (let i = 0; i < lockedUsers.length; ++i) {
-            try { utils.unlockUser(app, lockedUsers[i]); } catch (err) { debug(err); console.error(err); }
-        }
-        debug('withLockedUserList() cleaned up');
-    }
-};
-
-utils.withLockedUser = function (app, res, userId, actionHook) {
-    debug('withLockedUser(): ' + userId);
-    utils.withLockedUserList(app, res, [userId], actionHook);
-};
-
-utils.withLockedUserIndex = function (app, res, actionHook) {
-    debug('withLockedUserIndex()');
-    var lockedIndex = false;
-    try {
-        if (!utils.lockUserIndex(app))
-            return res.status(423).jsonp({ message: 'User index is currently locked. Try again later.' });
-        lockedIndex = true;
-
-        actionHook();
-
-        debug('withLockedUserIndex() finished');
-
-    } finally {
-        if (lockedIndex)
-            try { utils.unlockUserIndex(app); } catch (err) { debug(err); console.error(err); }
-        debug('withLockedUserIndex() cleaned up');
-    }
-};
-
-utils.withLockedAppsIndex = function (app, res, actionHook) {
-    debug('withLockedAppsIndex()');
-    var lockedIndex = false;
-    try {
-        if (!utils.lockAppsIndex(app))
-            return res.status(423).jsonp({ message: 'Application index is currently locked. Try again later.' });
-        lockedIndex = true;
-
-        actionHook();
-
-        debug('withLockedAppsIndex() finished');
-    } finally {
-        if (lockedIndex)
-            try { utils.unlockAppsIndex(app); } catch (err) { debug(err); console.error(err); }
-        debug('withLockedAppsIndex() cleaned up');
-    }
-};
-
-utils.withLockedApp = function (app, res, appId, actionHook) {
-    debug('withLockedApp(): ' + appId);
-    var lockedApp = false;
-    try {
-        if (!utils.lockApplication(app, appId))
-            return res.status(423).jsonp({ message: 'Application is locked. Please try again later.' });
-        lockedApp = true;
-
-        actionHook();
-
-        debug('withLockedApp(): ' + appId + ' finished');
-    } finally {
-        if (lockedApp)
-            try { utils.unlockApplication(app, appId); } catch (err) { debug(err); console.error(err); }
-        debug('withLockedApp(): ' + appId + ' cleaned up');
-    }
-};
-
-utils.withLockedSubscriptions = function (app, res, appId, actionHook) {
-    debug('withLockedSubscriptions(): ' + appId);
-    var lockedSubscriptions = false;
-    try {
-        if (!utils.lockSubscriptions(app, appId))
-            return res.status(423).jsonp({ message: 'Application subscriptions are locked. Try again later.' });
-        lockedSubscriptions = true;
-
-        actionHook();
-
-        debug('withLockedSubscriptions(): ' + appId + ' finished');
-    } finally {
-        if (lockedSubscriptions)
-            try { utils.unlockSubscriptions(app, appId); } catch (err) { debug(err); console.error(err); }
-        debug('withLockedSubscriptions(): ' + appId + ' cleaned up');
-    }
-};
-
-utils.withLockedApprovals = function (app, res, actionHook) {
-    debug('withLockedApprovals()');
-    var lockedApprovals = false;
-    try {
-        if (!utils.lockApprovals(app))
-            return res.status(423).jsonp({ message: 'Approvals index is locked. Try again later.' });
-        lockedApprovals = true;
-
-        actionHook();
-
-        debug('withLockedApprovals() finished');
-    } finally {
-        if (lockedApprovals)
-            try { utils.unlockApprovals(app); } catch (err) { debug(err); console.error(err); }
-        debug('withLockedApprovals() cleaned up');
-    }
-};
-
-utils.withLockedEvents = function (app, res, listenerId, actionHook) {
-    debug('withLockedEvents(): ' + listenerId);
-    var lockedEvents = false;
-    try {
-        if (!utils.lockEvents(app, listenerId))
-            return res.status(423).jsonp({ message: 'Events for listener are locked. Try again later.' });
-        lockedEvents = true;
-
-        actionHook();
-
-        debug('withLockedEvents(): ' + listenerId + ' finished');
-    } finally {
-        if (lockedEvents)
-            try { utils.unlockEvents(app, listenerId); } catch (err) { }
-        debug('withLockedEvents(): ' + listenerId + ' cleaned up');
-    }
-};
-
-utils.withLockedListeners = function (app, res, listenerId, actionHook) {
-    debug('withLockedListeners()');
-    var lockedListeners = false;
-    try {
-        if (!utils.lockListeners(app))
-            return res.status(423).jsonp({ message: 'Listener index locked. Try again later.' });
-        lockedListeners = true;
-
-        actionHook();
-
-        debug('withLockedListeners() finished');
-    } finally {
-        if (lockedListeners)
-            try { utils.unlockListeners(app); } catch (err) { }
-        debug('withLockedListeners() cleaned up');
-    }
-};
-
-utils.withLockedVerifications = function (app, res, actionHook) {
-    debug('withLockedVerifications()');
-    var lockedVerifications = false;
-    try {
-        if (!utils.lockVerifications(app))
-            return res.status(423).jsonp({ message: 'Verification index locked. Try again later.' });
-        lockedVerifications = true;
-
-        actionHook();
-
-        debug('withLockedVerifications() finished');
-    } finally {
-        if (lockedVerifications)
-            try { utils.unlockVerifications(app); } catch (err) { }
-        debug('withLockedVerifications() cleaned up');
-    }
-};
-
-function resolveTemplatesDir(app) {
+function resolveTemplatesDir() {
     debug('resolveTemplatesDir()');
-    var configDir = utils.getStaticDir(app);
+    var configDir = utils.getStaticDir();
     var templatesDir = path.join(configDir, 'templates');
     debug(' - trying ' + templatesDir);
     var chatbotFile = path.join(templatesDir, 'chatbot.json');
@@ -520,10 +254,10 @@ function resolveTemplatesDir(app) {
 }
 
 utils._chatbotTemplates = null;
-utils.loadChatbotTemplates = function (app) {
+utils.loadChatbotTemplates = function () {
     debug('loadChatbotTemplates()');
     if (!utils._chatbotTemplates) {
-        var templatesDir = resolveTemplatesDir(app);
+        var templatesDir = resolveTemplatesDir();
         var chatbotFile = path.join(templatesDir, 'chatbot.json');
         utils._chatbotTemplates = require(chatbotFile);
     }
@@ -531,7 +265,7 @@ utils.loadChatbotTemplates = function (app) {
 };
 
 utils.loadEmailTemplate = function (app, templateName) {
-    var templatesDir = resolveTemplatesDir(app);
+    var templatesDir = resolveTemplatesDir();
     var emailTemplatesDir = path.join(templatesDir, 'email');
     var templateFile = path.join(emailTemplatesDir, templateName + '.mustache');
     if (!fs.existsSync(templateFile))
@@ -543,20 +277,20 @@ utils.loadEmailTemplate = function (app, templateName) {
 
 var ALGORITHM = 'aes-256-ctr';
 
-function getCipher(app) {
-    var key = app.get('aes_key').toString("binary");
+function getCipher() {
+    var key = getApp().get('aes_key').toString("binary");
     var cipher = crypto.createCipher(ALGORITHM, key);
     return cipher;
 }
 
-function getDecipher(app) {
-    var key = app.get('aes_key').toString("binary");
+function getDecipher() {
+    var key = getApp().get('aes_key').toString("binary");
     var decipher = crypto.createDecipher(ALGORITHM, key);
     return decipher;
 }
 
-utils.apiEncrypt = function(app, text) {
-    var cipher = getCipher(app);
+utils.apiEncrypt = function (text) {
+    var cipher = getCipher();
     // Add random bytes so that it looks different each time.
     var cipherText = cipher.update(utils.createRandomId() + text, 'utf8', 'hex');
     cipherText += cipher.final('hex');
@@ -564,15 +298,15 @@ utils.apiEncrypt = function(app, text) {
     return cipherText;
 };
 
-utils.apiDecrypt = function (app, cipherText) {
+utils.apiDecrypt = function (cipherText) {
     if (!cipherText.startsWith('!'))
         return cipherText;
     cipherText = cipherText.substring(1); // Strip '!'
-    var decipher = getDecipher(app);
+    var decipher = getDecipher();
     var text = decipher.update(cipherText, 'hex', 'utf8');
     text += decipher.final('utf8');
     text = text.substring(40); // Strip random bytes
-    return text; 
+    return text;
 };
 
 utils._packageVersion = null;

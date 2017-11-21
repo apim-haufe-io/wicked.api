@@ -15,7 +15,7 @@ versionizer.getConfigHash = function (req, res, next) {
 
 versionizer.retrieveConfigHash = function (app) {
     if (null === versionizer._configHash) {
-        const staticPath = utils.getStaticDir(app);
+        const staticPath = utils.getStaticDir();
         const configTagFileName = path.join(staticPath, 'confighash');
         if (fs.existsSync(configTagFileName)) {
             versionizer._configHash = fs.readFileSync(configTagFileName, 'utf8');
