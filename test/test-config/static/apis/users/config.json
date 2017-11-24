@@ -1,8 +1,0 @@
-{
-    "api": {
-        "upstream_url": "http://mockbin.com/",
-        "name": "mockbin",
-        "request_host": "",
-        "request_path": "/mock"
-    }
-}
