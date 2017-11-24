@@ -49,22 +49,22 @@ jsonSubscriptions.getByAppAndApi = (appId, apiId, callback) => {
     }
 };
 
-jsonSubscriptions.getByApi = (apiId, limit, offset, callback) => {
+jsonSubscriptions.getByApi = (apiId, offset, limit, callback) => {
     debug('getByApi()');
     jsonUtils.checkCallback(callback);
     try {
-        const apiSubs = jsonSubscriptions.getByApiSync(apiId, limit, offset);
+        const apiSubs = jsonSubscriptions.getByApiSync(apiId, offset, limit);
         return callback(null, apiSubs);
     } catch (err) {
         return callback(err);
     }
 };
 
-jsonSubscriptions.create = (newSubscription, callback) => {
+jsonSubscriptions.create = (newSubscription, creatingUserId, callback) => {
     debug('create()');
     jsonUtils.checkCallback(callback);
     try {
-        const subsInfo = jsonSubscriptions.createSync(newSubscription);
+        const subsInfo = jsonSubscriptions.createSync(newSubscription, creatingUserId);
         return callback(null, subsInfo);
     } catch (err) {
         return callback(err);
@@ -138,34 +138,18 @@ jsonSubscriptions.loadSubscriptions = function (appId) {
     const subsDir = jsonSubscriptions.getSubsDir();
     const subsFileName = path.join(subsDir, appId + '.subs.json');
     const subs = JSON.parse(fs.readFileSync(subsFileName, 'utf8'));
-    for (let i = 0; i < subs.length; ++i) {
-        const sub = subs[i];
-        if (sub.apikey)
-            sub.apikey = utils.apiDecrypt(sub.apikey);
-        if (sub.clientId)
-            sub.clientId = utils.apiDecrypt(sub.clientId);
-        if (sub.clientSecret)
-            sub.clientSecret = utils.apiDecrypt(sub.clientSecret);
-    }
+    daoUtils.decryptApiCredentials(subs);
     return subs;
 };
 
-jsonSubscriptions.saveSubscriptions = function (appId, subsIndex) {
+jsonSubscriptions.saveSubscriptions = function (appId, subsList) {
     debug('saveSubscriptions(): ' + appId);
-    debug(subsIndex);
+    debug(subsList);
 
     const subsDir = jsonSubscriptions.getSubsDir();
     const subsFileName = path.join(subsDir, appId + '.subs.json');
-    for (let i = 0; i < subsIndex.length; ++i) {
-        const sub = subsIndex[i];
-        if (sub.apikey)
-            sub.apikey = utils.apiEncrypt(sub.apikey);
-        if (sub.clientId)
-            sub.clientId = utils.apiEncrypt(sub.clientId);
-        if (sub.clientSecret)
-            sub.clientSecret = utils.apiEncrypt(sub.clientSecret);
-    }
-    fs.writeFileSync(subsFileName, JSON.stringify(subsIndex, null, 2), 'utf8');
+    daoUtils.encryptApiCredentials(subsList);
+    fs.writeFileSync(subsFileName, JSON.stringify(subsList, null, 2), 'utf8');
 };
 
 jsonSubscriptions.loadSubscriptionIndexEntry = function (clientId) {
@@ -318,7 +302,6 @@ jsonSubscriptions.deleteSync = (appId, apiId, subscriptionId) => {
             jsonSubscriptions.deleteSubscriptionIndexEntry(clientId);
         // Delete the subscription from the API index
         jsonSubscriptions.deleteSubscriptionApiIndexEntry(subscriptionData);
-
     });
 };
 
@@ -380,7 +363,7 @@ jsonSubscriptions.getByClientIdSync = (clientId) => {
     debug(`getByClientIdSync(${clientId})`);
     const indexEntry = jsonSubscriptions.loadSubscriptionIndexEntry(clientId);
     if (!indexEntry)
-        throw utils.makeError(404, 'Not found.');
+        return null; // Not found
 
     const appSub = loadAndFindSubscription(indexEntry.application, indexEntry.api);
     if (!appSub) {
@@ -391,7 +374,7 @@ jsonSubscriptions.getByClientIdSync = (clientId) => {
     return appSub;
 };
 
-jsonSubscriptions.getByApiSync = (apiId, limit, offset) => {
+jsonSubscriptions.getByApiSync = (apiId, offset, limit) => {
     debug(`getByApi(${apiId})`);
     const apiSubs = jsonSubscriptions.loadSubscriptionApiIndex(apiId);
     return apiSubs;

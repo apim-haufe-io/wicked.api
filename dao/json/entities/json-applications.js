@@ -85,6 +85,17 @@ jsonApplications.getCount = (callback) => {
     }
 };
 
+jsonApplications.getOwners = (appId, callback) => {
+    debug('getOwners()');
+    jsonUtils.checkCallback(callback);
+    try {
+        const ownerList = jsonApplications.getOwnersSync(appId);
+        return callback(null, ownerList);
+    } catch (err) {
+        return callback(err);
+    }
+};
+
 
 jsonApplications.addOwner = (appId, userInfo, role, addingUserId, callback) => {
     debug('addOwner()');
@@ -189,13 +200,18 @@ jsonApplications.deleteSync = (appId, deletingUserId) => {
     debug('deleteSync()');
 
     const appInfo = jsonApplications.loadApplication(appId);
+    // This shouldn't happen, as it's checked in the generic code as well
+    if (!appInfo)
+        throw utils.makeError(404, `Application ${appId} not found.`);
     const ownerIdList = [];
     for (let i = 0; i < appInfo.owners.length; ++i)
         ownerIdList.push(appInfo.owners[i].userId);
 
-    // TODO: This needs a major overhaul --> DAO. E.g. with Postgres,
-    // this is just a DELETE on the applications table; all other entities
-    // will be deleted via ON CASCADE deletions on foreign key relations.
+    // Ohhh, this is really bad, but deleting an application triggers
+    // a whole lot of things, like removing the application from its
+    // owners, removing subscriptions, and such things. On Postgres, this
+    // is a lot easier, as the DELETE just cascades to tables having foreign
+    // keys on the applications entity, but here we have to do it by hand...
     return jsonUtils.withLockedAppsIndex(function () {
         return jsonUtils.withLockedApp(appId, function () {
             return jsonUtils.withLockedUserList(ownerIdList, function () {
@@ -276,6 +292,14 @@ jsonApplications.deleteSync = (appId, deletingUserId) => {
             });
         });
     });
+};
+
+jsonApplications.getOwnersSync = (appId) => {
+    debug('getOwnersSync()');
+    const appInfo = jsonApplications.loadApplication(appId);
+    if (!appInfo)
+        throw utils.makeError(404, 'Unknown application, cannot return owners.');
+    return appInfo.owners;
 };
 
 jsonApplications.addOwnerSync = (appId, userToAdd, role, addingUserId) => {

@@ -35,41 +35,77 @@ daoUtils.checkValidatedUserGroup = (userInfo) => {
     if (!globalSettings.validatedUserGroup)
         return;
     var devGroup = globalSettings.validatedUserGroup;
-    if (!userInfo.groups.find(function(group) { return group == devGroup; }))
+    if (!userInfo.groups.find(function (group) { return group == devGroup; }))
         userInfo.groups.push(devGroup);
 };
 
-daoUtils.checkClientIdAndSecret = (userInfo) => {
-    debug('checkClientIdAndSecret()');
-    var globalSettings = utils.loadGlobals();
-    var entitled = false;
-    if (userInfo.validated &&
-        globalSettings.api &&
-        globalSettings.api.portal &&
-        globalSettings.api.portal.enableApi) {
-        
-        var requiredGroup = globalSettings.api.portal.requiredGroup;
-        if (requiredGroup) {
-            if (userInfo.groups &&
-                userInfo.groups.find(function (group) { return group == requiredGroup; }))
-                entitled = true;
-        } else {
-            entitled = true;
-        }
+// daoUtils.checkClientIdAndSecret = (userInfo) => {
+//     debug('checkClientIdAndSecret()');
+//     var globalSettings = utils.loadGlobals();
+//     var entitled = false;
+//     if (userInfo.validated &&
+//         globalSettings.api &&
+//         globalSettings.api.portal &&
+//         globalSettings.api.portal.enableApi) {
+
+//         var requiredGroup = globalSettings.api.portal.requiredGroup;
+//         if (requiredGroup) {
+//             if (userInfo.groups &&
+//                 userInfo.groups.find(function (group) { return group == requiredGroup; }))
+//                 entitled = true;
+//         } else {
+//             entitled = true;
+//         }
+//     }
+
+//     if (entitled) {
+//         debug('entitled');
+//         if (!userInfo.clientId)
+//             userInfo.clientId = utils.createRandomId();
+//         if (!userInfo.clientSecret)
+//             userInfo.clientSecret = utils.createRandomId();
+//     } else {
+//         debug('not entitled');
+//         if (userInfo.clientId)
+//             delete userInfo.clientId;
+//         if (userInfo.clientSecret)
+//             delete userInfo.clientSecret;
+//     }
+// };
+
+daoUtils.makeName = (userInfo) => {
+    if (userInfo.firstName && userInfo.lastName)
+        return userInfo.firstName + ' ' + userInfo.lastName;
+    else if (!userInfo.firstName && userInfo.lastName)
+        return userInfo.lastName;
+    else if (userInfo.firstName && !userInfo.lastName)
+        return userInfo.firstName;
+    return 'Unknown User';
+};
+
+daoUtils.decryptApiCredentials = (subsList) => {
+    for (let i = 0; i < subsList.length; ++i) {
+        const sub = subsList[i];
+        if (sub.apikey)
+            sub.apikey = utils.apiDecrypt(sub.apikey);
+        if (sub.clientId) // For old installations, this may still be encrypted
+            sub.clientId = utils.apiDecrypt(sub.clientId);
+        if (sub.clientSecret)
+            sub.clientSecret = utils.apiDecrypt(sub.clientSecret);
     }
-    
-    if (entitled) {
-        debug('entitled');
-        if (!userInfo.clientId)
-            userInfo.clientId = utils.createRandomId();
-        if (!userInfo.clientSecret)
-            userInfo.clientSecret = utils.createRandomId();
-    } else {
-        debug('not entitled');
-        if (userInfo.clientId)
-            delete userInfo.clientId;
-        if (userInfo.clientSecret)
-            delete userInfo.clientSecret;
+};
+
+daoUtils.encryptApiCredentials = (subsList) => {
+    for (let i = 0; i < subsList.length; ++i) {
+        const sub = subsList[i];
+        if (sub.apikey)
+            sub.apikey = utils.apiEncrypt(sub.apikey);
+        // We don't encrypt the clientId (anymore); it's needed to retrieve subscriptions
+        // by client ID, and it's not a real secret anyway.
+        // if (sub.clientId)
+        //     sub.clientId = utils.apiEncrypt(sub.clientId);
+        if (sub.clientSecret)
+            sub.clientSecret = utils.apiEncrypt(sub.clientSecret);
     }
 };
 

@@ -1,7 +1,7 @@
 'use strict';
 
 const async = require('async');
-const debug = require('debug')('portal-api:dao:postgres');
+const debug = require('debug')('portal-api:dao:pg:utils');
 const fs = require('fs');
 const path = require('path');
 const pg = require('pg');
@@ -11,191 +11,11 @@ const model = require('../model/model');
 
 const pgUtils = function () { };
 
-pgUtils.init = init;
-
-pgUtils.runMigrations = runMigrations;
-
-pgUtils.runSql = runSql;
-
-// Payload needs to have the following signature:
-// function payload(err, client, callback)
-pgUtils.withTransaction = withTransaction;
-
-pgUtils.getMetadata = getMetadata;
-
-pgUtils.setMetadata = setMetadata;
-
-// ================================================
-// Implementation
-// ================================================
-
-const CURRENT_DATABASE_VERSION = 1;
-
-function runMigrations(callback) {
-    debug('runMigrations()');
-    getMetadata((err, metadata) => {
-        if (err)
-            return callback(err);
-        debug('runMigrations: Current version is ' + metadata.version);
-        if (metadata.version < CURRENT_DATABASE_VERSION) {
-            debug('runMigrations: Desired version is ' + CURRENT_DATABASE_VERSION);
-            // We need to run migrations
-            const migrationSteps = [];
-            for (let i = metadata.version + 1; i <= CURRENT_DATABASE_VERSION; ++i)
-                migrationSteps.push(i);
-            async.mapSeries(migrationSteps, (stepNumber, callback) => {
-                const migrationSqlFile = path.join(__dirname, 'schemas', `migration-${stepNumber}.sql`);
-                runSql(migrationSqlFile, (err) => {
-                    if (err) {
-                        debug(`runMigrations: Migration ${stepNumber} failed.`);
-                        return callback(err);
-                    }
-                    metadata.version = stepNumber;
-                    setMetadata(metadata, callback);
-                });
-            }, callback);
-        } else {
-            debug('runMigrations: No migrations needed.');
-            return callback(null);
-        }
-    });
-}
-
-pgUtils._app = null;
-function init(app) {
-    pgUtils._app = app;
-}
-
-function getMetadata(callback) {
-    debug('getMetaData()');
-    getPool((err, pool) => {
-        if (err)
-            return callback(err);
-        pool.query('SELECT * FROM wicked.meta WHERE id = 1;', (err, results) => {
-            if (err)
-                return callback(err);
-            if (results.rows.length !== 1)
-                return callback(new Error('getMetaData: Unexpected row count ' + results.rows.length));
-            return callback(null, results.rows[0].data);
-        });
-    });
-}
-
-function setMetadata(metadata, callback) {
-    debug('setMetaData()');
-    debug(metadata);
-    getPool((err, pool) => {
-        if (err)
-            return callback(err);
-        const now = new Date();
-        if (!metadata.create_date)
-            metadata.create_date = now;
-        metadata.last_update = now;
-        pool.query('UPDATE wicked.meta SET data = $1', [metadata], callback);
-    });
-}
-
-function getApp() {
-    if (!pgUtils._app)
-        throw new Error('pgUtils: app is not initialized; missed pgUtils.init call?');
-    return pgUtils._app;
-}
-
-function getPostgresOptions(dbName) {
-    // Needs to get things from globals.json
-    //const globs = utils.loadGlobals(getApp());
-    const options = {
-        host: 'localhost',
-        user: 'kong',
-        password: 'kong',
-        database: dbName
-    };
-    return options;
-}
-
-pgUtils._pool = null;
-function getPool(callback, isRetry) {
-    debug('getPool()');
-    if (pgUtils._pool)
-        return callback(null, pgUtils._pool);
-
-    debug('getPool: Creating postgres pool');
-
-    if (isRetry) {
-        debug('getPool: Retrying after creating the database.');
-    }
-
-    const pool = new pg.Pool(getPostgresOptions('wicked'));
-    // Try to connect to wicked database
-    debug('getPool: Trying to connect');
-    pool.connect((err, client, release) => {
-        if (client && release)
-            release();
-        if (err) {
-            debug('getPool: Connect to wicked database failed.');
-            // Check if it's "database not found"
-            if (!isRetry && err.code && err.code.toLowerCase() === '3d000') {
-                debug('getPool: wicked database was not found');
-                // Yep. We'll create the database and initialize everything.
-                return createWickedDatabase((err) => {
-                    if (err) {
-                        debug('getPool: createWickedDatabase returned an error');
-                        return callback(err);
-                    }
-                    debug('getPool: createWickedDatabase succeeded.');
-                    return getPool(callback, true);
-                });
-            } else {
-                debug('getPool: pool.connect returned an unknown/unexpected error');
-                // Nope. This is something which we do not expect. Return it and fail please.
-                return callback(err);
-            }
-        }
-
-        // Yay, this is fine.
-        pgUtils._pool = pool;
-        return callback(null, pool);
-    });
-}
-
-function createWickedDatabase(callback) {
-    debug('createWickedDatabase()');
-    const client = new pg.Client(getPostgresOptions('postgres'));
-    debug('createWickedDatabase: Connecting to "postgres" database');
-    client.connect((err) => {
-        if (err) {
-            debug('createWickedDatabase: Failed to connect to "postgres" database.');
-            return callback(err);
-        }
-        debug('createWickedDatabase: Creating database "wicked"');
-        client.query('CREATE DATABASE wicked;', (err, results) => {
-            if (err)
-                return callback(err);
-            return createInitialSchema(callback);
-        });
-    });
-}
-
-function createInitialSchema(callback) {
-    debug('createInitialSchema()');
-    const schemaFileName = path.join(__dirname, 'schemas', 'core.sql');
-    runSql(schemaFileName, (err) => {
-        if (err)
-            return callback(err);
-        // Make sure we have an update date and that everything works as intended.
-        getMetadata((err, metadata) => {
-            if (err)
-                return callback(err);
-            setMetadata(metadata, callback);
-        });
-    });
-}
-
-function runSql(sqlFileName, callback) {
+pgUtils.runSql = (sqlFileName, callback) => {
     debug('runSql() ' + sqlFileName);
     const sqlCommands = makeSqlCommandList(sqlFileName);
 
-    withTransaction((err, client, callback) => {
+    pgUtils.withTransaction((err, client, callback) => {
         if (err) {
             if (callback)
                 return callback(err);
@@ -208,13 +28,53 @@ function runSql(sqlFileName, callback) {
             client.query(command, callback);
         }, callback);
     }, callback);
-}
+};
 
-// Payload needs to have the following signature:
-// function payload(err, client, callback)
-function withTransaction(payload, next) {
+pgUtils.getMetadata = (callback) => {
+    debug('getMetaData()');
+    getPoolOrClient((err, pool) => {
+        if (err)
+            return callback(err);
+        pool.query('SELECT * FROM wicked.meta WHERE id = 1;', (err, results) => {
+            if (err)
+                return callback(err);
+            if (results.rows.length !== 1)
+                return callback(new Error('getMetaData: Unexpected row count ' + results.rows.length));
+            return callback(null, results.rows[0].data);
+        });
+    });
+};
+
+pgUtils.setMetadata = (metadata, callback) => {
+    debug('setMetaData()');
+    debug(metadata);
+    getPoolOrClient((err, pool) => {
+        if (err)
+            return callback(err);
+        const now = new Date();
+        if (!metadata.create_date)
+            metadata.create_date = now;
+        metadata.last_update = now;
+        pool.query('UPDATE wicked.meta SET data = $1', [metadata], callback);
+    });
+};
+
+/**
+ * Utility function to wrap a Postgres transaction.
+ * 
+ * @param {function(Error, PostgresClient, Function)} payload Is invoked as payload(err, client, callback), whereas
+ * client is a Postgres Client, and callback must be invoked as callback(err) when
+ * the payload function is done with using the transaction. This will close (commit)
+ * the transaction if callback is called with `null`, if it's called with an error,
+ * the transaction will be rolled back (`ROLLBACK`).
+ * @param {Function} next This function will be invoked as next(err), where either
+ * the inner error is returned if something inside the payload caused an error (and
+ * subsequent rollback), or the commit error if there was an error committing the
+ * transaction. In case everything is fine, `next(null)` is invoked.
+ */
+pgUtils.withTransaction = (payload, next) => {
     debug('withTransaction()');
-    getPool((err, pool) => {
+    getPoolOrClient((err, pool) => {
         if (err)
             return payload(err);
         pool.connect((err, client, release) => {
@@ -260,11 +120,318 @@ function withTransaction(payload, next) {
             });
         });
     });
+};
+
+// Options:
+// {
+//   client: PG client to use, null for pool
+// }
+pgUtils.getById = (entity, id, optionsOrCallback, callback) => {
+    debug('getById()');
+    return pgUtils.getSingleBy(entity, 'id', id, optionsOrCallback, callback);
+};
+
+// Options:
+// {
+//   client: PG client to use, null for pool
+// }
+pgUtils.getSingleBy = (entity, fieldNameOrNames, fieldValueOrValues, optionsOrCallback, callback) => {
+    debug('getSingleBy()');
+    let options = optionsOrCallback;
+    if (!callback && typeof (optionsOrCallback) === 'function') {
+        callback = optionsOrCallback;
+        options = {};
+    }
+
+    if ((Array.isArray(fieldNameOrNames) && !Array.isArray(fieldValueOrValues)) ||
+        (!Array.isArray(fieldNameOrNames) && Array.isArray(fieldValueOrValues)))
+        return callback(utils.makeError(500, 'getSingleBy: Either both names and values have to arrays, or none'));
+
+    const fieldNames = Array.isArray(fieldNameOrNames) ? fieldNameOrNames : [fieldNameOrNames];
+    const fieldValues = Array.isArray(fieldValueOrValues) ? fieldValueOrValues : [fieldValueOrValues];
+
+    pgUtils.getBy(entity, fieldNames, fieldValues, options, (err, resultList) => {
+        if (err)
+            return callback(err);
+        if (resultList.length === 0)
+            return callback(null, null);
+        if (resultList.length === 1)
+            return callback(null, resultList[0]);
+        return callback(utils.makeError(500, 'pgUtils: getSingleBy: Returned ' + resultList.length + ' results, must only return a single result.'));
+    });
+};
+
+// Options:
+// {
+//   offset: result offset,
+//   limit: result limit (max count),
+//   client: PG client to use, null for pool
+//   orderBy: order by field, e.g. "name ASC"
+// }
+pgUtils.getBy = (entity, fieldNameOrNames, fieldValueOrValues, optionsOrCallback, callback) => {
+    debug(`getBy(${entity}, ${fieldNameOrNames}, ${fieldValueOrValues})`);
+    if (!fieldNameOrNames)
+        fieldNameOrNames = [];
+    if (!fieldValueOrValues)
+        fieldValueOrValues = [];
+    if ((Array.isArray(fieldNameOrNames) && !Array.isArray(fieldValueOrValues)) ||
+        (!Array.isArray(fieldNameOrNames) && Array.isArray(fieldValueOrValues)))
+        return callback(utils.makeError(500, 'getSingleBy: Either both names and values have to arrays, or none'));
+
+    const fieldNames = Array.isArray(fieldNameOrNames) ? fieldNameOrNames : [fieldNameOrNames];
+    const fieldValues = Array.isArray(fieldValueOrValues) ? fieldValueOrValues : [fieldValueOrValues];
+
+    if (fieldNames.length !== fieldValues.length)
+        return callback(utils.makeError(500, 'PG Utils: field names array length mismatches field value array length'));
+
+    let options = optionsOrCallback;
+    if (!callback && typeof (optionsOrCallback) === 'function') {
+        callback = optionsOrCallback;
+        options = null;
+    }
+    let client = null;
+    let offset = 0;
+    let limit = 0;
+    let orderBy = null;
+    if (options) {
+        if (options.client)
+            client = options.client;
+        if (options.offset)
+            offset = options.offset;
+        if (options.limit)
+            limit = options.limit;
+        if (options.orderBy)
+            orderBy = options.orderBy;
+    }
+    getPoolOrClient(client, (err, poolOrClient) => {
+        if (err)
+            return callback(err);
+        let query = `SELECT * FROM wicked.${entity}`;
+        if (fieldNames.length > 0)
+            query += ` WHERE ${fieldNames[0]} = $1`;
+        // This may be an empty loop
+        for (let i = 1; i < fieldNames.length; ++i)
+            query += " AND " + fieldNames[i] + " = $" + (i + 1);
+        if (offset > 0 && limit > 0)
+            query += ` LIMIT ${limit} OFFSET ${offset}`;
+        if (orderBy)
+            query += ` ORDER BY ${orderBy}`;
+        poolOrClient.query(query, fieldValues, (err, result) => {
+            if (err)
+                return callback(err);
+            try {
+                const normalizedResult = normalizeResult(entity, result);
+                return callback(null, normalizedResult);
+            } catch (err) {
+                debug('normalizeResult failed: ' + err.message);
+                debug(query);
+                debug(fieldValues);
+                debug(result);
+                debug(err);
+                return callback(err);
+            }
+        });
+    });
+};
+
+// If you're in a transaction, pass in the client given from withTransaction
+// as clientOrCallback, otherwise just pass in the callback, and the PG pool
+// will be used.
+pgUtils.upsert = (entity, data, upsertingUserId, clientOrCallback, callback) => {
+    debug(`upsert(${entity}, ...)`);
+    sortOutClientAndCallback(clientOrCallback, callback, (client, callback) => {
+        const pgRow = postgresizeRow(entity, data, upsertingUserId);
+        const { fieldNames, fieldValues } = getFieldArrays(entity, pgRow);
+        const fieldNamesString = assembleFieldsString(fieldNames);
+        const placeholdersString = assemblePlaceholdersString(fieldNames);
+        const updatesString = assembleUpdatesString(fieldNames);
+
+        const sql = `INSERT INTO wicked.${entity} (${fieldNamesString}) VALUES(${placeholdersString}) ON CONFLICT (id) DO UPDATE SET ${updatesString}`;
+        debug(sql);
+
+        client.query(sql, fieldValues, (err, result) => {
+            if (err)
+                return callback(err);
+            debug('upsert finished succesfully.');
+            return callback(null, data);
+        });
+    });
+};
+
+pgUtils.deleteById = (entity, id, clientOrCallback, callback) => {
+    debug(`deleteById(${entity}, ${id}) `);
+    return pgUtils.deleteBy(entity, ['id'], [id], clientOrCallback, callback);
+};
+
+pgUtils.deleteBy = (entity, fieldNameOrNames, fieldValueOrValues, clientOrCallback, callback) => {
+    debug(`deleteById(${entity}, ${fieldNameOrNames}, ${fieldValueOrValues}) `);
+    if (!fieldNameOrNames)
+        fieldNameOrNames = [];
+    if (!fieldValueOrValues)
+        fieldValueOrValues = [];
+
+    if ((Array.isArray(fieldNameOrNames) && !Array.isArray(fieldValueOrValues)) ||
+        (!Array.isArray(fieldNameOrNames) && Array.isArray(fieldValueOrValues)))
+        return callback(utils.makeError(500, 'deleteBy: Either both names and values have to arrays, or none'));
+
+    const fieldNames = Array.isArray(fieldNameOrNames) ? fieldNameOrNames : [fieldNameOrNames];
+    const fieldValues = Array.isArray(fieldValueOrValues) ? fieldValueOrValues : [fieldValueOrValues];
+
+    if (fieldNames.length !== fieldValues.length)
+        return callback(utils.makeError(500, 'deleteBy: field names array length mismatches field value array length'));
+
+    sortOutClientAndCallback(clientOrCallback, callback, (client, callback) => {
+        let sql = `DELETE FROM wicked.${entity} `;
+        if (fieldNames.length === 0)
+            return callback(utils.makeError(500, 'deleteBy: Unconditional DELETE detected, not allowing'));
+        sql += ` WHERE ${fieldNames[0]} = $1`;
+        for (let i = 1; i < fieldNames.length; ++i)
+            sql += ` AND ${fieldNames[i]} = \$${i + 1} `;
+        client.query(sql, fieldValues, (err, result) => {
+            if (err)
+                return callback(err);
+            return callback(null);
+        });
+    });
+};
+
+/**
+ * Checks whether `callback` is not null, and function. Throws an error otherwise.
+ */
+pgUtils.checkCallback = (callback) => {
+    if (!callback || typeof (callback) !== 'function') {
+        console.error('Value of callback: ' + callback);
+        throw new Error('Parameter "callback" is null or not a function');
+    }
+};
+
+pgUtils.count = function (entity, clientOrCallback, callback) {
+    debug(`countRows(${entity}) `);
+    sortOutClientAndCallback(clientOrCallback, callback, (client, callback) => {
+        const sql = `SELECT COUNT(*) as count FROM wicked.${entity} `;
+        client.query(sql, (err, result) => {
+            if (err)
+                return callback(err);
+            if (result.rows.length !== 1)
+                return callback(utils.makeError(500, 'countRows: SELECT COUNT(*) did not return a single row.'));
+            return callback(null, result.rows[0].count);
+        });
+    });
+};
+
+// ================================================
+// Auxiliary functions
+// ================================================
+
+function getPostgresOptions(dbName) {
+    debug('getPostgresOptions()');
+    // Needs to get things from globals.json
+    const glob = utils.loadGlobals();
+    const options = {
+        host: glob.storage.pgHost,
+        port: glob.storage.pgPort,
+        user: glob.storage.pgUser,
+        password: glob.storage.pgPassword,
+        database: dbName
+    };
+    debug(options);
+    return options;
 }
+
+pgUtils._pool = null;
+function getPoolOrClient(clientOrCallback, callback, isRetry) {
+    debug('getPoolOrClient()');
+    if (typeof (callback) === 'function' && clientOrCallback) {
+        debug('getPoolOrClient: Received prepopulated client, just returning it');
+        return callback(null, clientOrCallback);
+    }
+    if (typeof (clientOrCallback) === 'function') {
+        // Shift parameters left
+        isRetry = callback;
+        callback = clientOrCallback;
+    }
+    if (pgUtils._pool) {
+        debug('getPoolOrClient: Returning previously created connection pool');
+        return callback(null, pgUtils._pool);
+    }
+
+    debug('getPoolOrClient: Creating postgres pool');
+
+    if (isRetry) {
+        debug('getPoolOrClient: Retrying after creating the database.');
+    }
+
+    const pool = new pg.Pool(getPostgresOptions('wicked'));
+    // Try to connect to wicked database
+    debug('getPoolOrClient: Trying to connect');
+    pool.connect((err, client, release) => {
+        if (client && release)
+            release();
+        if (err) {
+            debug('getPoolOrClient: Connect to wicked database failed.');
+            // Check if it's "database not found"
+            if (!isRetry && err.code && err.code.toLowerCase() === '3d000') {
+                debug('getPoolOrClient: wicked database was not found');
+                // Yep. We'll create the database and initialize everything.
+                return createWickedDatabase((err) => {
+                    if (err) {
+                        debug('getPoolOrClient: createWickedDatabase returned an error');
+                        return callback(err);
+                    }
+                    debug('getPoolOrClient: createWickedDatabase succeeded.');
+                    return getPoolOrClient(callback, true);
+                });
+            } else {
+                debug('getPoolOrClient: pool.connect returned an unknown/unexpected error');
+                // Nope. This is something which we do not expect. Return it and fail please.
+                return callback(err);
+            }
+        }
+
+        // Yay, this is fine.
+        pgUtils._pool = pool;
+        return callback(null, pool);
+    });
+}
+
+function createWickedDatabase(callback) {
+    debug('createWickedDatabase()');
+    const client = new pg.Client(getPostgresOptions('postgres'));
+    debug('createWickedDatabase: Connecting to "postgres" database');
+    client.connect((err) => {
+        if (err) {
+            debug('createWickedDatabase: Failed to connect to "postgres" database.');
+            return callback(err);
+        }
+        debug('createWickedDatabase: Creating database "wicked"');
+        client.query('CREATE DATABASE wicked;', (err, results) => {
+            if (err)
+                return callback(err);
+            return createInitialSchema(callback);
+        });
+    });
+}
+
+function createInitialSchema(callback) {
+    debug('createInitialSchema()');
+    const schemaFileName = path.join(__dirname, 'schemas', 'core.sql');
+    pgUtils.runSql(schemaFileName, (err) => {
+        if (err)
+            return callback(err);
+        // Make sure we have an update date and that everything works as intended.
+        pgUtils.getMetadata((err, metadata) => {
+            if (err)
+                return callback(err);
+            pgUtils.setMetadata(metadata, callback);
+        });
+    });
+}
+
 
 // ---------------------------------------------------------
 
 function makeSqlCommandList(sqlFileName) {
+    debug('makeSqlCommandList()');
     const content = fs.readFileSync(sqlFileName, 'utf8');
     const lines = content.split('\n');
 
@@ -291,44 +458,135 @@ function makeSqlCommandList(sqlFileName) {
 
 // ---------------------------------------------------------
 
-function getById(entity, id, callback) {
-    return getSingleBy(entity, 'id', id, callback);
-}
-
-function getSingleBy(entity, fieldName, fieldValue, callback) {
-    getBy(entity, fieldName, fieldValue, 0, 0, (err, resultArray) => {
-        if (err)
-            return callback(err);
-        if (resultArray.length === 0)
-            return callback(null, null);
-        if (resultArray.length === 1)
-            return callback(null, resultArray[0]);
-        return new Error('pgUtils: getSingleBy: Returned ' + resultArray.length + ' results, must only return a single result.');
-    });
-}
-
-function getBy(entity, fieldName, fieldValue, offset, limit, callback) {
-    getPool((err, pool) => {
-        if (err)
-            return callback(err);
-        let query = `SELECT * FROM wicked.${entity} WHERE ${fieldName} = $1`;
-        if (offset > 0 && limit > 0)
-            query = query + ` LIMIT ${limit} OFFSET ${offset}`;
-        pool.query(query, [fieldValue], (err, result) => {
-            if (err)
-                return callback(err);
-            return callback(null, normalizeResult(entity, result));
-        });
-    });
-}
 
 function normalizeResult(entity, resultList) {
+    debug('normalizeResult()');
+    if (!resultList)
+        throw utils.makeError(500, 'normalizeResult: resultList is null');
+    if (!resultList.rows)
+        return [];
+    if (!Array.isArray(resultList.rows)) {
+        debug('normalizeResult: resultList.rows is not an Array');
+        return [];
+    }
     const normalizedResult = [];
     const entityModel = model[entity];
-    for (let i = 0; i < resultList.rows.length; ++i) { 
-
+    for (let i = 0; i < resultList.rows.length; ++i) {
+        const row = resultList.rows[i];
+        const normRow = Object.assign({}, row.data || {});
+        normRow.id = row.id;
+        const props = entityModel.properties;
+        for (let pgName in props) {
+            let prop = props[pgName];
+            let jsonName = pgName;
+            if (prop.property_name)
+                jsonName = prop.property_name;
+            normRow[jsonName] = row[pgName];
+            if (!prop.optional && !row[pgName])
+                throw utils.makeError(500, `PG Utils: Row with id ${row.id} of entity ${entity} is empty but is not optional.`);
+        }
+        normalizedResult.push(normRow);
     }
     return normalizedResult;
+}
+
+function postgresizeRow(entity, data, upsertingUserId) {
+    debug('postgresizeRow()');
+    // Shallow copy
+    const pgRow = {
+        data: Object.assign({}, data)
+    };
+    if (!data.id)
+        throw utils.makeError(500, `PG Utils: Missing unique index "id" for entity ${entity}.`);
+    // Take out the id from the data and explitcitly put it in the row model
+    delete pgRow.data.id;
+    pgRow.id = data.id;
+
+    // Add meta data
+    pgRow.data.changedDate = new Date();
+    if (upsertingUserId)
+        pgRow.data.changedBy = upsertingUserId;
+    else if (pgRow.data.changedBy)
+        delete pgRow.data.changedBy;
+
+    // Map JSON structure to a structure matching what node-postgres expects,
+    // i.e. move out the declared explicit fields into the real fields of the 
+    // backing postgres table (see model.js) and take the rest into the data
+    // field.
+    const props = model[entity].properties;
+    for (let pgName in props) {
+        let prop = props[pgName];
+        let jsonName = prop.property_name || pgName;
+        delete pgRow.data[jsonName];
+        pgRow[pgName] = data[jsonName];
+        if (!prop.optional && !data[jsonName])
+            throw utils.makeError(500, `PG Utils: Missing mandatory property ${jsonName} for entity ${entity}`);
+    }
+    return pgRow;
+}
+function getFieldArrays(entity, pgData) {
+    const fieldNames = ['id'];
+    const fieldValues = [pgData.id];
+    const props = model[entity].properties;
+    for (let pgName in props) {
+        fieldNames.push(pgName);
+        fieldValues.push(pgData[pgName]);
+    }
+    fieldNames.push('data');
+    fieldValues.push(pgData.data);
+    return {
+        fieldNames: fieldNames,
+        fieldValues: fieldValues
+    };
+}
+
+function assembleFieldsStringInternal(fieldNames, offset, prefix) {
+    let fieldString = prefix + fieldNames[offset];
+    for (let i = offset + 1; i < fieldNames.length; ++i) {
+        fieldString += ', ' + prefix + fieldNames[i];
+    }
+    return fieldString;
+}
+
+function assembleFieldsString(fieldNames) {
+    return assembleFieldsStringInternal(fieldNames, 0, '');
+}
+
+function assembleUpdateFieldsString(fieldNames) {
+    return assembleFieldsStringInternal(fieldNames, 1, 'EXCLUDED.');
+}
+
+function assembleUpdatesString(fieldNames) {
+    let updateString = `${fieldNames[1]} = \$2`;
+    for (let i = 2; i < fieldNames.length; ++i)
+        updateString += `, ${fieldNames[i]} = \$${i + 1}`;
+    return updateString;
+}
+
+function assemblePlaceholdersStringInternal(fieldNames, offset) {
+    let placeholders = '$' + (offset + 1);
+    for (let i = offset + 1; i < fieldNames.length; ++i) {
+        placeholders += ', $' + (i + 1);
+    }
+    return placeholders;
+}
+
+function assemblePlaceholdersString(fieldNames) {
+    return assemblePlaceholdersStringInternal(fieldNames, 0);
+}
+
+
+function sortOutClientAndCallback(clientOrCallback, callback, payload) {
+    let client = clientOrCallback;
+    if (!callback && typeof (clientOrCallback) === 'function') {
+        callback = clientOrCallback;
+        client = null;
+    }
+    getPoolOrClient(client, (err, client) => {
+        if (err)
+            return callback(err);
+        payload(client, callback);
+    });
 }
 
 module.exports = pgUtils;

@@ -100,6 +100,9 @@ initializer.checkDynamicConfig(function (err, results) {
     // Create table of contents for contents
     app.content.setup(app);
 
+    // Turn on the regular hooks
+    app.setupHooks();
+
     // Create HTTP server.
     server = http.createServer(app);
 

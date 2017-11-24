@@ -11,7 +11,11 @@ const model = {
 
     users: {
         properties: {
-            custom_id: {},
+            custom_id: {
+                property_name: 'customId',
+                optional: true
+            },
+            name: {},
             email: {}
         }
     },
@@ -22,31 +26,46 @@ const model = {
 
     owners: {
         properties: {
-            users_id: {},
-            applications_id: {}
+            users_id: {
+                property_name: 'userId'
+            },
+            applications_id: {
+                property_name: 'appId'
+            }
         }
     },
 
     subscriptions: {
         properties: {
-            applications_id: {},
-            plan_id: {},
-            api_id: {},
+            applications_id: {
+                property_name: 'application'
+            },
+            plan_id: {
+                property_name: 'plan'
+            },
+            api_id: {
+                property_name: 'api'
+            },
             client_id: {
-                optional: true
+                optional: true,
+                property_name: 'clientId'
             }
         },
     },
 
     verifications: {
         properties: {
-            users_id: {}
+            users_id: {
+                property_name: 'userId'
+            }
         }
     },
 
     approvals: {
         properties: {
-            subscriptions_id: {}
+            subscriptions_id: {
+                property_name: 'subscriptionId'
+            }
         }
     },
 
@@ -56,21 +75,31 @@ const model = {
 
     webhook_events: {
         properties: {
-            webhook_listeners_id: {}
+            webhook_listeners_id: {
+                property_name: 'listenerId'
+            }
         }
     },
 
     registrations: {
         properties: {
-            pool_id: {},
-            users_id: {}
+            pool_id: {
+                property_name: 'poolId'
+            },
+            users_id: {
+                property_name: 'userId'
+            }
         }
     },
 
     grants: {
         properties: {
-            users_id: {},
-            subscriptions_id: {}
+            users_id: {
+                property_name: 'userId'
+            },
+            subscriptions_id: {
+                property_name: 'subscriptionId'
+            }
         }
     }
 };

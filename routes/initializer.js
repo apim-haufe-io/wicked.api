@@ -77,6 +77,8 @@ function addInitialUsers(glob, callback) {
                 console.error('Initial user with ID ' + thisUser.id + ' has both password and customId; password NOT added.');
                 delete thisUser.password;
             }
+            if (thisUser.password)
+                thisUser.password = bcrypt.hashSync(thisUser.password);
             thisUser.applications = [];
             thisUser.validated = true;
 

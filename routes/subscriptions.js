@@ -247,7 +247,7 @@ subscriptions.addSubscription = function (app, res, applications, loggedInUserId
                     }
                 };
 
-                dao.subscriptions.create(newSubscription, (err, persistedSubscription) => {
+                dao.subscriptions.create(newSubscription, loggedInUserId, (err, persistedSubscription) => {
                     if (err)
                         return utils.fail(res, 500, 'addSubscription: DAO create subscription failed', err);
 
@@ -278,6 +278,7 @@ subscriptions.addSubscription = function (app, res, applications, loggedInUserId
 
                     if (needsApproval) {
                         const approvalInfo = {
+                            id: utils.createRandomId(),
                             subscriptionId: persistedSubscription.id,
                             user: {
                                 id: userInfo.id,
@@ -566,6 +567,8 @@ subscriptions.getSubscriptionByClientId = function (app, res, applications, logg
         dao.subscriptions.getByClientId(clientId, (err, subsInfo) => {
             if (err)
                 return utils.fail(res, 500, 'getSubscriptionByClient: DAO failed to load by client id', err);
+            if (!subsInfo)
+                return utils.fail(res, 404, `Subscription with given client ID ${clientId} was not found.`);
             // Also load the application
             dao.applications.getById(subsInfo.application, (err, appInfo) => {
                 if (err)

@@ -59,16 +59,16 @@ jsonUsers.create = (userCreateInfo, callback) => {
     }
 };
 
-jsonUsers.patch = (userId, userInfo, patchingUserId, callback) => {
-    debug('patch()');
-    jsonUtils.checkCallback(callback);
-    try {
-        const patchedUser = jsonUsers.patchUser(userId, userInfo, patchingUserId);
-        return callback(null, patchedUser);
-    } catch (err) {
-        return callback(err);
-    }
-};
+// jsonUsers.patch = (userId, userInfo, patchingUserId, callback) => {
+//     debug('patch()');
+//     jsonUtils.checkCallback(callback);
+//     try {
+//         const patchedUser = jsonUsers.patchUser(userId, userInfo, patchingUserId);
+//         return callback(null, patchedUser);
+//     } catch (err) {
+//         return callback(err);
+//     }
+// };
 
 jsonUsers.delete = (userId, deletingUserId, callback) => {
     debug('delete()');
@@ -140,27 +140,6 @@ jsonUsers.loadUser = (userId) => {
 
     //throw "users.loadUser - User not found: " + userId;
     const userInfo = JSON.parse(fs.readFileSync(userFileName, 'utf8'));
-    if (userInfo.firstName && userInfo.lastName)
-        userInfo.name = userInfo.firstName + ' ' + userInfo.lastName;
-    else if (!userInfo.firstName && userInfo.lastName)
-        userInfo.name = userInfo.lastName;
-    else if (userInfo.firstName && !userInfo.lastName)
-        userInfo.name = userInfo.firstName;
-    else
-        userInfo.name = 'Unknown User';
-
-    userInfo.admin = daoUtils.isUserAdmin(userInfo);
-
-    // Add generic links
-    userInfo._links = {
-        self: { href: '/users/' + userId },
-        groups: { href: '/groups' }
-    };
-
-    if (userInfo.clientId)
-        userInfo.clientId = utils.apiDecrypt(userInfo.clientId);
-    if (userInfo.clientSecret)
-        userInfo.clientSecret = utils.apiDecrypt(userInfo.clientSecret);
 
     return userInfo;
 };
@@ -187,38 +166,53 @@ jsonUsers.saveUser = (userInfo, savingUserId) => {
 
     const userDir = path.join(utils.getDynamicDir(), 'users');
     const userFileName = path.join(userDir, userInfo.id + '.json');
-    // Things we don't want to persist
-    const backupName = userInfo.name;
-    const backupAdmin = userInfo.admin;
-    const backupLinks = userInfo._links;
-    const backupClientId = userInfo.clientId;
-    const backupClientSecret = userInfo.clientSecret;
-    if (userInfo.name)
-        delete userInfo.name;
-    if (userInfo.admin)
-        delete userInfo.admin;
-    if (userInfo._links)
-        delete userInfo._links;
+
     // Need to add developer group if validated?
     daoUtils.checkValidatedUserGroup(userInfo);
     // ClientID and ClientSecret?
-    daoUtils.checkClientIdAndSecret(userInfo);
+    // daoUtils.checkClientIdAndSecret(userInfo);
+
+    // Check for name change (not needed when not stored separately,
+    // like in Postgres or other real databases. Later it might be possible
+    // to also change the email address, so let's check that as well.
+    let indexChanged = false;
+    const prevUser = jsonUsers.loadUser(userInfo.id);
+    if (prevUser) {
+        if (prevUser.firstName !== userInfo.firstName)
+            indexChanged = true;
+        if (prevUser.lastName !== userInfo.lastName)
+            indexChanged = true;
+        if (prevUser.email !== userInfo.email)
+            indexChanged = true;
+    }
+
     userInfo.changedBy = savingUserId;
     userInfo.changedDate = utils.getUtc();
 
-    if (userInfo.clientId)
-        userInfo.clientId = utils.apiEncrypt(userInfo.clientId);
-    if (userInfo.clientSecret)
-        userInfo.clientSecret = utils.apiEncrypt(userInfo.clientSecret);
+    // if (userInfo.clientId)
+    //     userInfo.clientId = utils.apiEncrypt(userInfo.clientId);
+    // if (userInfo.clientSecret)
+    //     userInfo.clientSecret = utils.apiEncrypt(userInfo.clientSecret);
 
     fs.writeFileSync(userFileName, JSON.stringify(userInfo, null, 2), 'utf8');
-    userInfo.name = backupName;
-    userInfo.admin = backupAdmin;
-    userInfo._links = backupLinks;
-    if (backupClientId)
-        userInfo.clientId = backupClientId;
-    if (backupClientSecret)
-        userInfo.clientSecret = backupClientSecret;
+
+    if (indexChanged) {
+        debug('saveUser: Detected name/email change, updating index.');
+        // We must update the index, as the name changed
+        const userIndex = jsonUsers.loadUserIndex();
+        const userId = userInfo.id;
+
+        for (let i = 0; i < userIndex.length; ++i) {
+            if (userIndex[i].id === userId) {
+                // Use user variable, not userInfo; user has already been updated
+                userIndex[i].name = daoUtils.makeName(userInfo);
+                userIndex[i].email = userInfo.email;
+                break;
+            }
+        }
+        // Persist index
+        jsonUsers.saveUserIndex(userIndex);
+    }
 
     return;
 };
@@ -239,36 +233,12 @@ jsonUsers.createUser = (userCreateInfo) => {
             }
         }
 
-        // Form style create data?
-        if (userCreateInfo.firstname &&
-            !userCreateInfo.firstName)
-            userCreateInfo.firstName = userCreateInfo.firstname;
-        if (userCreateInfo.lastname &&
-            !userCreateInfo.lastName)
-            userCreateInfo.lastName = userCreateInfo.lastname;
-
-        const newId = userCreateInfo.id || utils.createRandomId();
-        let password = null;
-        if (userCreateInfo.password)
-            password = bcrypt.hashSync(userCreateInfo.password);
-        if (!userCreateInfo.groups)
-            userCreateInfo.groups = [];
-
-        const newUser = {
-            id: newId,
-            customId: userCreateInfo.customId,
-            firstName: userCreateInfo.firstName,
-            lastName: userCreateInfo.lastName,
-            validated: userCreateInfo.validated,
-            email: userCreateInfo.email,
-            password: password,
-            applications: [],
-            groups: userCreateInfo.groups
-        };
+        const newUser = Object.assign({}, userCreateInfo, { applications: [] });
+        const newId = newUser.id;
 
         userIndex.push({
             id: newId,
-            name: newUser.firstName + " " + newUser.lastName,
+            name: daoUtils.makeName(newUser),
             email: newUser.email,
             customId: newUser.customId,
         });
@@ -290,49 +260,36 @@ jsonUsers.createUser = (userCreateInfo) => {
     });
 };
 
-jsonUsers.patchUser = (userId, userInfo, patchingUserId) => {
-    debug('patchUser()');
-    return jsonUtils.withLockedUser(userId, function () {
-        return jsonUtils.withLockedUserIndex(function () {
-            let user = jsonUsers.loadUser(userId);
-            const userIndex = jsonUsers.loadUserIndex();
+// jsonUsers.patchUser = (userId, userInfo, patchingUserId) => {
+//     debug('patchUser()');
+//     return jsonUtils.withLockedUser(userId, function () {
+//         return jsonUtils.withLockedUserIndex(function () {
+//             let user = jsonUsers.loadUser(userId);
+//             const userIndex = jsonUsers.loadUserIndex();
 
-            if (userInfo.firstName)
-                user.firstName = userInfo.firstName;
-            if (userInfo.lastName)
-                user.lastName = userInfo.lastName;
-            if (userInfo.groups)
-                user.groups = userInfo.groups;
-            if (userInfo.email)
-                user.email = userInfo.email;
-            if (userInfo.validated)
-                user.validated = userInfo.validated;
-            if (userInfo.password)
-                user.password = bcrypt.hashSync(userInfo.password);
+//             for (let i = 0; i < userIndex.length; ++i) {
+//                 if (userIndex[i].id === userId) {
+//                     // Use user variable, not userInfo; user has already been updated
+//                     userIndex[i].name = user.firstName + ' ' + user.lastName;
+//                     userIndex[i].email = user.email;
+//                     break;
+//                 }
+//             }
+//             // Persist user
+//             jsonUsers.saveUser(user, patchingUserId);
+//             // Persist index
+//             jsonUsers.saveUserIndex(userIndex);
 
-            for (let i = 0; i < userIndex.length; ++i) {
-                if (userIndex[i].id == userId) {
-                    // Use user variable, not userInfo; user has already been updated
-                    userIndex[i].name = user.firstName + ' ' + user.lastName;
-                    userIndex[i].email = user.email;
-                    break;
-                }
-            }
-            // Persist user
-            jsonUsers.saveUser(user, patchingUserId);
-            // Persist index
-            jsonUsers.saveUserIndex(userIndex);
+//             // Re-load user to refresh
+//             user = jsonUsers.loadUser(user.id);
 
-            // Re-load user to refresh
-            user = jsonUsers.loadUser(user.id);
-
-            // Delete password, if present
-            if (user.password)
-                delete user.password;
-            return user;
-        });
-    });
-};
+//             // Delete password, if present
+//             if (user.password)
+//                 delete user.password;
+//             return user;
+//         });
+//     });
+// };
 
 jsonUsers.deleteUser = (userId, deletingUserId) => {
     debug('deleteUser()');
@@ -355,6 +312,8 @@ jsonUsers.deleteUser = (userId, deletingUserId) => {
         // Make sure the user does not have active applications
         let user = jsonUsers.loadUser(userId);
         if (user) {
+            // This shouldn't be necessary, as it's checked in the generic
+            // functionality (users.js: users.deleteUser).
             if (user.applications.length > 0) {
                 throw utils.makeError(409, 'User has applications; remove user from applications first.');
             }
@@ -390,7 +349,8 @@ jsonUsers.getShortInfoByCustomIdSync = (customId) => {
         }
     }
     if (index < 0)
-        throw utils.makeError(404, 'User with customId "' + customId + '" not found.');
+        return null;
+        // throw utils.makeError(404, 'User with customId "' + customId + '" not found.');
     return userIndex[index];
 };
 
@@ -406,7 +366,8 @@ jsonUsers.getShortInfoByEmailSync = (email) => {
         }
     }
     if (index < 0)
-        throw utils.makeError(404, 'User with email "' + email + '" not found.');
+        return null;
+        // throw utils.makeError(404, 'User with email "' + email + '" not found.');
     return userIndex[index];
 };
 

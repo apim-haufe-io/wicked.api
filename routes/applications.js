@@ -157,6 +157,17 @@ applications.getApplication = function (app, res, loggedInUserId, appId) {
 
             if (access == accessFlags.NONE)
                 return utils.fail(res, 403, 'Not allowed.');
+            appInfo._links = {
+                self: { href: `/applications/${appId}` }
+            };
+            for (let o = 0; o < appInfo.owners.length; ++o) {
+                const owner = appInfo.owners[o];
+                owner._links = {
+                    user: {
+                        href: `/users/${owner.userId}`
+                    }
+                };
+            }
             if (access == accessFlags.ADMIN) {
                 // Add some more links if you're Admin
                 appInfo._links.addOwner = { href: '/applications/' + appId + '/owners', method: 'POST' };

@@ -31,7 +31,6 @@ var pgUtils = require('./dao/postgres/pg-utils');
 var app = express();
 
 // Inject app to various places.
-pgUtils.init(app);
 utils.init(app);
 
 app.use(function (req, res, next) {
@@ -184,20 +183,22 @@ app.use('/kill', kill);
 
 // ------- REGULAR EVENTS -------
 
-// Check if we need to fire hooks from times to times (every 10 seconds)
-var hookInterval = process.env.PORTAL_API_HOOK_INTERVAL || '10000';
-debug('Setting webhook interval to ' + hookInterval);
-setInterval(webhooks.checkAndFireHooks, hookInterval, app);
+app.setupHooks = () => {
+    // Check if we need to fire hooks from times to times (every 10 seconds)
+    var hookInterval = process.env.PORTAL_API_HOOK_INTERVAL || '10000';
+    debug('Setting webhook interval to ' + hookInterval);
+    setInterval(webhooks.checkAndFireHooks, hookInterval, app);
 
-// Clean up expired verification records once a minute
-var expiryInterval = process.env.PORTAL_API_EXPIRY_INTERVAL || '60000';
-debug('Setting verification expiry check time to ' + expiryInterval);
-setInterval(verifications.checkExpiredRecords, expiryInterval, app);
+    // Clean up expired verification records once a minute
+    var expiryInterval = process.env.PORTAL_API_EXPIRY_INTERVAL || '60000';
+    debug('Setting verification expiry check time to ' + expiryInterval);
+    setInterval(verifications.checkExpiredRecords, expiryInterval, app);
 
-// Check system health once in a while (every 30 seconds)
-var checkHealthInterval = process.env.PORTAL_API_HEALTH_INTERVAL || '30000';
-debug('Setting system check interval to ' + checkHealthInterval);
-setInterval(systemhealth.checkHealth, checkHealthInterval, app);
+    // Check system health once in a while (every 30 seconds)
+    var checkHealthInterval = process.env.PORTAL_API_HEALTH_INTERVAL || '30000';
+    debug('Setting system check interval to ' + checkHealthInterval);
+    setInterval(systemhealth.checkHealth, checkHealthInterval, app);
+};
 
 // throw 404 for anything else
 app.use(function (req, res, next) {

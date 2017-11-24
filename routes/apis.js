@@ -506,7 +506,7 @@ apis.getSubscriptions = function (app, res, loggedInUserId, apiId) {
             !userInfo.admin) {
             return utils.fail(res, 403, 'Not Allowed. Only Admins can get subscriptions for an API.');
         }
-        dao.subscriptions.getByApi(apiId, limit, offset, (err, apiSubs) => {
+        dao.subscriptions.getByApi(apiId, offset, limit, (err, apiSubs) => {
             if (err)
                 return utils.fail(res, 500, 'api.getSubscriptions: DAO failed to get subscriptions per API', err);
             if (apiSubs) {

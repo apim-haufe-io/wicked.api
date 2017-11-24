@@ -117,8 +117,42 @@ users.loadUser = function (app, userId, callback) {
         throw new Error('loadUser: callback is null or not a function');
     if (!userId)
         return callback(null, null);
-    return dao.users.getById(userId, callback);
+    return dao.users.getById(userId, (err, userInfo) => {
+        if (err)
+            return callback(err);
+        postProcessUser(userInfo);
+        return callback(null, userInfo);
+    });
 };
+
+function postProcessUser(userInfo) {
+    debug('postProcessUser()');
+    if (userInfo) {
+        // TBD: This should be done with Profiles later
+        if (userInfo.firstName && userInfo.lastName)
+            userInfo.name = userInfo.firstName + ' ' + userInfo.lastName;
+        else if (!userInfo.firstName && userInfo.lastName)
+            userInfo.name = userInfo.lastName;
+        else if (userInfo.firstName && !userInfo.lastName)
+            userInfo.name = userInfo.firstName;
+        else
+            userInfo.name = 'Unknown User';
+
+        userInfo.admin = daoUtils.isUserAdmin(userInfo);
+
+        // Add generic links
+        userInfo._links = {
+            self: { href: '/users/' + userInfo.id },
+            groups: { href: '/groups' }
+        };
+
+        if (userInfo.clientId)
+            delete userInfo.clientId;
+        if (userInfo.clientSecret)
+            delete userInfo.clientSecret;
+    }
+}
+
 
 users.loadUserByEmail = function (app, userEmail, callback) {
     debug('loadUserByEmail(): ' + userEmail);
@@ -128,13 +162,25 @@ users.loadUserByEmail = function (app, userEmail, callback) {
     return dao.users.getByEmail(userEmail, callback);
 };
 
-users.saveUser = function (app, user, userId, callback) {
+users.saveUser = function (app, userInfo, userId, callback) {
     debug('saveUser()');
-    debug(user);
+    debug(userInfo);
     if (!callback || typeof (callback) !== 'function')
         throw new Error('loadUser: callback is null or not a function');
 
-    dao.users.save(user, userId, callback);
+    const userInfoToSave = Object.assign({}, userInfo);
+    if (userInfoToSave.name)
+        delete userInfoToSave.name;
+    if (userInfoToSave.admin)
+        delete userInfoToSave.admin;
+    if (userInfoToSave.clientId)
+        delete userInfoToSave.clientId;
+    if (userInfoToSave.clientSecret)
+        delete userInfoToSave.clientSecret;
+    if (userInfoToSave._links)
+        delete userInfoToSave._links;
+
+    dao.users.save(userInfoToSave, userId, callback);
 };
 
 users.createUser = function (app, res, userCreateInfo) {
@@ -148,20 +194,61 @@ users.createUser = function (app, res, userCreateInfo) {
     if (userCreateInfo.email)
         userCreateInfo.email = userCreateInfo.email.toLowerCase();
 
-    dao.users.create(userCreateInfo, (err, freshUser) => {
+    // Form style create data?
+    if (userCreateInfo.firstname &&
+        !userCreateInfo.firstName) {
+        userCreateInfo.firstName = userCreateInfo.firstname;
+        delete userCreateInfo.firstname;
+    }
+    if (userCreateInfo.lastname &&
+        !userCreateInfo.lastName) {
+        userCreateInfo.lastName = userCreateInfo.lastname;
+        delete userCreateInfo.lastname;
+    }
+
+    const newId = userCreateInfo.id || utils.createRandomId();
+    let password = null;
+    if (userCreateInfo.password)
+        password = bcrypt.hashSync(userCreateInfo.password);
+    if (!userCreateInfo.groups)
+        userCreateInfo.groups = [];
+
+    const newUser = {
+        id: newId,
+        customId: userCreateInfo.customId,
+        firstName: userCreateInfo.firstName,
+        lastName: userCreateInfo.lastName,
+        validated: userCreateInfo.validated,
+        email: userCreateInfo.email,
+        password: password,
+        groups: userCreateInfo.groups
+    };
+
+    dao.users.create(newUser, (err, createdUserInfo) => {
         if (err)
             return utils.fail(res, 500, 'createUser: Could not create user', err);
 
-        res.status(201).json(freshUser);
+        // Reload to get links and things
+        users.loadUser(app, newId, (err, freshUser) => {
+            if (err)
+                return utils.fail(res, 500, 'createUser: Could not load user after creating', err);
+            if (!freshUser)
+                return utils.fail(res, 500, `createUser: Newly created user with id ${newId} could not be loaded (not found)`);
 
-        webhooks.logEvent(app, {
-            action: webhooks.ACTION_ADD,
-            entity: webhooks.ENTITY_USER,
-            data: {
-                userId: freshUser.id,
-                email: userCreateInfo.email,
-                customId: userCreateInfo.customId
-            }
+            // Don't return the password hash
+            if (freshUser.password)
+                delete freshUser.password;
+            res.status(201).json(freshUser);
+
+            webhooks.logEvent(app, {
+                action: webhooks.ACTION_ADD,
+                entity: webhooks.ENTITY_USER,
+                data: {
+                    userId: freshUser.id,
+                    email: userCreateInfo.email,
+                    customId: userCreateInfo.customId
+                }
+            });
         });
     });
 };
@@ -220,6 +307,8 @@ users.getUserByCustomId = function (app, res, customId) {
     dao.users.getShortInfoByCustomId(customId, (err, shortInfo) => {
         if (err)
             return utils.fail(res, 500, 'getUserByCustomId: DAO getShortInfoByCustomId failed.', err);
+        if (!shortInfo)
+            return utils.fail(res, 404, `User with custom ID ${customId} not found.`);
         res.json([shortInfo]);
     });
 };
@@ -231,6 +320,8 @@ users.getUserByEmail = function (app, res, email) {
     dao.users.getShortInfoByEmail(email, (err, shortInfo) => {
         if (err)
             return utils.fail(res, 500, 'getUserByEmail: DAO getShortInfoByEmail failed.', err);
+        if (!shortInfo)
+            return utils.fail(res, 404, `User with email ${email} not found.`);
         res.json([shortInfo]);
     });
 };
@@ -277,14 +368,22 @@ users.patchUser = function (app, res, loggedInUserId, userId, userInfo) {
                 (userInfo.email != user.email))
                 return utils.fail(res, 400, 'Bad request. You can not change the email address of a username with a local password.');
 
-            dao.users.patch(userId, userInfo, loggedInUserId, (err, patchedUser) => {
+            if (userInfo.firstName)
+                user.firstName = userInfo.firstName;
+            if (userInfo.lastName)
+                user.lastName = userInfo.lastName;
+            if (userInfo.groups)
+                user.groups = userInfo.groups;
+            if (userInfo.email)
+                user.email = userInfo.email;
+            if (userInfo.validated)
+                user.validated = userInfo.validated;
+            if (userInfo.password)
+                user.password = bcrypt.hashSync(userInfo.password);
+
+            dao.users.save(user, loggedInUserId, (err) => {
                 if (err)
                     return utils.fail(res, 500, 'patchUser: DAO returned an error', err);
-                // Delete password, if present
-                if (patchedUser.password)
-                    delete patchedUser.password;
-                res.json(patchedUser);
-
                 webhooks.logEvent(app, {
                     action: webhooks.ACTION_UPDATE,
                     entity: webhooks.ENTITY_USER,
@@ -292,6 +391,14 @@ users.patchUser = function (app, res, loggedInUserId, userId, userInfo) {
                         updatedUserId: userId,
                         userId: loggedInUserId
                     }
+                });
+                users.loadUser(app, user.id, (err, patchedUser) => {
+                    if (err)
+                        return utils.fail(res, 500, 'patchUser: loadUser after patch failed', err);
+                    // Delete password, if present
+                    if (patchedUser.password)
+                        delete patchedUser.password;
+                    res.json(patchedUser);
                 });
             });
         });
@@ -306,19 +413,31 @@ users.deleteUser = function (app, res, loggedInUserId, userId) {
         if (!isAllowed)
             return res.status(403).jsonp({ message: 'Not allowed.' });
 
-        dao.users.delete(userId, loggedInUserId, (err) => {
+        // Make sure the user doesn't have any applications; if that's the case,
+        // we will not allow deleting.
+        dao.users.getById(userId, (err, userInfo) => {
             if (err)
-                return utils.fail(res, 500, 'deleteUser: DAO failed to delete user.', err);
+                return utils.fail(res, 500, 'deleteUser: DAO failed to load user.', err);
+            if (!userInfo)
+                return utils.fail(res, 404, 'User not found');
+            if (userInfo.applications && userInfo.applications.length > 0)
+                return utils.fail(res, 409, 'User has applications; remove user from applications first.');
+                
+            // OK, now we allow deletion.
+            dao.users.delete(userId, loggedInUserId, (err) => {
+                if (err)
+                    return utils.fail(res, 500, 'deleteUser: DAO failed to delete user.', err);
 
-            res.status(204).json('');
+                res.status(204).json('');
 
-            webhooks.logEvent(app, {
-                action: webhooks.ACTION_DELETE,
-                entity: webhooks.ENTITY_USER,
-                data: {
-                    deletedUserId: userId,
-                    userId: loggedInUserId
-                }
+                webhooks.logEvent(app, {
+                    action: webhooks.ACTION_DELETE,
+                    entity: webhooks.ENTITY_USER,
+                    data: {
+                        deletedUserId: userId,
+                        userId: loggedInUserId
+                    }
+                });
             });
         });
     });

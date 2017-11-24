@@ -20,7 +20,7 @@ jsonUtils.pageArray = (array, offset, limit) => {
 jsonUtils.checkCallback = (callback) => {
     if (!callback || typeof(callback) !== 'function') {
         console.error('Value of callback: ' + callback);
-        throw new Error('Parameter "callback" is null or not a function')
+        throw new Error('Parameter "callback" is null or not a function');
     }
 };
 

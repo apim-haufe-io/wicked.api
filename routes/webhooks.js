@@ -119,14 +119,6 @@ webhooks.logEvent = function (app, eventData, callback) {
         return;
     }
 
-    // var listeners = webhooks.loadListeners(app);
-    // if (listeners.length === 0) {
-    //     debug('logEvent() - Skipping, no listeners defined.');
-    //     if (callback)
-    //         process.nextTick(callback);
-    //     return;
-    // }
-
     eventData.id = utils.createRandomId();
     eventData.utc = utils.getUtc();
 

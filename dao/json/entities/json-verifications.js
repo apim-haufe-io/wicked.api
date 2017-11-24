@@ -95,6 +95,7 @@ jsonVerifications.createSync = (verifInfo) => {
         const verifs = jsonVerifications.loadVerifications();
         verifs.push(verifInfo);
         jsonVerifications.saveVerifications(verifs);
+        return verifInfo;
     });
 };
 
