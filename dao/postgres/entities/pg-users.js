@@ -163,7 +163,8 @@ function makeShortInfo(userInfo) {
     return {
         id: userInfo.id,
         email: userInfo.email,
-        name: userInfo.name
+        name: userInfo.name,
+        customId: userInfo.customId
     };
 }
 

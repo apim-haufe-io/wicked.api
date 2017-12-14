@@ -21,7 +21,8 @@
                 "default"
             ],
             "authMethods": [
-                "default:local"
+                "default:local",
+                "default:dummy"
             ],
             "settings": {
                 "enable_client_credentials": true,
