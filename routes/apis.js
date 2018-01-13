@@ -364,7 +364,7 @@ function injectTokenEndpoint(globalSettings, swaggerJson) {
 //     }
 // }    
 const _swaggerMap = {};
-function resolveSwagger(globalSettings, apiInfo, fileName, callback) {
+function resolveSwagger(globalSettings, apiInfo, requestPath, fileName, callback) {
     debug('resolveSwagger(' + fileName + ')');
     const FIVE_MINUTES = 5 * 60 * 1000;
     if (_swaggerMap[apiInfo.id]) {
@@ -403,6 +403,10 @@ function resolveSwagger(globalSettings, apiInfo, fileName, callback) {
             injectParameter(swaggerJson, authParam);
             injectTokenEndpoint(globalSettings, swaggerJson);
         }
+
+        swaggerJson.host = globalSettings.network.apiHost;
+        swaggerJson.basePath = requestPath;
+        swaggerJson.schemes = [globalSettings.network.schema];
 
         // Cache it for a while
         _swaggerMap[apiInfo.id] = {
@@ -478,7 +482,7 @@ apis.getSwagger = function (app, res, loggedInUserId, apiId) {
     // Read it, we want to do stuff with it.
     // resolveSwagger might read directly from the swagger file, or, if the
     // swagger JSON contains a href property, get it from a remote location.
-    resolveSwagger(globalSettings, apiInfo, swaggerFileName, (err, swaggerJson) => {
+    resolveSwagger(globalSettings, apiInfo, requestPath, swaggerFileName, (err, swaggerJson) => {
         if (err) {
             return res.status(500).json({
                 message: 'Could not resolve the Swagger JSON file, an error occurred.',
