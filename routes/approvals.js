@@ -51,6 +51,7 @@ approvals.getApprovals = function(app, res, loggedInUserId) {
 
       var groups = utils.loadGroups(app);
       groups = groups.groups;
+      if(!groups) return false;
       var usrGroupsHash = {};
       for(var i=0; i< userInfo.groups.length; i++){
         usrGroupsHash[userInfo.groups[i]] = userInfo.groups[i];
@@ -65,6 +66,7 @@ approvals.getApprovals = function(app, res, loggedInUserId) {
           }
         }
       }
+      //if group id or alt_id of approvar's group matches with requiredGroup of an API, return happy
       return (usrGroupsHash[approval.api.requiredGroup]==approval.api.requiredGroup);
     });
     res.json(approvalInfos);
