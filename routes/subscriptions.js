@@ -256,7 +256,7 @@ subscriptions.addSubscription = function (app, res, applications, loggedInUserId
     if (apiIndex < 0)
         return res.status(400).jsonp({ message: 'Bad request. Unknown API "' + subsCreateInfo.api + '".' });
 
-    // API deprecated? 
+    // API deprecated?
     var selectedApi = apis.apis[apiIndex];
     if (selectedApi.deprecated)
         return res.status(400).jsonp({ message: 'API is deprecated. Subscribing not possible.' });
@@ -405,6 +405,7 @@ subscriptions.addSubscription = function (app, res, applications, loggedInUserId
                     api: {
                         id: selectedApi.id,
                         name: selectedApi.name,
+                        requiredGroup: selectedApi.requiredGroup
                     },
                     application: {
                         id: appInfo.id,
@@ -478,7 +479,7 @@ subscriptions.getSubscription = function (app, res, applications, loggedInUserId
 
     const appSub = loadAndFindSubscription(app, appId, apiId);
 
-    // Did we find it?    
+    // Did we find it?
     if (!appSub)
         return res.status(404).jsonp({ message: 'API subscription not found for application. App: ' + appId + ', API: ' + apiId });
     // var appSub = appSubs[subsIndex];
@@ -612,7 +613,7 @@ subscriptions.patchSubscription = function (app, res, applications, loggedInUser
     var userInfo = users.loadUser(app, loggedInUserId);
     if (!userInfo)
         return res.status(403).jsonp({ message: 'Not allowed.' });
-    if (!userInfo.admin)
+    if (!userInfo.admin && !userInfo.approver)
         return res.status(403).jsonp({ message: 'Not allowed. Only admins can patch a subscription.' });
     var appSubs = subscriptions.loadSubscriptions(app, appId);
     var subsIndex = findSubsIndex(appSubs, apiId);
