@@ -44,17 +44,28 @@ approvals.getApprovals = function(app, res, loggedInUserId) {
         return res.status(403).jsonp({ message: 'Not allowed' });
 
     var approvalInfos = approvals.loadApprovals(app);
-    //if user is approver, only show approval requests for api with same group as approver
     approvalInfos = approvalInfos.filter(function(approval) {
-      if(userInfo.admin) return true; //show all approvals for admin
-      if(userInfo.approver && userInfo.groups){
-        for(var i=0; i< userInfo.groups.length; i++){
-          if(approval.api.requiredGroup && (userInfo.groups[i]==approval.api.requiredGroup)){
-            return true;
+      if(userInfo.admin) return true; //Show all approvals for admin
+      if(!userInfo.groups) return false; //Approver is not attached to a group (un-likely)
+      if(!approval.api.requiredGroup) return false; //Api is not attached any group
+
+      var groups = utils.loadGroups(app);
+      groups = groups.groups;
+      var usrGroupsHash = {};
+      for(var i=0; i< userInfo.groups.length; i++){
+        usrGroupsHash[userInfo.groups[i]] = userInfo.groups[i];
+      }
+      for(var i=0; i< groups.length; i++){
+        if(groups[i].id==usrGroupsHash[groups[i].id]){
+          var alt_ids = groups[i].alt_ids;
+          if(alt_ids){
+            for(var j=0; j< alt_ids.length; j++){
+              usrGroupsHash[alt_ids[j]] = alt_ids[j];
+            }
           }
         }
       }
-      return false;
+      return (usrGroupsHash[approval.api.requiredGroup]==approval.api.requiredGroup);
     });
     res.json(approvalInfos);
 };
