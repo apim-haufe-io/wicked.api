@@ -16,7 +16,7 @@ approvals.get('/', function (req, res, next) {
 
 // ===== IMPLEMENTATION =====
 
-approvals.loadApprovals = function(app) {
+approvals.loadApprovals = function (app) {
     debug('loadApprovals()');
     var approvalsDir = path.join(utils.getDynamicDir(app), 'approvals');
     var approvalsFile = path.join(approvalsDir, '_index.json');
@@ -25,7 +25,7 @@ approvals.loadApprovals = function(app) {
     return JSON.parse(fs.readFileSync(approvalsFile, 'utf8'));
 };
 
-approvals.saveApprovals = function(app, approvalInfos) {
+approvals.saveApprovals = function (app, approvalInfos) {
     debug('saveApprovals()');
     debug(approvalInfos);
     var approvalsDir = path.join(utils.getDynamicDir(app), 'approvals');
@@ -33,7 +33,7 @@ approvals.saveApprovals = function(app, approvalInfos) {
     fs.writeFileSync(approvalsFile, JSON.stringify(approvalInfos, null, 2), 'utf8');
 };
 
-approvals.getApprovals = function(app, res, loggedInUserId) {
+approvals.getApprovals = function (app, res, loggedInUserId) {
     debug('getApprovals()');
     if (!loggedInUserId)
         return res.status(403).jsonp({ message: 'Not allowed' });
@@ -44,30 +44,41 @@ approvals.getApprovals = function(app, res, loggedInUserId) {
         return res.status(403).jsonp({ message: 'Not allowed' });
 
     var approvalInfos = approvals.loadApprovals(app);
-    approvalInfos = approvalInfos.filter(function(approval) {
-      if(userInfo.admin) return true; //Show all approvals for admin
-      if(!userInfo.groups) return false; //Approver is not attached to a group (un-likely)
-      if(!approval.api.requiredGroup) return false; //Api is not attached any group
+    var groupsJson = utils.loadGroups(app);
+    var groups = groupsJson.groups;
 
-      var groups = utils.loadGroups(app);
-      groups = groups.groups;
-      if(!groups) return false;
-      var usrGroupsHash = {};
-      for(var i=0; i< userInfo.groups.length; i++){
-        usrGroupsHash[userInfo.groups[i]] = userInfo.groups[i];
-      }
-      for(var i=0; i< groups.length; i++){
-        if(groups[i].id==usrGroupsHash[groups[i].id]){
-          var alt_ids = groups[i].alt_ids;
-          if(alt_ids){
-            for(var j=0; j< alt_ids.length; j++){
-              usrGroupsHash[alt_ids[j]] = alt_ids[j];
-            }
-          }
+    // Assemble a user's groups to check for approval roles
+    // and correct groups. If the user is not admin but approver,
+    // the requiredGroup needs to be present in this user's list
+    // of groups.
+    var userGroups = {};
+    if (userInfo.groups) {
+        for (var i = 0; i < userInfo.groups.length; i++) {
+            userGroups[userInfo.groups[i]] = true;
         }
-      }
-      //if group id or alt_id of approvar's group matches with requiredGroup of an API, return happy
-      return (usrGroupsHash[approval.api.requiredGroup]==approval.api.requiredGroup);
+        // This is probably not strictly necessary, as the alt_ids
+        // are mapped to wicked groups at login anyway, but it doesn't
+        // hurt either.
+        for (var i = 0; i < groups.length; i++) {
+            if (userGroups.hasOwnProperty(groups[i].id)) {
+                var alt_ids = groups[i].alt_ids;
+                if (alt_ids) {
+                    for (var j = 0; j < alt_ids.length; j++) {
+                        userGroups[alt_ids[j]] = true;
+                    }
+                }
+            }
+        }
+    }
+
+    approvalInfos = approvalInfos.filter(function (approval) {
+        if (userInfo.admin)
+            return true; // Show all approvals for admin
+        if (!approval.api.requiredGroup)
+            return false; // API does not require a group; only admins can approve of public APIs.
+
+        // If group id or alt_id of approver's group matches with requiredGroup of an API, return happy
+        return (!!userGroups[approval.api.requiredGroup]);
     });
     res.json(approvalInfos);
 };
