@@ -4,3 +4,4 @@ node_modules
 docker-api.log
 docker-portal.log
 git_*
+.idea
