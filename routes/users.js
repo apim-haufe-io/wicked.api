@@ -78,29 +78,13 @@ users.isUserIdAdmin = function (app, userId, callback) {
 };
 
 users.isUserAdmin = function (app, userInfo) {
+    debug('isUserAdmin()');
     return daoUtils.isUserAdmin(userInfo);
 };
 
-users.isUserApprover = function (app, user) {
+users.isUserApprover = function (app, userInfo) {
     debug('isUserApprover()');
-    var groups = utils.loadGroups(app);
-
-    var isApprover = false;
-    for (var i = 0; i < user.groups.length; ++i) {
-        var groupId = user.groups[i];
-        for (var groupIndex = 0; groupIndex < groups.groups.length; ++groupIndex) {
-            var group = groups.groups[groupIndex];
-            if (groupId != group.id)
-                continue;
-            if (group.approverGroup) {
-                isApprover = true;
-                break;
-            }
-        }
-        if (isApprover)
-            break;
-    }
-    return isApprover;
+    return daoUtils.isUserApprover(userInfo);
 };
 
 /* Does the user belong to a specific group, or is he an admin? */

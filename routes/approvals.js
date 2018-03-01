@@ -27,7 +27,7 @@ approvals.getApprovals = function (app, res, loggedInUserId) {
             return utils.fail(res, 500, 'getApprovals: loadUser failed', err);
         if (!userInfo)
             return utils.fail(res, 403, 'Not allowed');
-        if (!userInfo.admin)
+        if (!userInfo.admin && !userInfo.approver)
             return utils.fail(res, 403, 'Not allowed');
 
         dao.approvals.getAll((err, approvalInfos) => {

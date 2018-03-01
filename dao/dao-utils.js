@@ -27,6 +27,28 @@ daoUtils.isUserAdmin = (userInfo) => {
     return isAdmin;
 };
 
+daoUtils.isUserApprover = (userInfo) => {
+    debug('isUserApprover()');
+    var groups = utils.loadGroups();
+
+    var isApprover = false;
+    for (var i = 0; i < userInfo.groups.length; ++i) {
+        var groupId = userInfo.groups[i];
+        for (var groupIndex = 0; groupIndex < groups.groups.length; ++groupIndex) {
+            var group = groups.groups[groupIndex];
+            if (groupId != group.id)
+                continue;
+            if (group.approverGroup) {
+                isApprover = true;
+                break;
+            }
+        }
+        if (isApprover)
+            break;
+    }
+    return isApprover;
+}
+
 daoUtils.checkValidatedUserGroup = (userInfo) => {
     debug('checkValidatedUserGroup()');
     if (!userInfo.validated)
