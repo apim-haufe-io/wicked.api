@@ -288,6 +288,7 @@ subscriptions.addSubscription = function (app, res, applications, loggedInUserId
                             api: {
                                 id: selectedApi.id,
                                 name: selectedApi.name,
+                                requiredGroup: selectedApi.requiredGroup
                             },
                             application: {
                                 id: appInfo.id,
@@ -471,7 +472,7 @@ subscriptions.patchSubscription = function (app, res, applications, loggedInUser
             return utils.fail(res, 500, 'patchSubscription: loadUser failed', err);
         if (!userInfo)
             return utils.fail(res, 403, 'Not allowed.');
-        if (!userInfo.admin)
+        if (!userInfo.admin && !userInfo.approver)
             return utils.fail(res, 403, 'Not allowed. Only admins can patch a subscription.');
         dao.subscriptions.getByAppId(appId, (err, appSubs) => {
             if (err)

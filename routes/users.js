@@ -81,6 +81,28 @@ users.isUserAdmin = function (app, userInfo) {
     return daoUtils.isUserAdmin(userInfo);
 };
 
+users.isUserApprover = function (app, user) {
+    debug('isUserApprover()');
+    var groups = utils.loadGroups(app);
+
+    var isApprover = false;
+    for (var i = 0; i < user.groups.length; ++i) {
+        var groupId = user.groups[i];
+        for (var groupIndex = 0; groupIndex < groups.groups.length; ++groupIndex) {
+            var group = groups.groups[groupIndex];
+            if (groupId != group.id)
+                continue;
+            if (group.approverGroup) {
+                isApprover = true;
+                break;
+            }
+        }
+        if (isApprover)
+            break;
+    }
+    return isApprover;
+};
+
 /* Does the user belong to a specific group, or is he an admin? */
 users.hasUserGroup = function (app, userInfo, group) {
     debug('hasUserGroup()');
@@ -139,6 +161,7 @@ function postProcessUser(userInfo) {
             userInfo.name = 'Unknown User';
 
         userInfo.admin = daoUtils.isUserAdmin(userInfo);
+        userInfo.approver = daoUtils.isUserApprover(userInfo);
 
         // Add generic links
         userInfo._links = {
