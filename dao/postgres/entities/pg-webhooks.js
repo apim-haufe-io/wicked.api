@@ -59,6 +59,13 @@ pgWebhooks.events.create = (eventData, callback) => {
     return createImpl(eventData, callback);
 };
 
+pgWebhooks.events.delete = (listenerId, eventId, callback) => {
+    debug(`delete(${listenerId}, ${eventId})`);
+    pgUtils.checkCallback(callback);
+    return pgUtils.deleteById('webhook_events', eventId, callback);
+};
+
+
 // =================================================
 // DAO implementation/internal methods
 // =================================================
