@@ -131,9 +131,9 @@ app.use('/approvals', approvals);
 // ----- WEBHOOKS ------
 
 // Inject users module to webhooks; it's needed there.
-// webhooks are not allowed to be called via Kong (from outside docker)
+// Not true anymore: webhooks are not allowed to be called via Kong (from outside docker)
 webhooks.setup(users);
-app.use('/webhooks', authMiddleware.rejectFromKong, webhooks);
+app.use('/webhooks', /*authMiddleware.rejectFromKong, */webhooks);
 
 // ----- VERIFICATIONS -----
 

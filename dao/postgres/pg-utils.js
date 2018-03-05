@@ -45,6 +45,21 @@ pgUtils.getMetadata = (callback) => {
     });
 };
 
+pgUtils.createMetadata = (callback) => {
+    debug('createMetadata()');
+    getPoolOrClient((err, pool) => {
+        if (err)
+            return callback(err);
+        const now = new Date();
+        const metadata = {
+            version: 0,
+            create_date: now,
+            last_update: now
+        };
+        pool.query('INSERT INTO wicked.meta (id, data) VALUES ($1, $2)', [1, metadata], callback);
+    });
+};
+
 pgUtils.setMetadata = (metadata, callback) => {
     debug('setMetaData()');
     debug(metadata);
@@ -418,11 +433,15 @@ function createInitialSchema(callback) {
     pgUtils.runSql(schemaFileName, (err) => {
         if (err)
             return callback(err);
-        // Make sure we have an update date and that everything works as intended.
-        pgUtils.getMetadata((err, metadata) => {
+        pgUtils.createMetadata(err => {
             if (err)
                 return callback(err);
-            pgUtils.setMetadata(metadata, callback);
+            // Make sure we have an update date and that everything works as intended.
+            pgUtils.getMetadata((err, metadata) => {
+                if (err)
+                    return callback(err);
+                pgUtils.setMetadata(metadata, callback);
+            });
         });
     });
 }

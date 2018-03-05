@@ -12,6 +12,18 @@ const pgRegistrations = () => { };
 // DAO contract
 // =================================================
 
+pgRegistrations.getByPoolAndUser = (poolId, userId, callback) => {
+    return callback(utils.makeError(500, 'Not implemented'));
+};
+
+pgRegistrations.upsert = (poolId, userId, userData, callback) => {
+    return callback(utils.makeError(500, 'Not implemented'));
+};
+
+pgRegistrations.delete = (poolId, userId, callback) => {
+    return callback(utils.makeError(500, 'Not implemented'));
+};
+
 // =================================================
 // DAO implementation/internal methods
 // =================================================

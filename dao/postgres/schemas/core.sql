@@ -2,10 +2,10 @@
 -- PostgreSQL database dump
 --
 
--- Dumped from database version 9.6.5
+-- Dumped from database version 9.6.7
 -- Dumped by pg_dump version 9.6.3
 
--- Started on 2017-11-24 17:04:02 CET
+-- Started on 2018-03-05 17:09:43 CET
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -17,7 +17,7 @@ SET client_min_messages = warning;
 SET row_security = off;
 
 --
--- TOC entry 6 (class 2615 OID 18871)
+-- TOC entry 8 (class 2615 OID 16716)
 -- Name: wicked; Type: SCHEMA; Schema: -; Owner: postgres
 --
 
@@ -33,7 +33,7 @@ SET default_tablespace = '';
 SET default_with_oids = false;
 
 --
--- TOC entry 186 (class 1259 OID 18872)
+-- TOC entry 186 (class 1259 OID 16717)
 -- Name: applications; Type: TABLE; Schema: wicked; Owner: postgres
 --
 
@@ -46,7 +46,7 @@ CREATE TABLE applications (
 ALTER TABLE applications OWNER TO postgres;
 
 --
--- TOC entry 187 (class 1259 OID 18878)
+-- TOC entry 187 (class 1259 OID 16723)
 -- Name: approvals; Type: TABLE; Schema: wicked; Owner: postgres
 --
 
@@ -60,7 +60,7 @@ CREATE TABLE approvals (
 ALTER TABLE approvals OWNER TO postgres;
 
 --
--- TOC entry 188 (class 1259 OID 18884)
+-- TOC entry 188 (class 1259 OID 16729)
 -- Name: grants; Type: TABLE; Schema: wicked; Owner: postgres
 --
 
@@ -75,7 +75,7 @@ CREATE TABLE grants (
 ALTER TABLE grants OWNER TO postgres;
 
 --
--- TOC entry 189 (class 1259 OID 18890)
+-- TOC entry 189 (class 1259 OID 16735)
 -- Name: meta; Type: TABLE; Schema: wicked; Owner: postgres
 --
 
@@ -88,7 +88,7 @@ CREATE TABLE meta (
 ALTER TABLE meta OWNER TO postgres;
 
 --
--- TOC entry 190 (class 1259 OID 18896)
+-- TOC entry 190 (class 1259 OID 16741)
 -- Name: owners; Type: TABLE; Schema: wicked; Owner: postgres
 --
 
@@ -103,7 +103,7 @@ CREATE TABLE owners (
 ALTER TABLE owners OWNER TO postgres;
 
 --
--- TOC entry 191 (class 1259 OID 18902)
+-- TOC entry 191 (class 1259 OID 16747)
 -- Name: registrations; Type: TABLE; Schema: wicked; Owner: postgres
 --
 
@@ -111,6 +111,7 @@ CREATE TABLE registrations (
     id character varying(128) NOT NULL,
     pool_id character varying(128) NOT NULL,
     users_id character varying(128) NOT NULL,
+    name character varying(256) COLLATE pg_catalog."C.UTF-8",
     data jsonb
 );
 
@@ -118,7 +119,7 @@ CREATE TABLE registrations (
 ALTER TABLE registrations OWNER TO postgres;
 
 --
--- TOC entry 192 (class 1259 OID 18908)
+-- TOC entry 192 (class 1259 OID 16753)
 -- Name: subscriptions; Type: TABLE; Schema: wicked; Owner: postgres
 --
 
@@ -135,7 +136,7 @@ CREATE TABLE subscriptions (
 ALTER TABLE subscriptions OWNER TO postgres;
 
 --
--- TOC entry 193 (class 1259 OID 18914)
+-- TOC entry 193 (class 1259 OID 16759)
 -- Name: users; Type: TABLE; Schema: wicked; Owner: postgres
 --
 
@@ -151,7 +152,7 @@ CREATE TABLE users (
 ALTER TABLE users OWNER TO postgres;
 
 --
--- TOC entry 194 (class 1259 OID 18920)
+-- TOC entry 194 (class 1259 OID 16765)
 -- Name: verifications; Type: TABLE; Schema: wicked; Owner: postgres
 --
 
@@ -165,7 +166,7 @@ CREATE TABLE verifications (
 ALTER TABLE verifications OWNER TO postgres;
 
 --
--- TOC entry 195 (class 1259 OID 18926)
+-- TOC entry 195 (class 1259 OID 16771)
 -- Name: webhook_events; Type: TABLE; Schema: wicked; Owner: postgres
 --
 
@@ -179,7 +180,7 @@ CREATE TABLE webhook_events (
 ALTER TABLE webhook_events OWNER TO postgres;
 
 --
--- TOC entry 196 (class 1259 OID 18932)
+-- TOC entry 196 (class 1259 OID 16777)
 -- Name: webhook_listeners; Type: TABLE; Schema: wicked; Owner: postgres
 --
 
@@ -192,7 +193,7 @@ CREATE TABLE webhook_listeners (
 ALTER TABLE webhook_listeners OWNER TO postgres;
 
 --
--- TOC entry 2056 (class 2606 OID 18939)
+-- TOC entry 2056 (class 2606 OID 16784)
 -- Name: applications applications_pkey; Type: CONSTRAINT; Schema: wicked; Owner: postgres
 --
 
@@ -201,7 +202,7 @@ ALTER TABLE ONLY applications
 
 
 --
--- TOC entry 2058 (class 2606 OID 18941)
+-- TOC entry 2058 (class 2606 OID 16786)
 -- Name: approvals approvals_pkey; Type: CONSTRAINT; Schema: wicked; Owner: postgres
 --
 
@@ -210,7 +211,7 @@ ALTER TABLE ONLY approvals
 
 
 --
--- TOC entry 2060 (class 2606 OID 18943)
+-- TOC entry 2060 (class 2606 OID 16788)
 -- Name: grants grants_pkey; Type: CONSTRAINT; Schema: wicked; Owner: postgres
 --
 
@@ -219,7 +220,7 @@ ALTER TABLE ONLY grants
 
 
 --
--- TOC entry 2065 (class 2606 OID 18945)
+-- TOC entry 2065 (class 2606 OID 16790)
 -- Name: meta meta_pkey; Type: CONSTRAINT; Schema: wicked; Owner: postgres
 --
 
@@ -228,7 +229,7 @@ ALTER TABLE ONLY meta
 
 
 --
--- TOC entry 2069 (class 2606 OID 18947)
+-- TOC entry 2069 (class 2606 OID 16792)
 -- Name: owners owners_pkey; Type: CONSTRAINT; Schema: wicked; Owner: postgres
 --
 
@@ -237,7 +238,7 @@ ALTER TABLE ONLY owners
 
 
 --
--- TOC entry 2071 (class 2606 OID 18949)
+-- TOC entry 2072 (class 2606 OID 16794)
 -- Name: registrations registrations_pkey; Type: CONSTRAINT; Schema: wicked; Owner: postgres
 --
 
@@ -246,7 +247,7 @@ ALTER TABLE ONLY registrations
 
 
 --
--- TOC entry 2076 (class 2606 OID 18951)
+-- TOC entry 2077 (class 2606 OID 16796)
 -- Name: subscriptions subscriptions_pkey; Type: CONSTRAINT; Schema: wicked; Owner: postgres
 --
 
@@ -255,7 +256,7 @@ ALTER TABLE ONLY subscriptions
 
 
 --
--- TOC entry 2081 (class 2606 OID 18953)
+-- TOC entry 2082 (class 2606 OID 16798)
 -- Name: users users_pkey; Type: CONSTRAINT; Schema: wicked; Owner: postgres
 --
 
@@ -264,7 +265,7 @@ ALTER TABLE ONLY users
 
 
 --
--- TOC entry 2084 (class 2606 OID 18955)
+-- TOC entry 2085 (class 2606 OID 16800)
 -- Name: verifications verifications_pkey; Type: CONSTRAINT; Schema: wicked; Owner: postgres
 --
 
@@ -273,7 +274,7 @@ ALTER TABLE ONLY verifications
 
 
 --
--- TOC entry 2086 (class 2606 OID 18957)
+-- TOC entry 2087 (class 2606 OID 16802)
 -- Name: webhook_events webhook_events_pkey; Type: CONSTRAINT; Schema: wicked; Owner: postgres
 --
 
@@ -282,7 +283,7 @@ ALTER TABLE ONLY webhook_events
 
 
 --
--- TOC entry 2088 (class 2606 OID 18959)
+-- TOC entry 2089 (class 2606 OID 16804)
 -- Name: webhook_listeners webhook_listeners_pkey; Type: CONSTRAINT; Schema: wicked; Owner: postgres
 --
 
@@ -291,7 +292,7 @@ ALTER TABLE ONLY webhook_listeners
 
 
 --
--- TOC entry 2066 (class 1259 OID 18960)
+-- TOC entry 2066 (class 1259 OID 16805)
 -- Name: fki_applications_fkey; Type: INDEX; Schema: wicked; Owner: postgres
 --
 
@@ -299,7 +300,7 @@ CREATE INDEX fki_applications_fkey ON owners USING btree (applications_id);
 
 
 --
--- TOC entry 2082 (class 1259 OID 18961)
+-- TOC entry 2083 (class 1259 OID 16806)
 -- Name: fki_users_fkey; Type: INDEX; Schema: wicked; Owner: postgres
 --
 
@@ -307,7 +308,7 @@ CREATE INDEX fki_users_fkey ON verifications USING btree (users_id);
 
 
 --
--- TOC entry 2067 (class 1259 OID 18962)
+-- TOC entry 2067 (class 1259 OID 16807)
 -- Name: fki_users_id; Type: INDEX; Schema: wicked; Owner: postgres
 --
 
@@ -315,7 +316,7 @@ CREATE INDEX fki_users_id ON owners USING btree (users_id);
 
 
 --
--- TOC entry 2061 (class 1259 OID 18966)
+-- TOC entry 2061 (class 1259 OID 16808)
 -- Name: grants_subscriptions_id_idx; Type: INDEX; Schema: wicked; Owner: postgres
 --
 
@@ -323,7 +324,7 @@ CREATE INDEX grants_subscriptions_id_idx ON grants USING btree (subscriptions_id
 
 
 --
--- TOC entry 2062 (class 1259 OID 18967)
+-- TOC entry 2062 (class 1259 OID 16809)
 -- Name: grants_subscriptions_users_idx; Type: INDEX; Schema: wicked; Owner: postgres
 --
 
@@ -331,7 +332,7 @@ CREATE UNIQUE INDEX grants_subscriptions_users_idx ON grants USING btree (users_
 
 
 --
--- TOC entry 2063 (class 1259 OID 18968)
+-- TOC entry 2063 (class 1259 OID 16810)
 -- Name: grants_users_id_idx; Type: INDEX; Schema: wicked; Owner: postgres
 --
 
@@ -339,7 +340,15 @@ CREATE INDEX grants_users_id_idx ON grants USING btree (users_id);
 
 
 --
--- TOC entry 2072 (class 1259 OID 18969)
+-- TOC entry 2070 (class 1259 OID 16812)
+-- Name: registrations_name_idx; Type: INDEX; Schema: wicked; Owner: postgres
+--
+
+CREATE INDEX registrations_name_idx ON registrations USING btree (name);
+
+
+--
+-- TOC entry 2073 (class 1259 OID 16811)
 -- Name: registrations_users_pool_idx; Type: INDEX; Schema: wicked; Owner: postgres
 --
 
@@ -347,7 +356,7 @@ CREATE UNIQUE INDEX registrations_users_pool_idx ON registrations USING btree (u
 
 
 --
--- TOC entry 2073 (class 1259 OID 18970)
+-- TOC entry 2074 (class 1259 OID 16813)
 -- Name: subscriptions_applications_id_idx; Type: INDEX; Schema: wicked; Owner: postgres
 --
 
@@ -355,7 +364,7 @@ CREATE INDEX subscriptions_applications_id_idx ON subscriptions USING btree (app
 
 
 --
--- TOC entry 2074 (class 1259 OID 18971)
+-- TOC entry 2075 (class 1259 OID 16814)
 -- Name: subscriptions_client_id_idx; Type: INDEX; Schema: wicked; Owner: postgres
 --
 
@@ -363,7 +372,7 @@ CREATE INDEX subscriptions_client_id_idx ON subscriptions USING btree (client_id
 
 
 --
--- TOC entry 2077 (class 1259 OID 18964)
+-- TOC entry 2078 (class 1259 OID 16815)
 -- Name: users_custom_id_idx; Type: INDEX; Schema: wicked; Owner: postgres
 --
 
@@ -371,7 +380,7 @@ CREATE UNIQUE INDEX users_custom_id_idx ON users USING btree (custom_id);
 
 
 --
--- TOC entry 2078 (class 1259 OID 18963)
+-- TOC entry 2079 (class 1259 OID 16816)
 -- Name: users_email_idx; Type: INDEX; Schema: wicked; Owner: postgres
 --
 
@@ -379,7 +388,7 @@ CREATE UNIQUE INDEX users_email_idx ON users USING btree (email);
 
 
 --
--- TOC entry 2079 (class 1259 OID 18965)
+-- TOC entry 2080 (class 1259 OID 16817)
 -- Name: users_name_idx; Type: INDEX; Schema: wicked; Owner: postgres
 --
 
@@ -387,7 +396,7 @@ CREATE INDEX users_name_idx ON users USING btree (custom_id);
 
 
 --
--- TOC entry 2091 (class 2606 OID 18972)
+-- TOC entry 2092 (class 2606 OID 16818)
 -- Name: owners applications_fkey; Type: FK CONSTRAINT; Schema: wicked; Owner: postgres
 --
 
@@ -396,7 +405,7 @@ ALTER TABLE ONLY owners
 
 
 --
--- TOC entry 2094 (class 2606 OID 19007)
+-- TOC entry 2095 (class 2606 OID 16823)
 -- Name: subscriptions subscriptions_applications_id_fkey; Type: FK CONSTRAINT; Schema: wicked; Owner: postgres
 --
 
@@ -405,7 +414,7 @@ ALTER TABLE ONLY subscriptions
 
 
 --
--- TOC entry 2089 (class 2606 OID 18977)
+-- TOC entry 2090 (class 2606 OID 16828)
 -- Name: approvals subscriptions_fkey; Type: FK CONSTRAINT; Schema: wicked; Owner: postgres
 --
 
@@ -414,7 +423,7 @@ ALTER TABLE ONLY approvals
 
 
 --
--- TOC entry 2092 (class 2606 OID 18982)
+-- TOC entry 2093 (class 2606 OID 16833)
 -- Name: owners users_fkey; Type: FK CONSTRAINT; Schema: wicked; Owner: postgres
 --
 
@@ -423,7 +432,7 @@ ALTER TABLE ONLY owners
 
 
 --
--- TOC entry 2095 (class 2606 OID 18987)
+-- TOC entry 2096 (class 2606 OID 16838)
 -- Name: verifications users_fkey; Type: FK CONSTRAINT; Schema: wicked; Owner: postgres
 --
 
@@ -432,7 +441,7 @@ ALTER TABLE ONLY verifications
 
 
 --
--- TOC entry 2093 (class 2606 OID 18992)
+-- TOC entry 2094 (class 2606 OID 16843)
 -- Name: registrations users_fkey; Type: FK CONSTRAINT; Schema: wicked; Owner: postgres
 --
 
@@ -441,7 +450,7 @@ ALTER TABLE ONLY registrations
 
 
 --
--- TOC entry 2090 (class 2606 OID 18997)
+-- TOC entry 2091 (class 2606 OID 16848)
 -- Name: grants users_fkey; Type: FK CONSTRAINT; Schema: wicked; Owner: postgres
 --
 
@@ -450,7 +459,7 @@ ALTER TABLE ONLY grants
 
 
 --
--- TOC entry 2096 (class 2606 OID 19002)
+-- TOC entry 2097 (class 2606 OID 16853)
 -- Name: webhook_events webhook_listeners_fkey; Type: FK CONSTRAINT; Schema: wicked; Owner: postgres
 --
 
@@ -458,10 +467,9 @@ ALTER TABLE ONLY webhook_events
     ADD CONSTRAINT webhook_listeners_fkey FOREIGN KEY (webhook_listeners_id) REFERENCES webhook_listeners(id) ON DELETE CASCADE;
 
 
--- Completed on 2017-11-24 17:04:03 CET
+-- Completed on 2018-03-05 17:09:44 CET
 
 --
 -- PostgreSQL database dump complete
 --
 
-INSERT INTO meta (id, data) VALUES (1, '{"version":0}');
