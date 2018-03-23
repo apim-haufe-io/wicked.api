@@ -7,6 +7,67 @@ var debug = require('debug')('portal-api:utils');
 
 var utils = function () { };
 
+var hasOwn = {}.hasOwnProperty;
+
+// recursive function to resolve the access to a property.
+// '.' and '[]' are supported
+// at the moment, there is NO error checking/handling
+function resolve(value, selector) {
+    if (typeof selector === 'string') {
+        selector = selector.split('.');
+    }
+
+    if (selector.length === 0) {
+        return value;
+    }
+
+    let parts = selector[0].split(/[\[\]]/);
+
+    if (parts.length === 2) {
+        let name = parts[0];
+        let index = parts[1];
+        value = value[name][index];
+    } else {
+        let name = selector[0];
+        value = value[name];
+    }
+
+    return resolve(value, selector.slice(1));
+}
+
+utils.templateString = function (string, variables) {
+    if (!variables) {
+        return string;
+    }
+
+    // first, resolve any placeholder like "!${...}"
+    // The COMPLETE string (incl. double-quotes) is replaced by the 
+    // string representation of the resolved value
+    string = string.replace(/"!\$\{([^}]+)}"/g, function (all, name) {
+        var res = resolve(variables, name);
+
+        if (typeof res !== 'string') {
+            res = JSON.stringify(res);
+        }
+
+        return res;
+    });
+
+    // resolve any placeholders INSIDE the string with the 
+    // resolved value (as string).
+    string = string.replace(/\$\{([^}]+)}/g, function (all, name) {
+        var res = resolve(variables, name);
+
+        if (typeof res === 'array' || res === 'object' || res === 'undefined') {
+            throw new Error(`${res} is an invalid value type for templating.`);
+        }
+
+        return res;
+    });
+
+    return string;
+}
+
 utils.getStaticDir = function (app) {
     return app.get('static_config');
 };

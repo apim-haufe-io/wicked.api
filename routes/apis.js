@@ -46,6 +46,10 @@ apis.get('/:apiId/subscriptions', function (req, res, next) {
     apis.getSubscriptions(req.app, res, req.apiUserId, req.params.apiId);
 });
 
+apis.get('/:apiId/apis.json', function (req, res, next) {
+    apis.getApisJson(req.app, res, req.apiUserId, req.params.apiId);
+});
+
 // ===== IMPLEMENTATION =====
 
 apis.getApis = function (app, res, loggedInUserId) {
@@ -374,7 +378,7 @@ function resolveSwagger(globalSettings, apiInfo, requestPath, fileName, callback
             if (apiData.valid)
                 return callback(null, apiData.swagger);
             // Invalid cached data
-            return callback(new Error('Invalid swagger data for API ' + apiId));
+            return callback(new Error('Invalid swagger data for API ' + apiInfo.id + '. Waiting for refresh.'));
         }
         // We'll refresh the data, fall past
     }
@@ -543,6 +547,90 @@ apis.getSubscriptions = function (app, res, loggedInUserId, apiId) {
         return res.json(apiSubs);
     }
     res.status(404).json({ message: 'Not Found.' });
-};
+}
+
+apis.getApisJson = function (app, res, loggedInUserId, apiId) {
+    debug('getApisJson() ' + apiId);
+
+    if (!apis.checkAccess(app, res, loggedInUserId, apiId))
+        return;
+
+    var glob = utils.loadGlobals(app);
+    var configJson = loadApiConfig(app, apiId);
+
+    if (!configJson || !configJson.api || !configJson.api.uris || !configJson.api.uris.length)
+        return res.status(500).jsonp({ message: 'Invalid API configuration; does not contain uris array.' });
+    var requestPath = configJson.api.uris[0];
+
+    const staticDir = utils.getStaticDir(app);
+    const swaggerFileName = path.join(staticDir, 'apis', apiId, 'swagger.json');
+
+    var apiList = utils.loadApis(app);
+    var api = apiList.apis.find(function (anApi) { return anApi.id == apiId; });
+
+    if (!api) {
+        res.status(404).json({ message: 'Not Found.' });
+    }
+
+    function readRawApisjson(err, apiRes, apiBody) {
+        if (err) {
+            return res.status(500).json({
+                message: 'Could not resolve the Swagger JSON file, an error occurred.',
+                error: err
+            });
+        }
+
+        try {
+            const rawSwaggerRemote = utils.getJson(apiBody);
+            if (apiRes !== null) {
+                rawSwaggerRemote.url = `${glob.network.portalUrl}/apis/${apiId}/apis.json`;
+            }
+            return res.json(rawSwaggerRemote);
+        } catch (err) {
+            return res.status(500).json({
+                message: 'Could not resolve the APIs.JSON file, an error occurred.',
+                error: err
+            });
+        }
+    };
+
+    function applyResolvedSwagger(err, swagger) {
+        if (err) {
+            return res.status(500).json({
+                message: 'Could not resolve the Swagger JSON file, an error occurred.',
+                error: err
+            });
+        }
+
+        const apisjsonFileName = path.join(staticDir, 'apis', apiId, 'apis.json');
+        var text = fs.readFileSync(apisjsonFileName, 'utf8');
+
+        text = utils.templateString(text, {
+            swagger: swagger,
+            apisio: glob.apisIo.skeleton,
+            api: api,
+            wicked: {
+                humanUrl: `${glob.network.portalUrl}/apis/apiId`,
+                baseUrl: `${glob.network.schema}://${swagger.host}/${apiId}`,
+            }
+        });
+
+        const json = JSON.parse(text);
+
+        utils.replaceEnvVars(json);
+
+        if (json.href) {
+            request.get(json.href, readRawApisjson);
+        } else {
+            readRawApisjson(null, null, text);
+        }
+    };
+
+    // Read it, we want to do stuff with it.
+    // resolveSwagger might read directly from the swagger file, or, if the
+    // swagger JSON contains a href property, get it from a remote location.
+    resolveSwagger(glob, api, requestPath, swaggerFileName, applyResolvedSwagger);
+}
 
 module.exports = apis;
+
