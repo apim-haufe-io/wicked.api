@@ -16,6 +16,10 @@ pgRegistrations.getByPoolAndUser = (poolId, userId, callback) => {
     return callback(utils.makeError(500, 'Not implemented'));
 };
 
+pgRegistrations.getByPoolAndNamespace = (poolId, namespace, offset, limit, callback) => {
+    return callback(utils.makeError(500, 'Not implemented'));
+};
+
 pgRegistrations.upsert = (poolId, userId, userData, callback) => {
     return callback(utils.makeError(500, 'Not implemented'));
 };

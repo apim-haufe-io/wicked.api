@@ -111,6 +111,7 @@ CREATE TABLE registrations (
     id character varying(128) NOT NULL,
     pool_id character varying(128) NOT NULL,
     users_id character varying(128) NOT NULL,
+    namespace character varying(128) NOT NULL,
     name character varying(256) COLLATE pg_catalog."C.UTF-8",
     data jsonb
 );
@@ -352,7 +353,7 @@ CREATE INDEX registrations_name_idx ON registrations USING btree (name);
 -- Name: registrations_users_pool_idx; Type: INDEX; Schema: wicked; Owner: postgres
 --
 
-CREATE UNIQUE INDEX registrations_users_pool_idx ON registrations USING btree (users_id, pool_id);
+CREATE UNIQUE INDEX registrations_users_pool_idx ON registrations USING btree (users_id, pool_id, namespace);
 
 
 --

@@ -37,6 +37,8 @@ securityDefinitions:
       read_approvals: Read pending approvals
       read_verifications: Read email and password verifications
       write_verifications: Create or delete verifications
+      read_registrations: Read user registrations
+      write_registrations: Write user registrations
       webhooks: Access and change webhooks
   
   implicit:
@@ -63,6 +65,8 @@ securityDefinitions:
       read_approvals: Read pending approvals
       read_verifications: Read email and password verifications
       write_verifications: Create or delete verifications
+      read_registrations: Read user registrations
+      write_registrations: Write user registrations
       webhooks: Access and change webhooks
 
   password:
@@ -87,6 +91,8 @@ securityDefinitions:
       read_approvals: Read pending approvals
       read_verifications: Read email and password verifications
       write_verifications: Create or delete verifications
+      read_registrations: Read user registrations
+      write_registrations: Write user registrations
       webhooks: Access and change webhooks
 
   # For anonymous access to data
@@ -1244,12 +1250,13 @@ paths:
           description: Successfully deleted
         '403':
           description: Not allowed
+
   '/registrations/{poolId}':
     get:
       security:
-      - accessCode: ['webhooks']
-      - implicit: ['webhooks']
-      - password: ['webhooks']
+      - accessCode: ['read_registrations']
+      - implicit: ['read_registrations']
+      - password: ['read_registrations']
       tags:
       - registration
       description: Retrieve all registrations
@@ -1258,10 +1265,21 @@ paths:
         in: path
         type: string
         required: true
-      # TODO: Paging!
+      - name: namespace
+        in: query
+        type: string
+        required: false
+      - name: offset
+        in: query
+        type: number
+        required: false
+      - name: limit
+        in: query
+        type: number
+        required: false
       responses:
         '403':
-          description: Forbiddem
+          description: Forbidden
         '200':
           description: List of registered users
 
