@@ -15,6 +15,15 @@ const jsonWebhooks = () => { };
 
 jsonWebhooks.listeners = {};
 
+jsonWebhooks.hookListeners = (dispatchEvents, callback) => {
+    // Check if we need to fire hooks from times to times (every 10 seconds)
+    var hookInterval = process.env.PORTAL_API_HOOK_INTERVAL || '10000';
+    debug('Setting webhook interval to ' + hookInterval);
+    setInterval(() => {
+        dispatchEvents(() => {});
+    }, hookInterval);
+};
+
 jsonWebhooks.listeners.getAll = (callback) => {
     debug('getAll()');
     jsonUtils.checkCallback(callback);

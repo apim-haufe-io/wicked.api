@@ -184,10 +184,8 @@ app.use('/kill', kill);
 // ------- REGULAR EVENTS -------
 
 app.setupHooks = () => {
-    // Check if we need to fire hooks from times to times (every 10 seconds)
-    var hookInterval = process.env.PORTAL_API_HOOK_INTERVAL || '10000';
-    debug('Setting webhook interval to ' + hookInterval);
-    setInterval(webhooks.checkAndFireHooks, hookInterval, app);
+    // Make sure webhook notifications are set up
+    webhooks.setupHooks();
 
     // Clean up expired verification records once a minute
     var expiryInterval = process.env.PORTAL_API_EXPIRY_INTERVAL || '60000';

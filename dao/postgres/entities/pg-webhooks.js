@@ -41,6 +41,11 @@ pgWebhooks.listeners.delete = (listenerId, callback) => {
 
 pgWebhooks.events = {};
 
+pgWebhooks.events.hookListeners = (dispatchEvents, callback) => {
+    debug('hookListeners()');
+    return hookListenersImpl(dispatchEvents, callback);
+};
+
 pgWebhooks.events.getByListener = (listenerId, callback) => {
     debug(`getByListener(${listenerId})`);
     pgUtils.checkCallback(callback);
@@ -96,6 +101,39 @@ function createImpl(eventData, callback) {
             });
         });
     }, callback);
+}
+
+let _eventsPending = false;
+let _lastDispatch = 0;
+function hookListenersImpl(dispatchEvents, callback) {
+    debug('hookListenersImpl()');
+    pgUtils.listenToChannel('webhook_insert', (data) => {
+        debug('Received a pending event, queueing...');
+        _eventsPending = true;
+    });
+    setInterval(() => {
+        let safetyDispatch = false;
+        if (Date.now() - _lastDispatch > 10000) {
+            debug('safety dispatch of webhook events');
+            // Safety check, every ten seconds dispatch anyway.
+            safetyDispatch = true;
+        }
+        if (_eventsPending || safetyDispatch) {
+            if (_eventsPending)
+                debug('detected pending webhook events, firing dispatcher');
+            _lastDispatch = Date.now();
+            _eventsPending = false;
+            dispatchEvents((err) => {
+                if (err) {
+                    console.error('ERROR dispatching webhook events');
+                    console.error(err);
+                    return;
+                }
+            });
+        }
+    }, 250);
+    if (callback)
+        return callback(null);
 }
 
 module.exports = pgWebhooks;

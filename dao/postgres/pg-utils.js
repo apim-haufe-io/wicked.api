@@ -74,6 +74,46 @@ pgUtils.setMetadata = (metadata, callback) => {
     });
 };
 
+const _channelMap = {};
+let _listenerClient = null;
+pgUtils.listenToChannel = (channelName, eventSink, callback) => {
+    debug(`listenToTopic(${channelName})`);
+
+    const hookChannel = (client) => {
+        debug('Hooking channel ' + channelName);
+        _channelMap[channelName] = eventSink;
+        client.query(`LISTEN ${channelName}`, (err) => {
+            debug(`LISTEN ${channelName} error: ${err}`);
+        });
+    };
+
+    if (_listenerClient) {
+        hookChannel(_listenerClient);
+    } else {
+        debug('listenToChannel - setting up listener PG client');
+        // Initial setup
+        _listenerClient = new pg.Client(getPostgresOptions('wicked'));
+
+        _listenerClient.connect((err) => {
+            if (err)
+                return callback(err);
+            debug('listenToChannel - connect was successful');
+            _listenerClient.on('notification', (data) => {
+                const channel = data.channel;
+                debug('received notification on channel ' + channel);
+                if (_channelMap[channel]) {
+                    const payload = JSON.parse(data.payload);
+                    _channelMap[channel](payload);
+                } else {
+                    debug('WARNING: Unknown channel ' + channel);
+                }
+            });
+
+            hookChannel(_listenerClient);
+        });
+    }
+};
+
 /**
  * Utility function to wrap a Postgres transaction.
  * 
@@ -457,16 +497,26 @@ function makeSqlCommandList(sqlFileName) {
     const sqlCommands = [];
 
     let current = '';
+    let inDollarQuote = false;
     for (let i = 0; i < lines.length; ++i) {
         const thisLine = lines[i].trim();
         if (thisLine.startsWith('--'))
             continue;
+        if (!inDollarQuote && thisLine.indexOf('$$') >= 0) {
+            inDollarQuote = true;
+        }
         if (current === '') {
             current = current + thisLine;
         } else {
             current = current + ' ' + thisLine;
         }
-        if (thisLine.endsWith(';')) {
+        if (inDollarQuote) {
+            if (thisLine.endsWith('$$;')) {
+                sqlCommands.push(current);
+                current = '';
+                inDollarQuote = false;
+            }
+        } else if (thisLine.endsWith(';')) {
             sqlCommands.push(current);
             current = '';
         }

@@ -110,6 +110,8 @@ dao.webhooks = {
     },
 
     events: {
+        hookListeners: (dispatchEvents, callback) => { dao._impl.webhooks.events.hookListeners(dispatchEvents, callback); },
+
         getByListener: (listenerId, callback) => { dao._impl.webhooks.events.getByListener(listenerId, callback); },
         getTotalCount: (callback) => { dao._impl.webhooks.events.getTotalCount(callback); },
 
