@@ -209,10 +209,6 @@ verifications.patchUserWithVerificationId = function (app, res, users, verificat
 
 verifications.checkExpiredRecords = function (app) {
     debug('checkExpiredRecords()');
-    if (!webhooks.areHooksEnabled()) {
-        debug('checkExpiredRecords() - Webhooks are disabled');
-        return;
-    }
 
     dao.verifications.reconcile(verifications.EXPIRY_SECONDS, (err) => {
         if (err) {

@@ -39,10 +39,6 @@ systemhealth._health = [{
 systemhealth._startupSeconds = utils.getUtc();
 systemhealth.checkHealth = function (app) {
     debug('checkHealth()');
-    if (!webhooks.areHooksEnabled()) {
-        debug('checkHealth() - Webhooks are disabled');
-        return;
-    }
     var glob = utils.loadGlobals(app);
 
     // - Listeners

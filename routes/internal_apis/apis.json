@@ -29,7 +29,7 @@
                 "enable_implicit_grant": true,
                 "enable_authorization_code": true,
                 "enable_password_grant": true,
-                "token_expiration": "10",
+                "token_expiration": "120",
                 "scopes": {
                     "read_plans": {
                         "description": "Read plans"

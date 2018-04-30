@@ -66,22 +66,6 @@ webhooks.ENTITY_IMPORT = 'import';
 
 // ===== IMPLEMENTATION =====
 
-// ===== Temporary disable hooks =====
-
-webhooks._disableAllHooks = false;
-
-webhooks.disableAllHooks = function () {
-    webhooks._disableAllHooks = true;
-};
-
-webhooks.enableAllHooks = function () {
-    webhooks._disableAllHooks = false;
-};
-
-webhooks.areHooksEnabled = function () {
-    return !webhooks._disableAllHooks;
-};
-
 // ===== INTERNAL =====
 
 function retryLog(app, triesLeft, eventData, callback) {
@@ -112,12 +96,6 @@ webhooks.logEvent = function (app, eventData, callback) {
         throw new Error("Webhook event data must contain 'action'.");
     if (!eventData.entity)
         throw new Error("Webhook event data must contain 'entity'.");
-
-    if (webhooks._disableAllHooks) {
-        if (callback)
-            return callback(new Error('Webhooks are currently disabled; logEvent did not do anything.'));
-        return;
-    }
 
     eventData.id = utils.createRandomId();
     eventData.utc = utils.getUtc();
@@ -262,17 +240,26 @@ webhooks.deleteEvent = function (app, res, users, loggedInUserId, listenerId, ev
 
 // FIRING WEB HOOKS
 
-webhooks.checkAndFireHooks = function (app) {
-    debug('checkAndFireHooks()');
-    if (webhooks._disableAllHooks) {
-        debug('checkAndFireHooks() - currently disabled.');
-        return;
-    }
+webhooks.setupHooks = function () {
+    // Delegate to the DAO, this depends on the DAO implementation how this is done
+    // in detail.
+    dao.webhooks.events.hookListeners(webhooks.checkAndFireHooks, (err) => {
+        if (err) {
+            // TODO: This should possibly break things if it fails.
+            debug('hookListeners() failed: ' + err);
+            debug(err);
+        }
+    });
+};
 
+webhooks.checkAndFireHooks = function (callback) {
+    if (!callback)
+        throw new Error('checkAndFireHooks: callback is null');
+    debug('checkAndFireHooks()');
     dao.webhooks.listeners.getAll((err, listenerInfos) => {
         if (err) {
             console.error('*** COULD NOT GET WEBHOOKS');
-            return;
+            return callback(err);
         }
 
         async.map(listenerInfos, (listener, callback) => {
@@ -305,9 +292,10 @@ webhooks.checkAndFireHooks = function (app) {
             if (err) {
                 debug(err);
                 console.error(err);
-                return;
+                return callback(err);
             }
             debug('checkAndFireHooks successfully finished.');
+            return callback(null);
         });
     });
 };
