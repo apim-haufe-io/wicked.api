@@ -1,24 +1,24 @@
 'use strict';
 
-var fs = require('fs');
-var path = require('path');
-var debug = require('debug')('portal-api:initializer');
-var bcrypt = require('bcrypt-nodejs');
-var async = require('async');
+const fs = require('fs');
+const path = require('path');
+const debug = require('debug')('portal-api:initializer');
+const bcrypt = require('bcrypt-nodejs');
+const async = require('async');
 
-var utils = require('./utils');
-var users = require('./users');
-var applications = require('./applications');
-var subscriptions = require('./subscriptions');
+const utils = require('./utils');
+const users = require('./users');
+const applications = require('./applications');
+const subscriptions = require('./subscriptions');
 
-var dao = require('../dao/dao');
+const dao = require('../dao/dao');
 
-var initializer = function () { };
+const initializer = function () { };
 
 initializer.checkDynamicConfig = (callback) => {
     debug('checkDynamicConfig()');
 
-    var glob = utils.loadGlobals();
+    const glob = utils.loadGlobals();
 
     // Get checking functions from the DAO
     const daoChecks = dao.meta.getInitChecks();
@@ -43,10 +43,10 @@ initializer.checkDynamicConfig = (callback) => {
                 console.error(err);
             }
 
-            var checkResults = [];
-            for (var i = 0; i < results.length; ++i) {
+            let checkResults = [];
+            for (let i = 0; i < results.length; ++i) {
                 if (results[i]) {
-                    for (var j = 0; j < results[i].length; ++j)
+                    for (let j = 0; j < results[i].length; ++j)
                         checkResults.push(results[i][j]);
                 }
             }
@@ -58,7 +58,7 @@ initializer.checkDynamicConfig = (callback) => {
 
 function addInitialUsers(glob, callback) {
     debug('addInitialUsers()');
-    var error = null;
+    let error = null;
     if (!glob.initialUsers) {
         debug('Global config does not contain initial users.');
         return;
@@ -93,17 +93,17 @@ function addInitialUsers(glob, callback) {
 
 function checkApiPlans(glob, callback) {
     debug('checkApiPlans()');
-    var error = null;
-    var messages = [];
+    let error = null;
+    const messages = [];
     try {
-        var apis = utils.loadApis();
-        var plans = utils.loadPlans();
+        const apis = utils.loadApis();
+        const plans = utils.loadPlans();
 
-        var planMap = buildPlanMap(plans);
+        const planMap = buildPlanMap(plans);
 
-        for (var i = 0; i < apis.apis.length; ++i) {
-            var api = apis.apis[i];
-            for (var p = 0; p < api.plans.length; ++p) {
+        for (let i = 0; i < apis.apis.length; ++i) {
+            const api = apis.apis[i];
+            for (let p = 0; p < api.plans.length; ++p) {
                 if (!planMap[api.plans[p]])
                     messages.push('checkApiPlans: API "' + api.id + '" refers to an unknown plan: "' + api.plans[i] + '".');
             }
@@ -114,7 +114,7 @@ function checkApiPlans(glob, callback) {
         error = err;
     }
 
-    var resultMessages = null;
+    let resultMessages = null;
     if (messages.length > 0)
         resultMessages = messages;
     callback(error, resultMessages);
@@ -147,8 +147,8 @@ function checkSubscriptions(glob, callback) {
 
         // Closures are perversly useful.
         const check = function (subsCheck, subs) {
-            for (var i = 0; i < subs.length; ++i) {
-                var msg = subsCheck(apiMap, planMap, subs[i]);
+            for (let i = 0; i < subs.length; ++i) {
+                const msg = subsCheck(apiMap, planMap, subs[i]);
                 if (msg)
                     messages.push(msg);
             }
@@ -175,7 +175,7 @@ function checkSubscriptions(glob, callback) {
                         dao.subscriptions.legacyWriteSubsIndex(thisApp, subs);
 
                         // Yay
-                        callback(null);
+                        return callback(null);
                     });
                 }, callback);
             });
@@ -184,7 +184,7 @@ function checkSubscriptions(glob, callback) {
                 console.error(err);
                 console.error(err.stack);
             }
-            var resultMessages = null;
+            let resultMessages = null;
             if (messages.length > 0)
                 resultMessages = messages;
 
@@ -203,9 +203,9 @@ function checkSubscriptions(glob, callback) {
 }
 
 function buildApiMap(apis) {
-    var apiMap = {};
-    for (var i = 0; i < apis.apis.length; ++i) {
-        var api = apis.apis[i];
+    const apiMap = {};
+    for (let i = 0; i < apis.apis.length; ++i) {
+        const api = apis.apis[i];
         // We'll fill this below.
         api.subscriptions = [];
         apiMap[api.id] = api;
@@ -214,9 +214,9 @@ function buildApiMap(apis) {
 }
 
 function buildPlanMap(plans) {
-    var planMap = {};
-    for (var i = 0; i < plans.plans.length; ++i) {
-        var plan = plans.plans[i];
+    const planMap = {};
+    for (let i = 0; i < plans.plans.length; ++i) {
+        const plan = plans.plans[i];
         planMap[plan.id] = plan;
     }
     return planMap;
@@ -237,9 +237,9 @@ function thatApiIsValid(apis, plans, sub) {
 function thatApiPlanIsValid(apis, plans, sub) {
     if (!apis[sub.api] || !plans[sub.plan])
         return null; // This is covered by the above two
-    var found = false;
-    var api = apis[sub.api];
-    for (var i = 0; i < api.plans.length; ++i) {
+    let found = false;
+    const api = apis[sub.api];
+    for (let i = 0; i < api.plans.length; ++i) {
         if (api.plans[i] == sub.plan)
             found = true;
     }
