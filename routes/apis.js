@@ -476,7 +476,7 @@ function resolveSwagger(globalSettings, apiInfo, requestPath, fileName, callback
             if (apiData.valid)
                 return callback(null, apiData.swagger);
             // Invalid cached data
-            return callback(new Error('Invalid swagger data for API ' + apiId));
+            return callback(new Error('Invalid swagger data for API ' + apiInfo.id));
         }
         // We'll refresh the data, fall past
     }
