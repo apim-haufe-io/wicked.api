@@ -7,12 +7,23 @@
         {
             "type": "node",
             "request": "launch",
-            "name": "Launch Program",
+            "name": "Postgres Backend",
             "program": "${workspaceFolder}/bin/api",
             "env": {
-                "PORTAL_CONFIG_BASE":"/Users/martind/Projects/api-portal-template/config",
-                "DEBUG":"*",
-                "NODE_ENV":"localhost"
+                "PORTAL_CONFIG_BASE": "../wicked-sample-config",
+                "DEBUG": "*",
+                "NODE_ENV": "localhost"
+            }
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "JSON Backend",
+            "program": "${workspaceFolder}/bin/api",
+            "env": {
+                "PORTAL_CONFIG_BASE": "../wicked-sample-config",
+                "DEBUG": "*",
+                "NODE_ENV": "localhost_json"
             }
         }
     ]
