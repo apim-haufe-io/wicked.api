@@ -12,7 +12,7 @@
     "morgan": "1.7.0",
     "node-uuid": "1.4.7",
     "pg": "7.4.0",
-    "portal-env": "file:../portal-env.tgz",
+    "portal-env": "file:../portal-env-1.0.0.tgz",
     "request": "2.74.0"
   },
   "scripts": {
