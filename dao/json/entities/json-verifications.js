@@ -16,45 +16,49 @@ const jsonVerifications = () => { };
 jsonVerifications.create = (verifInfo, callback) => {
     debug('create()');
     jsonUtils.checkCallback(callback);
+    let persistedVerif;
     try {
-        const persistedVerif = jsonVerifications.createSync(verifInfo);
-        return callback(null, persistedVerif);
+        persistedVerif = jsonVerifications.createSync(verifInfo);
     } catch (err) {
         return callback(err);
     }
+    return callback(null, persistedVerif);
 };
 
 jsonVerifications.getAll = (callback) => {
     debug('getAll()');
     jsonUtils.checkCallback(callback);
+    let verifs;
     try {
-        const verifs = jsonVerifications.loadVerifications();
-        return callback(null, verifs);
+        verifs = jsonVerifications.loadVerifications();
     } catch (err) {
         return callback(err);
     }
+    return callback(null, verifs);
 };
 
 jsonVerifications.getById = (verificationId, callback) => {
     debug(`getById(${verificationId})`);
     jsonUtils.checkCallback(callback);
+    let verif;
     try {
-        const verif = jsonVerifications.getByIdSync(verificationId);
-        return callback(null, verif);
+        verif = jsonVerifications.getByIdSync(verificationId);
     } catch (err) {
         return callback(err);
     }
+    return callback(null, verif);
 };
 
 jsonVerifications.delete = (verificationId, callback) => {
     debug(`delete(${verificationId}`);
     jsonUtils.checkCallback(callback);
+    let deletedVerif;
     try {
-        const deletedVerif = jsonVerifications.deleteSync(verificationId);
-        return callback(null, deletedVerif);
+        deletedVerif = jsonVerifications.deleteSync(verificationId);
     } catch (err) {
         return callback(err);
     }
+    return callback(null, deletedVerif);
 };
 
 jsonVerifications.reconcile = (expirySeconds, callback) => {
@@ -62,10 +66,10 @@ jsonVerifications.reconcile = (expirySeconds, callback) => {
     jsonUtils.checkCallback(callback);
     try {
         jsonVerifications.reconcileSync(expirySeconds);
-        return callback(null);
     } catch (err) {
         return callback(err);
     }
+    return callback(null);
 };
 
 // =================================================

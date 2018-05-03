@@ -15,13 +15,14 @@ const jsonRegistrations = function () { };
 
 jsonRegistrations.getByPoolAndUser = (poolId, userId, callback) => {
     debug(`getByPoolAndUser(${poolId}, ${userId})`);
+    let userRegistration;
     try {
-        const userRegistration = jsonRegistrations.getByPoolAndUserSync(poolId, userId);
-        return callback(null, userRegistration);
+        userRegistration = jsonRegistrations.getByPoolAndUserSync(poolId, userId);
     } catch (err) {
         return callback(err);
     }
-    return callback(utils.makeError(500, 'Not implemented'));
+    return callback(null, userRegistration);
+    //return callback(utils.makeError(500, 'Not implemented'));
 };
 
 jsonRegistrations.getByPoolAndNamespace = (poolId, namespace, offset, limit, callback) => {

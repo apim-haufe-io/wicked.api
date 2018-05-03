@@ -33,12 +33,13 @@ jsonApplications.getById = (appId, callback) => {
 jsonApplications.create = (appCreateInfo, userInfo, callback) => {
     debug('create()');
     jsonUtils.checkCallback(callback);
+    let newApp;
     try {
-        const newApp = jsonApplications.createSync(appCreateInfo, userInfo);
-        return callback(null, newApp);
+        newApp = jsonApplications.createSync(appCreateInfo, userInfo);
     } catch (err) {
         return callback(err);
     }
+    return callback(null, newApp);
 };
 
 jsonApplications.save = (appInfo, savingUserId, callback) => {
@@ -46,77 +47,83 @@ jsonApplications.save = (appInfo, savingUserId, callback) => {
     jsonUtils.checkCallback(callback);
     try {
         jsonApplications.saveApplication(appInfo, savingUserId);
-        return callback(null, appInfo);
     } catch (err) {
         return callback(err);
     }
+    return callback(null, appInfo);
 };
 
 jsonApplications.delete = (appId, deletingUserId, callback) => {
     debug('delete()');
     jsonUtils.checkCallback(callback);
+    let deletedAppInfo;
     try {
-        const deletedAppInfo = jsonApplications.deleteSync(appId, deletingUserId);
-        return callback(null, deletedAppInfo);
+        deletedAppInfo = jsonApplications.deleteSync(appId, deletingUserId);
     } catch (err) {
         return callback(err);
     }
+    return callback(null, deletedAppInfo);
 };
 
 jsonApplications.getIndex = (offset, limit, callback) => {
     debug('getIndex()');
     jsonUtils.checkCallback(callback);
+    let appsIndex;
     try {
-        const appsIndex = jsonApplications.getIndexSync(offset, limit);
-        return callback(null, appsIndex);
+        appsIndex = jsonApplications.getIndexSync(offset, limit);
     } catch (err) {
         return callback(err);
     }
+    return callback(null, appsIndex);
 };
 
 jsonApplications.getCount = (callback) => {
     debug('getCount()');
     jsonUtils.checkCallback(callback);
+    let appCount;
     try {
-        const appCount = jsonApplications.getCountSync();
-        return callback(null, appCount);
+        appCount = jsonApplications.getCountSync();
     } catch (err) {
         return callback(err);
     }
+    return callback(null, appCount);
 };
 
 jsonApplications.getOwners = (appId, callback) => {
     debug('getOwners()');
     jsonUtils.checkCallback(callback);
+    let ownerList;
     try {
-        const ownerList = jsonApplications.getOwnersSync(appId);
-        return callback(null, ownerList);
+        ownerList = jsonApplications.getOwnersSync(appId);
     } catch (err) {
         return callback(err);
     }
+    return callback(null, ownerList);
 };
 
 
 jsonApplications.addOwner = (appId, userInfo, role, addingUserId, callback) => {
     debug('addOwner()');
     jsonUtils.checkCallback(callback);
+    let updatedAppInfo;
     try {
-        const updatedAppInfo = jsonApplications.addOwnerSync(appId, userInfo, role, addingUserId);
-        return callback(null, updatedAppInfo);
+        updatedAppInfo = jsonApplications.addOwnerSync(appId, userInfo, role, addingUserId);
     } catch (err) {
         return callback(err);
     }
+    return callback(null, updatedAppInfo);
 };
 
 jsonApplications.deleteOwner = (appId, deleteUserId, deletingUserId, callback) => {
     debug('deleteOwner()');
     jsonUtils.checkCallback(callback);
+    let updatedAppInfo;
     try {
-        const updatedAppInfo = jsonApplications.deleteOwnerSync(appId, deleteUserId, deletingUserId);
-        return callback(null, updatedAppInfo);
+        updatedAppInfo = jsonApplications.deleteOwnerSync(appId, deleteUserId, deletingUserId);
     } catch (err) {
         return callback(err);
     }
+    return callback(null, updatedAppInfo);
 };
 
 

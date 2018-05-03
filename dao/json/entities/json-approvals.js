@@ -16,23 +16,25 @@ const jsonApprovals = function () { };
 jsonApprovals.getAll = (callback) => {
     debug('getAll()');
     jsonUtils.checkCallback(callback);
+    let approvalList;
     try {
-        const approvalList = jsonApprovals.loadApprovals();
-        return callback(null, approvalList);
+        approvalList = jsonApprovals.loadApprovals();
     } catch (err) {
         return callback(err);
     }
+    return callback(null, approvalList);
 };
 
 jsonApprovals.create = (approvalInfo, callback) => {
     debug('create()');
     jsonUtils.checkCallback(callback);
+    let newApproval;
     try {
-        const newApproval = jsonApprovals.createSync(approvalInfo);
-        return callback(null, newApproval);
+        newApproval = jsonApprovals.createSync(approvalInfo);
     } catch (err) {
         return callback(err);
     }
+    return callback(null, newApproval);
 };
 
 jsonApprovals.deleteByApp = (appId, callback) => {
@@ -40,10 +42,10 @@ jsonApprovals.deleteByApp = (appId, callback) => {
     jsonUtils.checkCallback(callback);
     try {
         jsonApprovals.deleteByAppSync(appId);
-        return callback(null);
     } catch (err) {
         return callback(err);
     }
+    return callback(null);
 };
 
 jsonApprovals.deleteByAppAndApi = (appId, apiId, callback) => {
@@ -51,10 +53,10 @@ jsonApprovals.deleteByAppAndApi = (appId, apiId, callback) => {
     jsonUtils.checkCallback(callback);
     try {
         jsonApprovals.deleteByAppAndApiSync(appId, apiId);
-        return callback(null);
     } catch (err) {
         return callback(err);
     }
+    return callback(null);
 };
 
 

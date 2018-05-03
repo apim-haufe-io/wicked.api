@@ -18,23 +18,25 @@ const jsonUsers = () => { };
 jsonUsers.getById = (userId, callback) => {
     debug('getById()');
     jsonUtils.checkCallback(callback);
+    let userInfo;
     try {
-        const userInfo = jsonUsers.loadUser(userId);
-        return callback(null, userInfo); // may be null
+        userInfo = jsonUsers.loadUser(userId);
     } catch (err) {
         return callback(err);
     }
+    return callback(null, userInfo); // may be null
 };
 
 jsonUsers.getByEmail = (email, callback) => {
     debug('getByEmail()');
     jsonUtils.checkCallback(callback);
+    let userInfo;
     try {
-        const userInfo = jsonUsers.loadUserByEmail(email);
-        return callback(null, userInfo); // may be null
+        userInfo = jsonUsers.loadUserByEmail(email);
     } catch (err) {
         return callback(err);
     }
+    return callback(null, userInfo); // may be null
 };
 
 jsonUsers.save = (userInfo, savingUserId, callback) => {
@@ -42,21 +44,22 @@ jsonUsers.save = (userInfo, savingUserId, callback) => {
     jsonUtils.checkCallback(callback);
     try {
         jsonUsers.saveUser(userInfo, savingUserId);
-        return callback(null);
     } catch (err) {
         return callback(err);
     }
+    return callback(null);
 };
 
 jsonUsers.create = (userCreateInfo, callback) => {
     debug('create()');
     jsonUtils.checkCallback(callback);
+    let freshUser;
     try {
-        const freshUser = jsonUsers.createUser(userCreateInfo);
-        return callback(null, freshUser);
+        freshUser = jsonUsers.createUser(userCreateInfo);
     } catch (err) {
         return callback(err);
     }
+    return callback(null, freshUser);
 };
 
 // jsonUsers.patch = (userId, userInfo, patchingUserId, callback) => {
@@ -75,54 +78,58 @@ jsonUsers.delete = (userId, deletingUserId, callback) => {
     jsonUtils.checkCallback(callback);
     try {
         jsonUsers.deleteUser(userId, deletingUserId);
-        callback(null);
     } catch (err) {
         return callback(err);
     }
+    callback(null);
 };
 
 jsonUsers.getIndex = (offset, limit, callback) => {
     debug('getIndex()');
     jsonUtils.checkCallback(callback);
+    let userIndex;
     try {
-        const userIndex = jsonUsers.getIndexSync(offset, limit);
-        return callback(null, userIndex);
+        userIndex = jsonUsers.getIndexSync(offset, limit);
     } catch (err) {
         return callback(err);
     }
+    return callback(null, userIndex);
 };
 
 jsonUsers.getCount = (callback) => {
     debug('getCount()');
     jsonUtils.checkCallback(callback);
+    let userIndex;
     try {
-        const userIndex = jsonUsers.loadUserIndex();
-        return callback(null, userIndex.length);
+        userIndex = jsonUsers.loadUserIndex();
     } catch (err) {
         return callback(err);
     }
+    return callback(null, userIndex.length);
 };
 
 jsonUsers.getShortInfoByEmail = (email, callback) => {
     debug('getShortInfoByEmail()');
     jsonUtils.checkCallback(callback);
+    let shortInfo;
     try {
-        const shortInfo = jsonUsers.getShortInfoByEmailSync(email);
-        return callback(null, shortInfo);
+        shortInfo = jsonUsers.getShortInfoByEmailSync(email);
     } catch (err) {
         return callback(err);
     }
+    return callback(null, shortInfo);
 };
 
 jsonUsers.getShortInfoByCustomId = (customId, callback) => {
     debug('getShortInfoByCustomId()');
     jsonUtils.checkCallback(callback);
+    let shortInfo;
     try {
-        const shortInfo = jsonUsers.getShortInfoByCustomIdSync(customId);
-        return callback(null, shortInfo);
+        shortInfo = jsonUsers.getShortInfoByCustomIdSync(customId);
     } catch (err) {
         return callback(err);
     }
+    return callback(null, shortInfo);
 };
 
 // =================================================

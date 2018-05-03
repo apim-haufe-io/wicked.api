@@ -19,56 +19,61 @@ const jsonSubscriptions = function () { };
 jsonSubscriptions.getByAppId = (appId, callback) => {
     debug('getById()');
     jsonUtils.checkCallback(callback);
+    let subs;
     try {
-        const subs = jsonSubscriptions.loadSubscriptions(appId);
-        return callback(null, subs);
+        subs = jsonSubscriptions.loadSubscriptions(appId);
     } catch (err) {
         return callback(err);
     }
+    return callback(null, subs);
 };
 
 jsonSubscriptions.getByClientId = (clientId, callback) => {
     debug('getByClientId()');
     jsonUtils.checkCallback(callback);
+    let subsInfo;
     try {
-        const subsInfo = jsonSubscriptions.getByClientIdSync(clientId);
-        return callback(null, subsInfo);
+        subsInfo = jsonSubscriptions.getByClientIdSync(clientId);
     } catch (err) {
         return callback(err);
     }
+    return callback(null, subsInfo);
 };
 
 jsonSubscriptions.getByAppAndApi = (appId, apiId, callback) => {
     debug('getByAppAndApi()');
     jsonUtils.checkCallback(callback);
+    let subsInfo;
     try {
-        const subsInfo = jsonSubscriptions.getByAppAndApiSync(appId, apiId);
-        return callback(null, subsInfo);
+        subsInfo = jsonSubscriptions.getByAppAndApiSync(appId, apiId);
     } catch (err) {
         return callback(err);
     }
+    return callback(null, subsInfo);
 };
 
 jsonSubscriptions.getByApi = (apiId, offset, limit, callback) => {
     debug('getByApi()');
     jsonUtils.checkCallback(callback);
+    let apiSubs;
     try {
-        const apiSubs = jsonSubscriptions.getByApiSync(apiId, offset, limit);
-        return callback(null, apiSubs);
+        apiSubs = jsonSubscriptions.getByApiSync(apiId, offset, limit);
     } catch (err) {
         return callback(err);
     }
+    return callback(null, apiSubs);
 };
 
 jsonSubscriptions.create = (newSubscription, creatingUserId, callback) => {
     debug('create()');
     jsonUtils.checkCallback(callback);
+    let subsInfo;
     try {
-        const subsInfo = jsonSubscriptions.createSync(newSubscription, creatingUserId);
-        return callback(null, subsInfo);
+        subsInfo = jsonSubscriptions.createSync(newSubscription, creatingUserId);
     } catch (err) {
         return callback(err);
     }
+    return callback(null, subsInfo);
 };
 
 jsonSubscriptions.delete = (appId, apiId, subscriptionId, callback) => {
@@ -76,21 +81,22 @@ jsonSubscriptions.delete = (appId, apiId, subscriptionId, callback) => {
     jsonUtils.checkCallback(callback);
     try {
         jsonSubscriptions.deleteSync(appId, apiId, subscriptionId);
-        return callback(null);
     } catch (err) {
         return callback(err);
     }
+    return callback(null);
 };
 
 jsonSubscriptions.patch = (appId, subsInfo, patchingUserId, callback) => {
     debug('patch()');
     jsonUtils.checkCallback(callback);
+    let updatedSubs;
     try {
-        const updatedSubs = jsonSubscriptions.patchSync(appId, subsInfo, patchingUserId);
-        return callback(null, updatedSubs);
+        updatedSubs = jsonSubscriptions.patchSync(appId, subsInfo, patchingUserId);
     } catch (err) {
         return callback(null);
     }
+    return callback(null, updatedSubs);
 };
 
 // Legacy functionality which is used in the initializer; it's not possible

@@ -15,70 +15,75 @@ const jsonWebhooks = () => { };
 
 jsonWebhooks.listeners = {};
 
-jsonWebhooks.hookListeners = (dispatchEvents, callback) => {
+jsonWebhooks.listeners.getAll = (callback) => {
+    debug('getAll()');
+    jsonUtils.checkCallback(callback);
+    let listeners;
+    try {
+        listeners = jsonWebhooks.loadListeners();
+    } catch (err) {
+        return callback(err);
+    }
+    return callback(null, listeners);
+};
+
+jsonWebhooks.listeners.getById = (listenerId, callback) => {
+    debug(`getById(${listenerId}`);
+    jsonUtils.checkCallback(callback);
+    let listener;
+    try {
+        listener = jsonWebhooks.getListener(listenerId);
+    } catch (err) {
+        return callback(err);
+    }
+    return callback(null, listener);
+};
+
+jsonWebhooks.listeners.upsert = (listenerInfo, callback) => {
+    debug('upsert()');
+    jsonUtils.checkCallback(callback);
+    let upsertedInfo;
+    try {
+        upsertedInfo = jsonWebhooks.upsertListenerSync(listenerInfo);
+    } catch (err) {
+        return callback(err);
+    }
+    return callback(null, upsertedInfo);
+};
+
+jsonWebhooks.listeners.delete = (listenerId, callback) => {
+    debug(`delete(${listenerId})`);
+    jsonUtils.checkCallback(callback);
+    let deletedListenerInfo;
+    try {
+        deletedListenerInfo = jsonWebhooks.deleteListenerSync(listenerId);
+    } catch (err) {
+        return callback(err);
+    }
+    return callback(null, deletedListenerInfo);
+};
+
+jsonWebhooks.events = {};
+
+jsonWebhooks.events.hookListeners = (dispatchEvents, callback) => {
     // Check if we need to fire hooks from times to times (every 10 seconds)
-    var hookInterval = process.env.PORTAL_API_HOOK_INTERVAL || '10000';
+    const hookInterval = process.env.PORTAL_API_HOOK_INTERVAL || '10000';
     debug('Setting webhook interval to ' + hookInterval);
     setInterval(() => {
         dispatchEvents(() => {});
     }, hookInterval);
 };
 
-jsonWebhooks.listeners.getAll = (callback) => {
-    debug('getAll()');
-    jsonUtils.checkCallback(callback);
-    try {
-        const listeners = jsonWebhooks.loadListeners();
-        return callback(null, listeners);
-    } catch (err) {
-        return callback(err);
-    }
-};
-
-jsonWebhooks.listeners.getById = (listenerId, callback) => {
-    debug(`getById(${listenerId}`);
-    jsonUtils.checkCallback(callback);
-    try {
-        const listener = jsonWebhooks.getListener(listenerId);
-        return callback(null, listener);
-    } catch (err) {
-        return callback(err);
-    }
-};
-
-jsonWebhooks.listeners.upsert = (listenerInfo, callback) => {
-    debug('upsert()');
-    jsonUtils.checkCallback(callback);
-    try {
-        const upsertedInfo = jsonWebhooks.upsertListenerSync(listenerInfo);
-        return callback(null, upsertedInfo);
-    } catch (err) {
-        return callback(err);
-    }
-};
-
-jsonWebhooks.listeners.delete = (listenerId, callback) => {
-    debug(`delete(${listenerId})`);
-    jsonUtils.checkCallback(callback);
-    try {
-        const deletedListenerInfo = jsonWebhooks.deleteListenerSync(listenerId);
-        return callback(null, deletedListenerInfo);
-    } catch (err) {
-        return callback(err);
-    }
-};
-
-jsonWebhooks.events = {};
-
 jsonWebhooks.events.getByListener = (listenerId, callback) => {
     debug(`getByListener(${listenerId})`);
     jsonUtils.checkCallback(callback);
+    let events;
     try {
-        const events = jsonWebhooks.getEventsByListenerSync(listenerId);
-        return callback(null, events);
+        events = jsonWebhooks.getEventsByListenerSync(listenerId);
     } catch (err) {
         return callback(err);
     }
+    return callback(null, events);
 };
 
 jsonWebhooks.events.flush = (listenerId, callback) => {
@@ -86,10 +91,10 @@ jsonWebhooks.events.flush = (listenerId, callback) => {
     jsonUtils.checkCallback(callback);
     try {
         jsonWebhooks.flushEventsSync(listenerId);
-        return callback(null);
     } catch (err) {
         return callback(err);
     }
+    return callback(null);
 };
 
 jsonWebhooks.events.create = (eventData, callback) => {
@@ -97,10 +102,10 @@ jsonWebhooks.events.create = (eventData, callback) => {
     jsonUtils.checkCallback(callback);
     try {
         jsonWebhooks.createLogSync(eventData);
-        return callback(null);
     } catch (err) {
         return callback(err);
     }
+    return callback(null);
 };
 
 jsonWebhooks.events.delete = (listenerId, eventId, callback) => {
@@ -108,10 +113,10 @@ jsonWebhooks.events.delete = (listenerId, eventId, callback) => {
     jsonUtils.checkCallback(callback);
     try {
         jsonWebhooks.deleteEventSync(listenerId, eventId);
-        return callback(null);
     } catch (err) {
         return callback(err);
     }
+    return callback(null);
 };
 
 // =================================================
