@@ -436,8 +436,9 @@ function getPoolOrClient(clientOrCallback, callback, isRetry, retryCounter) {
             release();
         if (err) {
             debug('getPoolOrClient: Connect to wicked database failed.');
+            const errorCode = err.code ? err.code.toUpperCase() : '';
             // Check if it's "database not found"
-            if (!isRetry && err.code && err.code.toLowerCase() === '3d000') {
+            if (!isRetry && errorCode === '3D000') {
                 debug('getPoolOrClient: wicked database was not found');
                 // Yep. We'll create the database and initialize everything.
                 return createWickedDatabase((err) => {
@@ -448,10 +449,12 @@ function getPoolOrClient(clientOrCallback, callback, isRetry, retryCounter) {
                     debug('getPoolOrClient: createWickedDatabase succeeded.');
                     return getPoolOrClient(callback, true);
                 });
-            } else if (err.code && err.code.toUpperCase() === 'ECONNREFUSED') {
+            } else if (errorCode === 'ECONNREFUSED' || // Postgres not answering at all
+                       errorCode === '57P03') // "Postgres is starting up"
+            {
                 if (retryCounter < POSTGRES_CONNECT_RETRIES - 1) {
                     console.error(`Could not connect to Postgres, will retry (#${retryCounter+1}). Host: ${pgOptions.host}:${pgOptions.port}, user ${pgOptions.user}`);
-                    debug('getPoolOrClient: Postgres returned ECONNREFUSED, options:');
+                    debug(`getPoolOrClient: Postgres returned ${err.code}, options:`);
                     debug(pgOptions);
                     debug(`Will retry in ${POSTGRES_CONNECT_DELAY}ms`);
                     return setTimeout(getPoolOrClient, POSTGRES_CONNECT_DELAY, callback, false, retryCounter + 1);
