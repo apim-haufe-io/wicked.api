@@ -11,6 +11,11 @@ const model = require('../model/model');
 
 const pgUtils = function () { };
 
+// This means portal-api will try for around a minute to connect to Postgres,
+// then it will fail (and subsequently be restarted by some orchestrator)
+const POSTGRES_CONNECT_RETRIES = 30;
+const POSTGRES_CONNECT_DELAY = 2000;
+
 pgUtils.runSql = (sqlFileName, callback) => {
     debug('runSql() ' + sqlFileName);
     const sqlCommands = makeSqlCommandList(sqlFileName);
@@ -394,7 +399,7 @@ function getPostgresOptions(dbName) {
 }
 
 pgUtils._pool = null;
-function getPoolOrClient(clientOrCallback, callback, isRetry) {
+function getPoolOrClient(clientOrCallback, callback, isRetry, retryCounter) {
     debug('getPoolOrClient()');
     if (typeof (callback) === 'function' && clientOrCallback) {
         debug('getPoolOrClient: Received prepopulated client, just returning it');
@@ -402,12 +407,18 @@ function getPoolOrClient(clientOrCallback, callback, isRetry) {
     }
     if (typeof (clientOrCallback) === 'function') {
         // Shift parameters left
+        retryCounter = isRetry;
         isRetry = callback;
         callback = clientOrCallback;
     }
     if (pgUtils._pool) {
         debug('getPoolOrClient: Returning previously created connection pool');
         return callback(null, pgUtils._pool);
+    }
+    if (!retryCounter) {
+        retryCounter = 0;
+    } else {
+        debug('Retrying to connect to Postgres, try #' + (retryCounter + 1));
     }
 
     debug('getPoolOrClient: Creating postgres pool');
@@ -416,7 +427,8 @@ function getPoolOrClient(clientOrCallback, callback, isRetry) {
         debug('getPoolOrClient: Retrying after creating the database.');
     }
 
-    const pool = new pg.Pool(getPostgresOptions('wicked'));
+    const pgOptions = getPostgresOptions('wicked')
+    const pool = new pg.Pool(pgOptions);
     // Try to connect to wicked database
     debug('getPoolOrClient: Trying to connect');
     pool.connect((err, client, release) => {
@@ -436,7 +448,19 @@ function getPoolOrClient(clientOrCallback, callback, isRetry) {
                     debug('getPoolOrClient: createWickedDatabase succeeded.');
                     return getPoolOrClient(callback, true);
                 });
+            } else if (err.code && err.code.toUpperCase() === 'ECONNREFUSED') {
+                if (retryCounter < POSTGRES_CONNECT_RETRIES - 1) {
+                    console.error(`Could not connect to Postgres, will retry (#${retryCounter+1}). Host: ${pgOptions.host}:${pgOptions.port}, user ${pgOptions.user}`)
+                    debug('getPoolOrClient: Postgres returned ECONNREFUSED, options:');
+                    debug(pgOptions);
+                    debug(`Will retry in ${POSTGRES_CONNECT_DELAY}ms`);
+                    return setTimeout(getPoolOrClient, POSTGRES_CONNECT_DELAY, callback, false, retryCounter + 1);
+                } else {
+                    console.error('Reached maximum tries to connect to Postgres. Failing.');
+                    return callback(err);
+                }
             } else {
+                debug(err);
                 debug('getPoolOrClient: pool.connect returned an unknown/unexpected error');
                 // Nope. This is something which we do not expect. Return it and fail please.
                 return callback(err);
