@@ -427,7 +427,7 @@ function getPoolOrClient(clientOrCallback, callback, isRetry, retryCounter) {
         debug('getPoolOrClient: Retrying after creating the database.');
     }
 
-    const pgOptions = getPostgresOptions('wicked')
+    const pgOptions = getPostgresOptions('wicked');
     const pool = new pg.Pool(pgOptions);
     // Try to connect to wicked database
     debug('getPoolOrClient: Trying to connect');
@@ -450,7 +450,7 @@ function getPoolOrClient(clientOrCallback, callback, isRetry, retryCounter) {
                 });
             } else if (err.code && err.code.toUpperCase() === 'ECONNREFUSED') {
                 if (retryCounter < POSTGRES_CONNECT_RETRIES - 1) {
-                    console.error(`Could not connect to Postgres, will retry (#${retryCounter+1}). Host: ${pgOptions.host}:${pgOptions.port}, user ${pgOptions.user}`)
+                    console.error(`Could not connect to Postgres, will retry (#${retryCounter+1}). Host: ${pgOptions.host}:${pgOptions.port}, user ${pgOptions.user}`);
                     debug('getPoolOrClient: Postgres returned ECONNREFUSED, options:');
                     debug(pgOptions);
                     debug(`Will retry in ${POSTGRES_CONNECT_DELAY}ms`);
