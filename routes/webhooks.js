@@ -5,7 +5,7 @@ var path = require('path');
 var request = require('request');
 var utils = require('./utils');
 var async = require('async');
-var debug = require('debug')('portal-api:webhooks');
+var { debug, info, warn, error } = require('portal-env').Logger('portal-api:webhooks');
 
 var dao = require('../dao/dao');
 
@@ -109,7 +109,7 @@ webhooks.logEvent = function (app, eventData, callback) {
         // We have no results, we just want to check for errors
         if (err) {
             debug(err);
-            console.error(err);
+            error(err);
         }
 
         if (callback)
@@ -258,7 +258,7 @@ webhooks.checkAndFireHooks = function (callback) {
     debug('checkAndFireHooks()');
     dao.webhooks.listeners.getAll((err, listenerInfos) => {
         if (err) {
-            console.error('*** COULD NOT GET WEBHOOKS');
+            error('*** COULD NOT GET WEBHOOKS');
             return callback(err);
         }
 
@@ -291,7 +291,7 @@ webhooks.checkAndFireHooks = function (callback) {
         }, function (err, results) {
             if (err) {
                 debug(err);
-                console.error(err);
+                error(err);
                 return callback(err);
             }
             debug('checkAndFireHooks successfully finished.');

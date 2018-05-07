@@ -2,7 +2,7 @@
 
 var fs = require('fs');
 var path = require('path');
-var debug = require('debug')('portal-api:subscriptions');
+var { debug, info, warn, error } = require('portal-env').Logger('portal-api:subscriptions');
 var utils = require('./utils');
 var users = require('./users');
 var ownerRoles = require('./ownerRoles');
@@ -303,7 +303,7 @@ subscriptions.addSubscription = function (app, res, applications, loggedInUserId
                         dao.approvals.create(approvalInfo, (err) => {
                             if (err) {
                                 // This is very bad. Transaction?
-                                console.error(err);
+                                error(err);
                             }
                             webhooks.logEvent(app, {
                                 action: webhooks.ACTION_ADD,
@@ -576,7 +576,7 @@ subscriptions.getSubscriptionByClientId = function (app, res, applications, logg
                     return utils.fail(res, 500, `getSubscriptionByClientId: DAO failed to get application ${subsInfo.application}`, err);
                 if (!appInfo) {
                     const errorMessage = 'Inconsistent state. Please notify operator: Application app ' + subsInfo.application + ' not found.';
-                    console.error("getSubscriptionByClientId(): " + errorMessage);
+                    error("getSubscriptionByClientId(): " + errorMessage);
                     return utils.fail(res, 500, errorMessage);
                 }
                 return res.json({

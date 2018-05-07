@@ -1,6 +1,6 @@
 'use strict';
 
-const debug = require('debug')('portal-api:dao:json:registrations');
+const { debug, info, warn, error } = require('portal-env').Logger('portal-api:dao:json:registrations');
 const fs = require('fs');
 const path = require('path');
 

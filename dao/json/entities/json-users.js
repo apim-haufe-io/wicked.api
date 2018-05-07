@@ -1,6 +1,6 @@
 'use strict';
 
-const debug = require('debug')('portal-api:dao:json:users');
+const { debug, info, warn, error } = require('portal-env').Logger('portal-api:dao:json:users');
 const fs = require('fs');
 const path = require('path');
 const bcrypt = require('bcrypt-nodejs');
@@ -326,7 +326,7 @@ jsonUsers.deleteUser = (userId, deletingUserId) => {
             }
         } else {
             debug('User not found, but exists in index!');
-            console.error("WARNING: User not found, but exists in index!");
+            error("WARNING: User not found, but exists in index!");
         }
 
         // Remove from user index

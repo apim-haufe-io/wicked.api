@@ -1,6 +1,6 @@
 'use strict';
 
-const debug = require('debug')('portal-api:dao');
+const { debug, info, warn, error } = require('portal-env').Logger('portal-api:dao');
 const pgDao = require('./postgres/pg-dao');
 const jsonDao = require('./json/json-dao');
 const utils = require('../routes/utils');

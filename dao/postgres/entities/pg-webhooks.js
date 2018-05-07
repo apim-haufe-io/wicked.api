@@ -1,7 +1,7 @@
 'use strict';
 
 const async = require('async');
-const debug = require('debug')('portal-api:dao:pg:webhooks');
+const { debug, info, warn, error } = require('portal-env').Logger('portal-api:dao:pg:webhooks');
 
 const utils = require('../../../routes/utils');
 const daoUtils = require('../../dao-utils');
@@ -125,8 +125,8 @@ function hookListenersImpl(dispatchEvents, callback) {
             _eventsPending = false;
             dispatchEvents((err) => {
                 if (err) {
-                    console.error('ERROR dispatching webhook events');
-                    console.error(err);
+                    error('ERROR dispatching webhook events');
+                    error(err);
                     return;
                 }
             });

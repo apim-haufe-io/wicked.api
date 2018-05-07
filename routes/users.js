@@ -3,7 +3,7 @@
 var utils = require('./utils');
 var fs = require('fs');
 var path = require('path');
-var debug = require('debug')('portal-api:users');
+var { debug, info, warn, error } = require('portal-env').Logger('portal-api:users');
 var bcrypt = require('bcrypt-nodejs');
 var webhooks = require('./webhooks');
 var verifications = require('./verifications');

@@ -2,7 +2,7 @@
 
 var path = require('path');
 var fs = require('fs');
-var debug = require('debug')('portal-api:content');
+var { debug, info, warn, error } = require('portal-env').Logger('portal-api:content');
 var users = require('./users');
 var utils = require('./utils');
 

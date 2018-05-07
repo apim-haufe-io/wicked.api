@@ -1,7 +1,7 @@
 'use strict';
 
 const async = require('async');
-const debug = require('debug')('portal-api:dao:pg:applications');
+const { debug, info, warn, error } = require('portal-env').Logger('portal-api:dao:pg:applications');
 
 const utils = require('../../../routes/utils');
 const ownerRoles = require('../../../routes/ownerRoles');

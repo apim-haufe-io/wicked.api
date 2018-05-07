@@ -3,7 +3,7 @@
 var utils = require('./utils');
 var fs = require('fs');
 var path = require('path');
-var debug = require('debug')('portal-api:verifications');
+var { debug, info, warn, error } = require('portal-env').Logger('portal-api:verifications');
 var bcrypt = require('bcrypt-nodejs');
 var dao = require('../dao/dao');
 
@@ -180,8 +180,8 @@ verifications.patchUserWithVerificationId = function (app, res, users, verificat
                 // dao.verifications.delete(verificationId, (err) => {
                 //     // Ignore errors
                 //     if (err) {
-                //         console.error('** Could not delete verification with ID ' + verificationId);
-                //         console.error(err);
+                //         error('** Could not delete verification with ID ' + verificationId);
+                //         error(err);
                 //     }
                 // });
 
@@ -214,7 +214,7 @@ verifications.checkExpiredRecords = function (app) {
         if (err) {
             debug('Strange behaviour, caught exception in checkExpiredRecords()');
             debug(err);
-            console.error(err);
+            error(err);
             return;
         }
 

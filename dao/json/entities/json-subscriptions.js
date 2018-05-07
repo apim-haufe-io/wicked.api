@@ -1,6 +1,6 @@
 'use strict';
 
-const debug = require('debug')('portal-api:dao:json:subscriptions');
+const { debug, info, warn, error } = require('portal-env').Logger('portal-api:dao:json:subscriptions');
 const fs = require('fs');
 const path = require('path');
 
@@ -212,13 +212,13 @@ jsonSubscriptions.addSubscriptionApiIndexEntry = function (subsInfo) {
     const apiId = subsInfo.api;
     let apiIndex = jsonSubscriptions.loadSubscriptionApiIndex(apiId);
     if (!apiIndex) {
-        console.error('*** addSubscriptionApiIndexEntry: Could not find index; recreating.');
+        error('*** addSubscriptionApiIndexEntry: Could not find index; recreating.');
         apiIndex = [];
     }
 
     const indexEntry = apiIndex.find(ie => ie.application === appId);
     if (indexEntry) {
-        console.error('*** addSubscriptionApiIndexEntry() was called with an application which already has a subscription.');
+        error('*** addSubscriptionApiIndexEntry() was called with an application which already has a subscription.');
         // This is strange, and shouldn't happen.
         indexEntry.plan = planId;
     } else {
@@ -237,7 +237,7 @@ jsonSubscriptions.deleteSubscriptionApiIndexEntry = function (subsInfo) {
 
     let apiIndex = jsonSubscriptions.loadSubscriptionApiIndex(apiId);
     if (!apiIndex) {
-        console.error('*** deleteSubscriptionApiIndexEntry: Could not find index; recreating.');
+        error('*** deleteSubscriptionApiIndexEntry: Could not find index; recreating.');
         apiIndex = [];
     }
     let indexOfApp = -1;
@@ -255,7 +255,7 @@ jsonSubscriptions.deleteSubscriptionApiIndexEntry = function (subsInfo) {
         // debug(apiIndex);
         jsonSubscriptions.saveSubscriptionApiIndex(apiId, apiIndex);
     } else {
-        console.error('*** deleteSubscriptionApiIndexEntry called to remove entry for ' + appId + ' which is not present for API ' + apiId);
+        error('*** deleteSubscriptionApiIndexEntry called to remove entry for ' + appId + ' which is not present for API ' + apiId);
     }
 };
 
@@ -374,7 +374,7 @@ jsonSubscriptions.getByClientIdSync = (clientId) => {
     const appSub = loadAndFindSubscription(indexEntry.application, indexEntry.api);
     if (!appSub) {
         const errorMessage = 'Inconsistent state. Please notify operator: Subscription for app ' + indexEntry.application + ' to API ' + indexEntry.api + ' not found.';
-        console.error("getSubscriptionByClientId(): " + errorMessage);
+        error("getSubscriptionByClientId(): " + errorMessage);
         throw utils.makeError(500, errorMessage);
     }
     return appSub;

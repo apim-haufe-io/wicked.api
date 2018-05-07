@@ -2,7 +2,7 @@
 
 var path = require('path');
 var fs = require('fs');
-var debug = require('debug')('portal-api:apis');
+var { debug, info, warn, error } = require('portal-env').Logger('portal-api:apis');
 var yaml = require('js-yaml');
 var request = require('request');
 
@@ -606,8 +606,8 @@ function getPortalSwagger(app, res) {
 
         return res.json(apis._portalSwagger);
     } catch (err) {
-        console.error(err.message);
-        console.error(err.stack);
+        error(err.message);
+        error(err.stack);
         return res.status(500).json({ message: err.message });
     }
 }

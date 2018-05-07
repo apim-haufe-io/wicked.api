@@ -2,7 +2,7 @@
 
 var path = require('path');
 var fs = require('fs');
-var debug = require('debug')('portal-api:systemhealth');
+var { debug, info, warn, error } = require('portal-env').Logger('portal-api:systemhealth');
 var request = require('request');
 var async = require('async');
 var uuid = require('node-uuid');
@@ -94,7 +94,7 @@ systemhealth.checkHealth = function (app) {
             dao.webhooks.listeners.getAll((err, listeners) => {
                 if (err) {
                     // UURGhrghgrl
-                    console.error(err);
+                    error(err);
                     return;
                 }
                 async.map(listeners, function (listener, callback) {
@@ -147,7 +147,7 @@ systemhealth.checkHealth = function (app) {
                             });
                         }, (err, results) => {
                             if (err) {
-                                console.error(err);
+                                error(err);
                             }
                             systemhealth._health = h;
                             debug(h);

@@ -6,7 +6,7 @@ var initializer = require('./initializer');
 var authMiddleware = require('../auth-middleware');
 var path = require('path');
 var fs = require('fs');
-var debug = require('debug')('portal-api:deploy');
+var { debug, info, warn, error } = require('portal-env').Logger('portal-api:deploy');
 const exec = require('child_process').exec;
 var crypto = require('crypto');
 var async = require('async');
@@ -380,7 +380,7 @@ deploy.initImport = function (app, req, givenSha256, res) {
             }
         ], function (err) {
             if (err) {
-                console.error(err);
+                error(err);
                 return res.status(400).json({ message: 'Import failed.', error: err.message });
             }
 
@@ -470,8 +470,8 @@ function doImport(app) {
     var execHandler = function (desc, callback) {
         return function (err, stdin, stdout) {
             if (err) {
-                console.error(desc + ' failed.');
-                console.error(err);
+                error(desc + ' failed.');
+                error(err);
                 return callback(err);
             }
             debug(desc + ' succeeded.');
@@ -509,12 +509,12 @@ function doImport(app) {
         debug('Verifying dynamic configuration.');
         initializer.checkDynamicConfig(app, function (err, messages) {
             if (err) {
-                console.error('initializer.checkDynamicConfig() caused an error.');
+                error('initializer.checkDynamicConfig() caused an error.');
                 cleanupAfterFailedImport(app, err, options, needsRestore, rmExec, restoreExec);
                 return;
             }
             if (messages) {
-                console.error('initializer.checkDynamicConfig() returned failed checks.');
+                error('initializer.checkDynamicConfig() returned failed checks.');
                 let err = new Error('initializer.checkDynamicConfig() returned failed checks: ' + JSON.stringify(messages));
                 cleanupAfterFailedImport(app, err, options, needsRestore, rmExec, restoreExec);
                 return;
@@ -539,7 +539,7 @@ function doImport(app) {
                 checkHooks(app, 0, function (err) {
                     debug('checkHooks() returned.');
                     if (err) {
-                        console.error(err.message);
+                        error(err.message);
                         deploy.importStatus.status = deploy.FAILED;
                         deploy.importStatus.status.message = err.message;
 
@@ -578,10 +578,10 @@ function checkHooks(app, tryCount, callback) {
 
 function cleanupAfterFailedImport(app, err, options, needsRestore, rmExec, restoreExec) {
     debug('cleanupAfterFailedImport()');
-    console.error('Import failed.');
-    console.error(err);
+    error('Import failed.');
+    error(err);
     if (err.stack)
-        console.error(err.stack);
+        error(err.stack);
 
     deploy.importStatus.status = deploy.FAILED;
     deploy.importStatus.status.message = err.message;
@@ -592,21 +592,21 @@ function cleanupAfterFailedImport(app, err, options, needsRestore, rmExec, resto
             action: webhooks.ACTION_FAILED
         });
     } catch (err) {
-        console.error('Logging event after failed import failed.');
-        console.error(err);
+        error('Logging event after failed import failed.');
+        error(err);
     }
 
     if (needsRestore) {
         debug(rmExec);
         exec(rmExec, options, function (err, stdin, stdout) {
             if (err) {
-                console.error('Deleting all the dynamic configuration failed. Will continue to restore backup anyway.');
+                error('Deleting all the dynamic configuration failed. Will continue to restore backup anyway.');
             }
             debug(restoreExec);
             exec(restoreExec, options, function (err, stdin, stdout) {
                 if (err) {
-                    console.error('Error in backup restoration. This is real bad.');
-                    console.error(err);
+                    error('Error in backup restoration. This is real bad.');
+                    error(err);
                 }
                 finalizeImport(app);
             });
@@ -640,7 +640,7 @@ deploy.getImportStatus = function (app, res, importId) {
             res.status(200);
             break;
         default:
-            console.error('getImportStatus() - Invalid status');
+            error('getImportStatus() - Invalid status');
             res.status(500);
             break;
     }
@@ -674,8 +674,8 @@ function sendBinary(res, fileName) {
             }
         }, function (err) {
             if (err) {
-                console.error('deploy.sendBinary failed');
-                console.error(err);
+                error('deploy.sendBinary failed');
+                error(err);
                 res.status(err.status).end();
             } else {
                 debug('Sent file: ' + fileName);

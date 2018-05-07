@@ -2,7 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const debug = require('debug')('portal-api:initializer');
+const { debug, info, warn, error } = require('portal-env').Logger('portal-api:initializer');
 const bcrypt = require('bcrypt-nodejs');
 const async = require('async');
 
@@ -40,7 +40,7 @@ initializer.checkDynamicConfig = (callback) => {
         },
         function (err, results) {
             if (err) {
-                console.error(err);
+                error(err);
             }
 
             let checkResults = [];
@@ -74,7 +74,7 @@ function addInitialUsers(glob, callback) {
             }
 
             if (thisUser.password && thisUser.customId) {
-                console.error('Initial user with ID ' + thisUser.id + ' has both password and customId; password NOT added.');
+                error('Initial user with ID ' + thisUser.id + ' has both password and customId; password NOT added.');
                 delete thisUser.password;
             }
             if (thisUser.password)
@@ -109,8 +109,8 @@ function checkApiPlans(glob, callback) {
             }
         }
     } catch (err) {
-        console.error(err);
-        console.error(err.stack);
+        error(err);
+        error(err.stack);
         error = err;
     }
 
@@ -181,8 +181,8 @@ function checkSubscriptions(glob, callback) {
             });
         }, (err) => {
             if (err) {
-                console.error(err);
-                console.error(err.stack);
+                error(err);
+                error(err.stack);
             }
             let resultMessages = null;
             if (messages.length > 0)

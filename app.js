@@ -4,7 +4,7 @@ var express = require('express');
 var path = require('path');
 var logger = require('morgan');
 var bodyParser = require('body-parser');
-var debug = require('debug')('portal-api:app');
+var { debug, info, warn, error } = require('portal-env').Logger('portal-api:app');
 var correlationIdHandler = require('portal-env').CorrelationIdHandler();
 var authMiddleware = require('./auth-middleware');
 
@@ -210,9 +210,9 @@ app.use(function (req, res, next) {
 // will print stacktrace
 if (app.get('env') === 'development') {
     app.use(function (err, req, res, next) {
-        console.error(err.message);
-        console.error(err.stack);
-        //console.log(JSON.stringify(err, null, 2));
+        error(err.message);
+        error(err.stack);
+        //info(JSON.stringify(err, null, 2));
         res.status(err.status || 500);
         res.jsonp({
             message: err.message,
@@ -224,9 +224,9 @@ if (app.get('env') === 'development') {
 // production error handler
 // no stacktraces leaked to user
 app.use(function (err, req, res, next) {
-    console.error(err.message);
-    console.error(err.stack);
-    console.log(JSON.stringify(err, null, 2));
+    error(err.message);
+    error(err.stack);
+    info(JSON.stringify(err, null, 2));
     res.status(err.status || 500);
     res.jsonp({
         message: err.message,

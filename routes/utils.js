@@ -3,7 +3,7 @@
 var crypto = require('crypto');
 var fs = require('fs');
 var path = require('path');
-var debug = require('debug')('portal-api:utils');
+var { debug, info, warn, error } = require('portal-env').Logger('portal-api:utils');
 
 var utils = function () { };
 
@@ -56,7 +56,7 @@ utils.getText = function (ob) {
 
 utils.fail = function (res, statusCode, message, err) {
     if (err) {
-        console.error(err);
+        error(err);
         const status = err.status || statusCode || 500;
         res.status(status).json({ status: status, message: message, error: err.message });
     } else {
@@ -185,9 +185,9 @@ function replaceEnvVarsInString(s) {
     while (foundVar) {
         iterCount++;
         if (iterCount > 10) {
-            console.error('Detected recursive use of env variables.');
-            console.error('Original string: ' + s);
-            console.error('Current string : ' + tempString);
+            error('Detected recursive use of env variables.');
+            error('Original string: ' + s);
+            error('Current string : ' + tempString);
             return tempString;
         }
         if (tempString.startsWith('$') &&
@@ -319,7 +319,7 @@ utils.getVersion = function () {
                 if (packageInfo.version)
                     utils._packageVersion = packageInfo.version;
             } catch (ex) {
-                console.error(ex);
+                error(ex);
             }
         }
         if (!utils._packageVersion) // something went wrong

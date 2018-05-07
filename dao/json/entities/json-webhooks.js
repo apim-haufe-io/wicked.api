@@ -1,6 +1,6 @@
 'use strict';
 
-const debug = require('debug')('portal-api:dao:json:webhooks');
+const { debug, info, warn, error } = require('portal-env').Logger('portal-api:dao:json:webhooks');
 const fs = require('fs');
 const path = require('path');
 
@@ -223,7 +223,7 @@ jsonWebhooks.lockAll = function () {
     }
     if (!success) {
         for (let i = 0; i < lockList.length; ++i) {
-            try { jsonUtils.unlockEvents(lockList[i]); } catch (err2) { debug(err2); console.error(err2); }
+            try { jsonUtils.unlockEvents(lockList[i]); } catch (err2) { debug(err2); error(err2); }
         }
     }
     if (internalError)
@@ -236,7 +236,7 @@ jsonWebhooks.unlockAll = function () {
     debug('unlockAll()');
     const listenerList = jsonWebhooks.loadListeners();
     for (let i = 0; i < listenerList.length; ++i) {
-        try { jsonUtils.unlockEvents(listenerList[i].id); } catch (err) { debug(err); console.error('webhooks.unlockAll: ' + err); }
+        try { jsonUtils.unlockEvents(listenerList[i].id); } catch (err) { debug(err); error('webhooks.unlockAll: ' + err); }
     }
 };
 
@@ -339,7 +339,7 @@ jsonWebhooks.createLogSync = (eventData) => {
                 jsonWebhooks.saveEvents(listenerId, events);
             } catch (internalErr) {
                 debug(internalErr);
-                console.error('webhooks.logEvent: ' + internalErr);
+                error('webhooks.logEvent: ' + internalErr);
                 err = internalErr;
             }
         }

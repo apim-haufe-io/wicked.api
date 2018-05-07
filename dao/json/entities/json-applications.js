@@ -1,6 +1,6 @@
 'use strict';
 
-const debug = require('debug')('portal-api:dao:json:applications');
+const { debug, info, warn, error } = require('portal-env').Logger('portal-api:dao:json:applications');
 const fs = require('fs');
 const path = require('path');
 
@@ -259,9 +259,8 @@ jsonApplications.deleteSync = (appId, deletingUserId) => {
                             delete ownerInfo.name;
                             jsonUsers.saveUser(ownerInfo, deletingUserId);
                         } catch (err) {
-                            debug(err);
-                            console.error('Caught exception saving user ' + ownerInfo.id);
-                            console.error(err);
+                            error('Caught exception saving user ' + ownerInfo.id);
+                            error(err);
                         }
                     }
 

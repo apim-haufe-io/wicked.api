@@ -1,6 +1,6 @@
 'use strict';
 
-const debug = require('debug')('portal-api:dao:pg:verifications');
+const { debug, info, warn, error } = require('portal-env').Logger('portal-api:dao:pg:verifications');
 
 const utils = require('../../../routes/utils');
 const daoUtils = require('../../dao-utils');
@@ -52,9 +52,9 @@ function reconcileImpl(expirySeconds, callback) {
     // I guess a FTS is okay here. It's not done often, and the amount
     // of data is not big.
 
-    console.error('*****************************************************************');
-    console.error('***** POSTGRES: RECONCILE VERIFICATIONS NOT YET IMPLEMENTED *****');
-    console.error('*****************************************************************');
+    error('*****************************************************************');
+    error('***** POSTGRES: RECONCILE VERIFICATIONS NOT YET IMPLEMENTED *****');
+    error('*****************************************************************');
     
     return callback(null);
 }

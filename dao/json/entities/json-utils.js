@@ -1,6 +1,6 @@
 'use strict';
 
-const debug = require('debug')('portal-api:dao:json');
+const { debug, info, warn, error } = require('portal-env').Logger('portal-api:dao:json');
 const fs = require('fs');
 const path = require('path');
 
@@ -19,7 +19,7 @@ jsonUtils.pageArray = (array, offset, limit) => {
 
 jsonUtils.checkCallback = (callback) => {
     if (!callback || typeof(callback) !== 'function') {
-        console.error('Value of callback: ' + callback);
+        error('Value of callback: ' + callback);
         throw new Error('Parameter "callback" is null or not a function');
     }
 };
@@ -44,7 +44,7 @@ jsonUtils.withLockedUserList = function (userIdList, actionHook) {
         return retVal;
     } finally {
         for (let i = 0; i < lockedUsers.length; ++i) {
-            try { jsonUtils.unlockUser(lockedUsers[i]); } catch (err) { debug(err); console.error(err); }
+            try { jsonUtils.unlockUser(lockedUsers[i]); } catch (err) { debug(err); error(err); }
         }
         debug('withLockedUserList() cleaned up');
     }
@@ -70,7 +70,7 @@ jsonUtils.withLockedUserIndex = function (actionHook) {
         return retVal;
     } finally {
         if (lockedIndex)
-            try { jsonUtils.unlockUserIndex(); } catch (err) { debug(err); console.error(err); }
+            try { jsonUtils.unlockUserIndex(); } catch (err) { debug(err); error(err); }
         debug('withLockedUserIndex() cleaned up');
     }
 };
@@ -90,7 +90,7 @@ jsonUtils.withLockedAppsIndex = function (actionHook) {
         return retVal;
     } finally {
         if (lockedIndex)
-            try { jsonUtils.unlockAppsIndex(); } catch (err) { debug(err); console.error(err); }
+            try { jsonUtils.unlockAppsIndex(); } catch (err) { debug(err); error(err); }
         debug('withLockedAppsIndex() cleaned up');
     }
 };
@@ -110,7 +110,7 @@ jsonUtils.withLockedApp = function (appId, actionHook) {
         return retVal;
     } finally {
         if (lockedApp)
-            try { jsonUtils.unlockApplication(appId); } catch (err) { debug(err); console.error(err); }
+            try { jsonUtils.unlockApplication(appId); } catch (err) { debug(err); error(err); }
         debug('withLockedApp(): ' + appId + ' cleaned up');
     }
 };
@@ -130,7 +130,7 @@ jsonUtils.withLockedSubscriptions = function (appId, actionHook) {
         return retVal;
     } finally {
         if (lockedSubscriptions)
-            try { jsonUtils.unlockSubscriptions(appId); } catch (err) { debug(err); console.error(err); }
+            try { jsonUtils.unlockSubscriptions(appId); } catch (err) { debug(err); error(err); }
         debug('withLockedSubscriptions(): ' + appId + ' cleaned up');
     }
 };
@@ -150,7 +150,7 @@ jsonUtils.withLockedApprovals = function (actionHook) {
         return retVal;
     } finally {
         if (lockedApprovals)
-            try { jsonUtils.unlockApprovals(); } catch (err) { debug(err); console.error(err); }
+            try { jsonUtils.unlockApprovals(); } catch (err) { debug(err); error(err); }
         debug('withLockedApprovals() cleaned up');
     }
 };
@@ -190,7 +190,7 @@ jsonUtils.withLockedListeners = function (listenerId, actionHook) {
         return retVal;
     } finally {
         if (lockedListeners)
-            try { jsonUtils.unlockListeners(); } catch (err) { debug(err); console.error(err); }
+            try { jsonUtils.unlockListeners(); } catch (err) { debug(err); error(err); }
         debug('withLockedListeners() cleaned up');
     }
 };
@@ -210,7 +210,7 @@ jsonUtils.withLockedVerifications = function (actionHook) {
         return retVal;
     } finally {
         if (lockedVerifications)
-            try { jsonUtils.unlockVerifications(); } catch (err) { debug(err); console.error(err); }
+            try { jsonUtils.unlockVerifications(); } catch (err) { debug(err); error(err); }
         debug('withLockedVerifications() cleaned up');
     }
 };

@@ -1,5 +1,5 @@
 var authMiddleware = function () {};
-var debug = require('debug')('portal-api:auth-middleware');
+var { debug, info, warn, error } = require('portal-env').Logger('portal-api:auth-middleware');
 
 // ===== MIDDLEWARE =====
 

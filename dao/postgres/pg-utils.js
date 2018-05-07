@@ -1,7 +1,7 @@
 'use strict';
 
 const async = require('async');
-const debug = require('debug')('portal-api:dao:pg:utils');
+const { debug, info, warn, error } = require('portal-env').Logger('portal-api:dao:pg:utils');
 const fs = require('fs');
 const path = require('path');
 const pg = require('pg');
@@ -24,7 +24,7 @@ pgUtils.runSql = (sqlFileName, callback) => {
         if (err) {
             if (callback)
                 return callback(err);
-            console.error(err);
+            error(err);
             return;
         }
         // Whoa
@@ -360,7 +360,7 @@ pgUtils.deleteBy = (entity, fieldNameOrNames, fieldValueOrValues, clientOrCallba
  */
 pgUtils.checkCallback = (callback) => {
     if (!callback || typeof (callback) !== 'function') {
-        console.error('Value of callback: ' + callback);
+        error('Value of callback: ' + callback);
         throw new Error('Parameter "callback" is null or not a function');
     }
 };
@@ -453,13 +453,13 @@ function getPoolOrClient(clientOrCallback, callback, isRetry, retryCounter) {
                        errorCode === '57P03') // "Postgres is starting up"
             {
                 if (retryCounter < POSTGRES_CONNECT_RETRIES - 1) {
-                    console.error(`Could not connect to Postgres, will retry (#${retryCounter+1}). Host: ${pgOptions.host}:${pgOptions.port}, user ${pgOptions.user}`);
+                    error(`Could not connect to Postgres, will retry (#${retryCounter+1}). Host: ${pgOptions.host}:${pgOptions.port}, user ${pgOptions.user}`);
                     debug(`getPoolOrClient: Postgres returned ${err.code}, options:`);
                     debug(pgOptions);
                     debug(`Will retry in ${POSTGRES_CONNECT_DELAY}ms`);
                     return setTimeout(getPoolOrClient, POSTGRES_CONNECT_DELAY, callback, false, retryCounter + 1);
                 } else {
-                    console.error('Reached maximum tries to connect to Postgres. Failing.');
+                    error('Reached maximum tries to connect to Postgres. Failing.');
                     return callback(err);
                 }
             } else {

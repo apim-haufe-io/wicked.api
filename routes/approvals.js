@@ -2,7 +2,7 @@
 
 var fs = require('fs');
 var path = require('path');
-var debug = require('debug')('portal-api:approvals');
+var { debug, info, warn, error } = require('portal-env').Logger('portal-api:approvals');
 var utils = require('./utils');
 var users = require('./users');
 
@@ -34,26 +34,26 @@ approvals.getApprovals = function (app, res, loggedInUserId) {
             if (err)
                 return utils.fail(res, 500, 'getApprovals: DAO load approvals failed', err);
 
-            var groupsJson = utils.loadGroups(app);
-            var groups = groupsJson.groups;
+            const groupsJson = utils.loadGroups(app);
+            const groups = groupsJson.groups;
 
             // Assemble a user's groups to check for approval roles
             // and correct groups. If the user is not admin but approver,
             // the requiredGroup needs to be present in this user's list
             // of groups.
-            var userGroups = {};
+            const userGroups = {};
             if (userInfo.groups) {
-                for (var i = 0; i < userInfo.groups.length; i++) {
+                for (let i = 0; i < userInfo.groups.length; i++) {
                     userGroups[userInfo.groups[i]] = true;
                 }
                 // This is probably not strictly necessary, as the alt_ids
                 // are mapped to wicked groups at login anyway, but it doesn't
                 // hurt either.
-                for (var i = 0; i < groups.length; i++) {
+                for (let i = 0; i < groups.length; i++) {
                     if (userGroups.hasOwnProperty(groups[i].id)) {
-                        var alt_ids = groups[i].alt_ids;
+                        const alt_ids = groups[i].alt_ids;
                         if (alt_ids) {
-                            for (var j = 0; j < alt_ids.length; j++) {
+                            for (let j = 0; j < alt_ids.length; j++) {
                                 userGroups[alt_ids[j]] = true;
                             }
                         }

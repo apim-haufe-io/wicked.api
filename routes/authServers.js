@@ -2,7 +2,7 @@
 
 var fs = require('fs');
 var path = require('path');
-var debug = require('debug')('portal-api:auth-servers');
+var { debug, info, warn, error } = require('portal-env').Logger('portal-api:auth-servers');
 var utils = require('./utils');
 var users = require('./users');
 
@@ -45,9 +45,9 @@ authServers.getAuthServers = function (app, res) {
                 authServers._authServerNames = serverNames;
             }
         } catch (ex) {
-            console.error('getAuthServers threw an exception:');
-            console.error(ex);
-            console.error(ex.stack);
+            error('getAuthServers threw an exception:');
+            error(ex);
+            error(ex.stack);
             return res.status(500).json({ message: ex.message });
         }
     }

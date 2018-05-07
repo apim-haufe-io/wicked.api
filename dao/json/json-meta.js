@@ -1,6 +1,6 @@
 'use strict';
 
-const debug = require('debug')('portal-api:dao:json:meta');
+const { debug, info, warn, error } = require('portal-env').Logger('portal-api:dao:json:meta');
 const fs = require('fs');
 const path = require('path');
 
@@ -65,8 +65,8 @@ function cleanupLockFiles(glob, callback) {
             jsonUtils.globalUnlock();
         debug("checkForLocks() Done.");
     } catch (err) {
-        console.error(err);
-        console.error(err.stack);
+        error(err);
+        error(err.stack);
         error = err;
     }
     callback(error);

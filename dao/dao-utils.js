@@ -1,6 +1,6 @@
 'use strict';
 
-const debug = require('debug')('portal-api:dao:utils');
+const { debug, info, warn, error } = require('portal-env').Logger('portal-api:dao:utils');
 const utils = require('../routes/utils');
 
 const daoUtils = function () { };
@@ -47,7 +47,7 @@ daoUtils.isUserApprover = (userInfo) => {
             break;
     }
     return isApprover;
-}
+};
 
 daoUtils.checkValidatedUserGroup = (userInfo) => {
     debug('checkValidatedUserGroup()');

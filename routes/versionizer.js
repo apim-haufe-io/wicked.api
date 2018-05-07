@@ -1,6 +1,6 @@
 'use strict';
 
-const debug = require('debug')('portal-api:versionizer');
+const { debug, info, warn, error } = require('portal-env').Logger('portal-api:versionizer');
 const fs = require('fs');
 const path = require('path');
 const utils = require('./utils');

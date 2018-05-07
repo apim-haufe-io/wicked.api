@@ -1,6 +1,6 @@
 'use strict';
 
-const debug = require('debug')('portal-api:dao:pg:grants');
+const { debug, info, warn, error } = require('portal-env').Logger('portal-api:dao:pg:grants');
 
 const utils = require('../../../routes/utils');
 const daoUtils = require('../../dao-utils');
