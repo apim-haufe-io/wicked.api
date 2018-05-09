@@ -15,6 +15,7 @@ const jsonRegistrations = function () { };
 
 jsonRegistrations.getByPoolAndUser = (poolId, userId, callback) => {
     debug(`getByPoolAndUser(${poolId}, ${userId})`);
+    jsonUtils.checkCallback(callback);
     let userRegistration;
     try {
         userRegistration = jsonRegistrations.getByPoolAndUserSync(poolId, userId);
@@ -28,6 +29,7 @@ jsonRegistrations.getByPoolAndUser = (poolId, userId, callback) => {
 jsonRegistrations.getByPoolAndNamespace = (poolId, namespace, nameFilter, offset, limit, callback) => {
     //return callback(utils.makeError(500, 'Not implemented'));
     debug(`getByPoolAndNamespace(${poolId}, ${namespace}, ${nameFilter})`);
+    jsonUtils.checkCallback(callback);
     let registrations;
     try {
         registrations = jsonRegistrations.getByPoolAndNamespaceSync(poolId, namespace, nameFilter, offset, limit);
@@ -37,8 +39,21 @@ jsonRegistrations.getByPoolAndNamespace = (poolId, namespace, nameFilter, offset
     return callback(null, registrations);
 };
 
+jsonRegistrations.getByUser = (userId, offset, limit, callback) => {
+    debug(`getByUser(${userId}, ${offset}, ${limit})`);
+    jsonUtils.checkCallback(callback);
+    let registrations;
+    try {
+        registrations = jsonRegistrations.getByUserSync(userId, offset, limit);
+    } catch (err) {
+        return callback(err);
+    }
+    return callback(null, registrations);
+};
+
 jsonRegistrations.upsert = (poolId, userId, userData, callback) => {
     debug(`upsert(${userId})`);
+    jsonUtils.checkCallback(callback);
     try {
         jsonRegistrations.upsertSync(poolId, userId, userData);
     } catch (err) {
@@ -49,6 +64,7 @@ jsonRegistrations.upsert = (poolId, userId, userData, callback) => {
 
 jsonRegistrations.delete = (poolId, userId, callback) => {
     debug(`delete(${userId})`);
+    jsonUtils.checkCallback(callback);
     try {
         jsonRegistrations.deleteSync(poolId, userId);
     } catch (err) {
@@ -86,6 +102,19 @@ jsonRegistrations.getByPoolAndUserSync = (poolId, userId) => {
     const regsJson = JSON.parse(fs.readFileSync(regsFile, 'utf8'));
     debug(regsJson);
     return regsJson;
+};
+
+jsonRegistrations.getByUserSync = (userId, offset, limit) => {
+    debug(`getByUser(${userId}, ${offset}, ${limit})`);
+
+    // The userIndex contains pools this user has registrations for
+    const userIndex = readUserIndex(userId);
+    const tmp = { pools: {} };
+    for (let i = 0; i < userIndex.length; ++i) {
+        const poolId = userIndex[i];
+        tmp.pools[poolId] = jsonRegistrations.getByPoolAndUserSync(poolId, userId);
+    }
+    return tmp;
 };
 
 function filterAndPage(regs, nameFilter, offset, limit) {
@@ -128,10 +157,7 @@ jsonRegistrations.getByPoolAndNamespaceSync = (poolId, namespace, nameFilter, of
         tmpArray.push(thisReg);
     }
     // Now return the list
-    // TODO: _links?
-    return {
-        items: tmpArray
-    };
+    return tmpArray;
 };
 
 jsonRegistrations.upsertSync = (poolId, userId, userData) => {
@@ -150,8 +176,10 @@ jsonRegistrations.upsertSync = (poolId, userId, userData) => {
     const regsFile = makeRegsFileName(poolId, userId);
     fs.writeFileSync(regsFile, JSON.stringify(userData, null, 2), 'utf8');
 
+    // Update the user index
+    ensureUserIndex(poolId, userId);
     // Update the pool index
-    ensurePoolIndex(poolId, userId);
+    ensurePoolIndex(poolId, userId, newName);
     // Update the namespace index
     ensureNamespaceIndex(poolId, userId, newName, previousNamespace, newNamespace);
 };
@@ -172,11 +200,61 @@ jsonRegistrations.deleteSync = (poolId, userId) => {
     }
     fs.unlinkSync(regsFile);
     debug(`deleteSync: Deleted file ${regsFile}`);
+ 
     // Clean up in indexes
+    deleteFromUserIndex(poolId, userId);
     deleteFromPoolIndex(poolId, userId);
     if (previousNamespace)
         deleteFromNamespaceIndex(poolId, previousNamespace, userId);
 };
+
+// =================================================
+// User Index updating helper methods
+// =================================================
+
+function getUserIndexFile(userId) {
+    if (!userId)
+        throw new Error(`getUserIndexFile: userId is empty`);
+    const regsDir = path.join(utils.getDynamicDir(), 'registrations');
+    const userIndex = path.join(regsDir, `${userId}.json`);
+    return userIndex;
+}
+
+function readUserIndex(userId) {
+    const userIndexFile = getUserIndexFile(userId);
+    if (!fs.existsSync(userIndexFile))
+        return [];
+    return JSON.parse(fs.readFileSync(userIndexFile));
+}
+
+function writeUserIndex(userId, userIndex) {
+    const userIndexFile = getUserIndexFile(userId);
+    fs.writeFileSync(userIndexFile, JSON.stringify(userIndex, null, 2), 'utf8');
+}
+
+function ensureUserIndex(poolId, userId) {
+    debug(`ensureUserIndex(${poolId}, ${userId})`);
+    const userIndex = readUserIndex(userId);
+    const poolPos = userIndex.findIndex(e => e === poolId);
+    if (poolPos < 0) {
+        // Not found, insert
+        userIndex.push(poolId);
+        writeUserIndex(userId, userIndex);
+    }
+}
+
+function deleteFromUserIndex(poolId, userId) {
+    debug(`ensureUserIndex(${poolId}, ${userId})`);
+    debug(`ensureUserIndex(${poolId}, ${userId})`);
+    const userIndex = readUserIndex(userId);
+    const poolPos = userIndex.findIndex(e => e === poolId);
+    if (poolPos >= 0) {
+        userIndex.splice(poolPos, 1);
+        writeUserIndex(userId, userIndex);
+    } else {
+        throw new Error(`deleteFromUserIndex: Pool ID ${poolId} not found in user index ${userId}`);
+    }
+}
 
 // =================================================
 // Pool Index updating helper methods
@@ -218,7 +296,7 @@ function sanityCheckPoolIndex(poolId, poolIndex) {
         const name = poolIndex[i].name;
         if (idMap[id])
             throw new Error(`sanityCheckPoolIndex(${poolId}): Duplicate id detected: ${id} (${name})`);
-        idMap[id] = name;
+        idMap[id] = true;
     }
 }
 
@@ -233,8 +311,8 @@ function ensurePoolIndex(poolId, userId, name) {
     debug(`ensurePoolIndex(${poolId}, ${userId}, ${name})`);
 
     const poolIndex = readPoolIndex(poolId);
-    const userPos = poolIndex.find(e => e.id === userId);
-    if (userPos) {
+    const userPos = poolIndex.findIndex(e => e.id === userId);
+    if (userPos >= 0) {
         debug(`User ${userId} already present in pool index for pool ${poolId}`);
         if (poolIndex[userPos].name === name) {
             // All is good, no need to update
@@ -256,8 +334,8 @@ function deleteFromPoolIndex(poolId, userId) {
     debug(`deleteFromPoolIndex(${poolId}, ${userId})`);
 
     const poolIndex = readPoolIndex(poolId);
-    const userPos = poolIndex.find(e => e === userId);
-    if (!userPos) {
+    const userPos = poolIndex.findIndex(e => e.id === userId);
+    if (userPos < 0) {
         warn(`deleteFromPoolIndex: User ${userId} was not found in ${poolId}`);
         return;
         // throw utils.makeError(404, `deleteFromPoolIndex: User ${userId} was not found in ${poolId}`);
@@ -322,12 +400,12 @@ function writeNamespaceIndex(poolId, namespace, namespaceIndex) {
 function upsertNamespaceIndex(poolId, namespace, userId, name) {
     debug(`upsertNamespaceIndex(${poolId}, ${namespace}, ${userId}, ${name})`);
     const index = readNamespaceIndex(poolId, namespace);
-    const userIndex = index.find(e => e.id === userId);
+    const userIndex = index.findIndex(e => e.id === userId);
     const entry = {
         id: userId,
         name: name
     };
-    if (userIndex) {
+    if (userIndex >= 0) {
         debug(`upsertIndex: Updating entry.`);
         index[userIndex] = entry;
     } else {
@@ -340,8 +418,8 @@ function upsertNamespaceIndex(poolId, namespace, userId, name) {
 function deleteFromNamespaceIndex(poolId, namespace, userId) {
     debug(`deleteFromNamespaceIndex(${poolId}, ${namespace}, ${userId})`);
     const index = readNamespaceIndex(poolId, namespace);
-    const userIndex = index.find(e => e.id === userId);
-    if (!userIndex) {
+    const userIndex = index.findIndex(e => e.id === userId);
+    if (userIndex < 0) {
         warn(`deleteFromIndex: Could not find id ${userId} in namespace index, pool ${poolId}, namespace ${namespace}`);
         return;
     }
@@ -352,19 +430,27 @@ function deleteFromNamespaceIndex(poolId, namespace, userId) {
 
 function ensureNamespaceIndex(poolId, userId, name, previousNamespace, newNamespace) {
     debug(`ensureNamespaceIndex(${poolId}, ${userId}, ${previousNamespace}, ${newNamespace}`);
+    if (!previousNamespace && !newNamespace) {
+        debug('No namespaces involved, nothing to do.');
+        return;
+    }
+    // Now we know either previousNamespace or newNamespace is defined
     if (previousNamespace === newNamespace) {
-        if (!newNamespace) // Nothing to do
+        if (!newNamespace) {
+            debug('ensureNamespaceIndex: Nothing to do (match)');
+            // Nothing to do
             return;
-        // Same namespace, we'll just upsert
+        }
+        debug('ensureNamespaceIndex: Same namespace, just upsert');
         upsertNamespaceIndex(poolId, newNamespace, userId, name);
     } else if (!previousNamespace && newNamespace) {
-        // Adding user to a namespace (or new insert)
+        debug('Adding user to a namespace (or new insert)');
         upsertNamespaceIndex(poolId, newNamespace, userId, name);
     } else if (previousNamespace && !newNamespace) {
-        // Deleting a user from a namespace
+        debug('Deleting a user from a namespace');
         deleteFromNamespaceIndex(poolId, previousNamespace, userId);
     } else {
-        // Moving from one namespace to the other
+        debug('Moving from one namespace to the other');
         deleteFromNamespaceIndex(poolId, previousNamespace, userId);
         upsertNamespaceIndex(poolId, newNamespace, userId, name);
     }

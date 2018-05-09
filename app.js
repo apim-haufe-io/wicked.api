@@ -1,34 +1,35 @@
 'use strict';
 
-var express = require('express');
-var path = require('path');
-var logger = require('morgan');
-var bodyParser = require('body-parser');
-var { debug, info, warn, error } = require('portal-env').Logger('portal-api:app');
-var correlationIdHandler = require('portal-env').CorrelationIdHandler();
-var authMiddleware = require('./auth-middleware');
+const express = require('express');
+const path = require('path');
+const logger = require('morgan');
+const bodyParser = require('body-parser');
+const { debug, info, warn, error } = require('portal-env').Logger('portal-api:app');
+const correlationIdHandler = require('portal-env').CorrelationIdHandler();
+const authMiddleware = require('./auth-middleware');
 
-var healthApi = require('./routes/health');
-var users = require('./routes/users');
-var applications = require('./routes/applications');
-var utils = require('./routes/utils');
-var apis = require('./routes/apis');
-var content = require('./routes/content');
-var approvals = require('./routes/approvals');
-var webhooks = require('./routes/webhooks');
-var verifications = require('./routes/verifications');
-var systemhealth = require('./routes/systemhealth');
-var templates = require('./routes/templates');
-// var deploy = require('./routes/deploy');
-var kill = require('./routes/kill');
-var authServers = require('./routes/authServers');
-var versionizer = require('./routes/versionizer');
-var pgUtils = require('./dao/postgres/pg-utils');
+const healthApi = require('./routes/health');
+const users = require('./routes/users');
+const applications = require('./routes/applications');
+const utils = require('./routes/utils');
+const apis = require('./routes/apis');
+const content = require('./routes/content');
+const approvals = require('./routes/approvals');
+const webhooks = require('./routes/webhooks');
+const verifications = require('./routes/verifications');
+const registrations = require('./routes/registrations');
+const systemhealth = require('./routes/systemhealth');
+const templates = require('./routes/templates');
+// const deploy = require('./routes/deploy');
+const kill = require('./routes/kill');
+const authServers = require('./routes/authServers');
+const versionizer = require('./routes/versionizer');
+const pgUtils = require('./dao/postgres/pg-utils');
 
-//var routes = require('./routes/index');
-//var users = require('./routes/users');
+//const routes = require('./routes/index');
+//const users = require('./routes/users');
 
-var app = express();
+const app = express();
 
 // Inject app to various places.
 utils.init(app);
@@ -42,7 +43,7 @@ app.use(correlationIdHandler);
 
 // Combined == Apache style logs
 logger.token('user-id', function (req, res) {
-    var userId = req.apiUserId;
+    const userId = req.apiUserId;
     return userId ? userId : '-';
 });
 logger.token('correlation-id', function (req, res) {
@@ -141,6 +142,10 @@ app.use('/webhooks', /*authMiddleware.rejectFromKong, */webhooks);
 verifications.setup(users);
 app.use('/verifications', verifications);
 
+// ----- REGISTRATIONS -----
+
+app.use('/registrations', registrations);
+
 // ----- AUTH-SERVERS -----
 
 app.use('/auth-servers', authServers);
@@ -153,17 +158,17 @@ app.get('/randomId', function (req, res, next) {
 // ------- STATIC DATA ------
 
 app.get('/plans', function (req, res, next) {
-    var plans = utils.loadPlans(app);
+    const plans = utils.loadPlans(app);
     res.json(plans);
 });
 
 app.get('/groups', function (req, res, next) {
-    var groups = utils.loadGroups(app);
+    const groups = utils.loadGroups(app);
     res.json(groups);
 });
 
 app.get('/globals', authMiddleware.rejectFromKong, function (req, res, next) {
-    var globals = utils.loadGlobals(app);
+    const globals = utils.loadGlobals(app);
     res.json(globals);
 });
 
@@ -188,12 +193,12 @@ app.setupHooks = () => {
     webhooks.setupHooks();
 
     // Clean up expired verification records once a minute
-    var expiryInterval = process.env.PORTAL_API_EXPIRY_INTERVAL || '60000';
+    const expiryInterval = process.env.PORTAL_API_EXPIRY_INTERVAL || '60000';
     debug('Setting verification expiry check time to ' + expiryInterval);
     setInterval(verifications.checkExpiredRecords, expiryInterval, app);
 
     // Check system health once in a while (every 30 seconds)
-    var checkHealthInterval = process.env.PORTAL_API_HEALTH_INTERVAL || '30000';
+    const checkHealthInterval = process.env.PORTAL_API_HEALTH_INTERVAL || '30000';
     debug('Setting system check interval to ' + checkHealthInterval);
     setInterval(systemhealth.checkHealth, checkHealthInterval, app);
 };

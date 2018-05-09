@@ -1257,7 +1257,7 @@ paths:
         '403':
           description: Not allowed
 
-  '/registrations/{poolId}':
+  '/registrations/pools/{poolId}':
     get:
       security:
       - accessCode: ['read_registrations']
@@ -1275,7 +1275,7 @@ paths:
         in: query
         type: string
         required: false
-      - name: nameFilter
+      - name: name_filter
         in: query
         type: string
         required: false
@@ -1293,17 +1293,9 @@ paths:
         '200':
           description: List of registered users
           schema:
-            type: object
-            properties:
-              items:
-                type: array
-                items:
-                  $ref: '#/definitions/registrationType'
-              _links:
-                type: object
-                properties: {}
+            $ref: '#/definitions/registrationCollection'
 
-  '/registrations/{poolId}/users/{userId}':
+  '/registrations/pools/{poolId}/users/{userId}':
     get:
       security:
       - accessCode: ['read_registrations']
@@ -1382,6 +1374,30 @@ paths:
         '403':
           description: Forbidden
 
+  '/registrations/users/{userId}':
+    get:
+      security:
+      - accessCode: ['read_registrations']
+      - implicit: ['read_registrations']
+      - password: ['read_registrations']
+      tags:
+      - registration
+      description: Retrieve a user's registrations
+      parameters:
+      - name: userId
+        in: path
+        type: string
+        required: true
+      responses:
+        '200':
+          description: Success
+          schema:
+            $ref: '#/definitions/registrationCollection'
+        '403':
+          description: Forbidden
+        '404':
+          description: Not found
+
   '/grants/{userId}':
     get:
       security:
@@ -1408,15 +1424,7 @@ paths:
         '200':
           description: Success
           schema:
-            type: object
-            properties:
-              items:
-                type: array
-                items:
-                  $ref: '#/definitions/grantType'
-              _links:
-                type: object
-                properties: {}
+            $ref: '#/definitions/grantCollection'
         '400':
           description: Invalid Request
         '403'
@@ -1840,6 +1848,16 @@ definitions:
       name:
         type: string
       # Plus other properties
+  registrationCollection:
+    type: object
+    properties:
+      items:
+        type: array
+        items:
+          $ref: '#/definitions/registrationType'
+      _links:
+        type: object
+        properties: {}    
   grantType:
     type: object
     properties:
@@ -1851,6 +1869,16 @@ definitions:
         type: array
         items:
           $ref: '#/definitions/grantScopeType'
+  grantCollection:
+    type: object
+    properties:
+      items:
+        type: array
+        items:
+          $ref: '#/definitions/grantType'
+      _links:
+        type: object
+        properties: {}
   grantScopeType:
     type: object
     properties:

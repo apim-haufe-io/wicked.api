@@ -57,11 +57,23 @@ utils.getText = function (ob) {
 utils.fail = function (res, statusCode, message, err) {
     if (err) {
         error(err);
+        if (err.stack) {
+            console.error(err.stack);
+            error(err.stack);
+        }
         const status = err.status || statusCode || 500;
         res.status(status).json({ status: status, message: message, error: err.message });
     } else {
         res.status(statusCode).json({ status: statusCode, message: message });
     }
+};
+
+utils.failError = function (res, err) {
+    if (err.stack) {
+        console.log(err.stack);
+        error(err.stack);
+    }
+    return utils.fail(res, err.status || 500, err.message);
 };
 
 utils.makeError = (statusCode, message) => {
@@ -362,6 +374,15 @@ utils.getBuildDate = function () {
             utils._buildDate = '(unknown build date)';
     }
     return utils._buildDate;
+};
+
+utils.getOffsetLimit = (req) => {
+    const offset = req.query.offset ? req.query.offset : 0;
+    const limit = req.query.limit ? req.query.limit : 0;
+    return {
+        offset,
+        limit
+    };
 };
 
 module.exports = utils;

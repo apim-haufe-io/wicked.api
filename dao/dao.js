@@ -125,8 +125,9 @@ dao.webhooks = {
 dao.registrations = {
     getByPoolAndUser: (poolId, userId, callback) => { dao._impl.registrations.getByPoolAndUser(poolId, userId, callback); },
     getByPoolAndNamespace: (poolId, namespace, nameFilter, offset, limit, callback) => { dao._impl.registrations.getByPoolAndNamespace(poolId, namespace, nameFilter, offset, limit, callback); },
+    getByUser: (userId, offset, limit, callback) => { dao._impl.registrations.getByUser(userId, offset, limit, callback); },
 
-    upsert: (poolId, userId, userData, callback) => { dao._impl.registrations.create(poolId, userId, userData, callback); },
+    upsert: (poolId, userId, userData, callback) => { dao._impl.registrations.upsert(poolId, userId, userData, callback); },
     delete: (poolId, userId, callback) => { dao._impl.registrations.delete(poolId, userId, callback); }
 };
 
