@@ -1,8 +1,6 @@
 'use strict';
 
 var utils = require('./utils');
-var fs = require('fs');
-var path = require('path');
 var { debug, info, warn, error } = require('portal-env').Logger('portal-api:verifications');
 var bcrypt = require('bcrypt-nodejs');
 var dao = require('../dao/dao');

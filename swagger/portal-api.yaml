@@ -39,6 +39,8 @@ securityDefinitions:
       write_verifications: Create or delete verifications
       read_registrations: Read user registrations
       write_registrations: Write user registrations
+      read_grants: Read user API grants
+      write_grants: Write user API grants
       webhooks: Access and change webhooks
   
   implicit:
@@ -67,6 +69,8 @@ securityDefinitions:
       write_verifications: Create or delete verifications
       read_registrations: Read user registrations
       write_registrations: Write user registrations
+      read_grants: Read user API grants
+      write_grants: Write user API grants
       webhooks: Access and change webhooks
 
   password:
@@ -93,6 +97,8 @@ securityDefinitions:
       write_verifications: Create or delete verifications
       read_registrations: Read user registrations
       write_registrations: Write user registrations
+      read_grants: Read user API grants
+      write_grants: Write user API grants
       webhooks: Access and change webhooks
 
   # For anonymous access to data
@@ -1269,6 +1275,10 @@ paths:
         in: query
         type: string
         required: false
+      - name: nameFilter
+        in: query
+        type: string
+        required: false
       - name: offset
         in: query
         type: number
@@ -1282,6 +1292,243 @@ paths:
           description: Forbidden
         '200':
           description: List of registered users
+          schema:
+            type: object
+            properties:
+              items:
+                type: array
+                items:
+                  $ref: '#/definitions/registrationType'
+              _links:
+                type: object
+                properties: {}
+
+  '/registrations/{poolId}/users/{userId}':
+    get:
+      security:
+      - accessCode: ['read_registrations']
+      - implicit: ['read_registrations']
+      - password: ['read_registrations']
+      tags:
+      - registration
+      description: Retrieve a single user registration
+      parameters:
+      - name: poolId
+        in: path
+        type: string
+        required: true
+      - name: userId
+        in: path
+        type: string
+        required: true
+      responses:
+        '403':
+          description: Forbidden
+        '200':
+          description: User registration
+
+    put:
+      security:
+      - accessCode: ['write_registrations']
+      - implicit: ['write_registrations']
+      - password: ['write_registrations']
+      tags:
+      - registration
+      description: Write a single user registration
+      parameters:
+      - name: poolId
+        in: path
+        type: string
+        required: true
+      - name: userId
+        in: path
+        type: string
+        required: true
+      - name: body
+        in: body
+        schema:
+          $ref: '#/definitions/registrationType'
+        required: true
+      responses:
+        '204':
+          description: Success, no result
+        '400':
+          description: Bad request
+        '403':
+          description: Forbidden
+
+    delete:
+      security:
+      - accessCode: ['write_registrations']
+      - implicit: ['write_registrations']
+      - password: ['write_registrations']
+      tags:
+      - registration
+      description: Delete a single user registration
+      parameters:
+      - name: poolId
+        in: path
+        type: string
+        required: true
+      - name: userId
+        in: path
+        type: string
+        required: true
+      responses:
+        '204':
+          description: Success, no result
+        '400':
+          description: Bad request
+        '403':
+          description: Forbidden
+
+  '/grants/{userId}':
+    get:
+      security:
+      - accessCode: ['read_grants']
+      - implicit: ['read_grants']
+      - password: ['read_grants']
+      tags:
+      - grants
+      description: Retrieve a list of all user API grants
+      parameters:
+      - name: userId
+        in: path
+        type: string
+        required: true
+      - name: offset
+        in: query
+        type: number
+        required: false
+      - name: limit
+        in: query
+        type: number
+        required: false
+      responses:
+        '200':
+          description: Success
+          schema:
+            type: object
+            properties:
+              items:
+                type: array
+                items:
+                  $ref: '#/definitions/grantType'
+              _links:
+                type: object
+                properties: {}
+        '400':
+          description: Invalid Request
+        '403'
+          description: Forbidden
+        '404':
+          description: Not Found
+    delete:
+      security:
+      - accessCode: ['write_grants']
+      - implicit: ['write_grants']
+      - password: ['write_grants']
+      tags:
+      - grants
+      description: Delete all of a user's API grants
+      parameters:
+      - name: userId
+        in: path
+        type: string
+        required: true
+      responses:
+        '204':
+          description: Success, no result
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+      
+
+  '/grants/{userId}/apis/{apiId}':
+    get:
+      security:
+      - accessCode: ['read_grants']
+      - implicit: ['read_grants']
+      - password: ['read_grants']
+      tags:
+      - grants
+      description: Read a user's grants for a specific API
+      parameters:
+      - name: userId
+        in: path
+        type: string
+        required: true
+      - name: apiId
+        in: path
+        type: string
+        required: true
+      responses:
+        '200':
+          description: Success
+          schema:
+            $ref: '#/definitions/grantType'
+        '403':
+          description: Forbidden
+        '404':
+          description: Not found
+
+    put:
+      security:
+      - accessCode: ['write_grants']
+      - implicit: ['write_grants']
+      - password: ['write_grants']
+      tags:
+      - grants
+      description: Write a user API grant
+      parameters:
+      - name: userId
+        in: path
+        type: string
+        required: true
+      - name: apiId
+        in: path
+        type: string
+        required: true
+      - name: body
+        in: body
+        required: true
+        schema:
+          $ref: '#/definitions/grantType'
+      responses:
+        '204':
+          description: Success, no result
+        '400':
+          description: Bad request
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+
+    delete:
+      security:
+      - accessCode: ['write_grants']
+      - implicit: ['write_grants']
+      - password: ['write_grants']
+      tags:
+      - grants
+      description: Delete a specific user API grant
+      parameters:
+      - name: userId
+        in: path
+        type: string
+        required: true
+      - name: apiId
+        in: path
+        type: string
+        required: true
+      responses:
+        '204':
+          description: Success, no result
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
 
 definitions:
   apiType:
@@ -1581,3 +1828,34 @@ definitions:
         type: string
       url:
         type: string
+  registrationType:
+    type: object
+    properties:
+      poolId:
+        type: string
+      namespace:
+        type: string
+      userId:
+        type: string
+      name:
+        type: string
+      # Plus other properties
+  grantType:
+    type: object
+    properties:
+      userId:
+        type: string
+      apiId:
+        type: string
+      grants:
+        type: array
+        items:
+          $ref: '#/definitions/grantScopeType'
+  grantScopeType:
+    type: object
+    properties:
+      scope:
+        type: string
+      grantedDate:
+        type: string
+        format: date-time
