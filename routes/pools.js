@@ -1,7 +1,7 @@
 'use strict';
 
 const utils = require('./utils');
-const { debug, info, warn, error } = require('portal-env').Logger('portal-api:verifications');
+const { debug, info, warn, error } = require('portal-env').Logger('portal-api:pools');
 
 const pools = require('express').Router();
 

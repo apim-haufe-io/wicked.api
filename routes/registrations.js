@@ -1,7 +1,7 @@
 'use strict';
 
 const utils = require('./utils');
-const { debug, info, warn, error } = require('portal-env').Logger('portal-api:verifications');
+const { debug, info, warn, error } = require('portal-env').Logger('portal-api:registrations');
 const dao = require('../dao/dao');
 
 const webhooks = require('./webhooks');
@@ -80,6 +80,8 @@ registrations.getByPoolAndNamespace = (app, res, loggedInUserId, poolId, namespa
         return utils.fail(res, 400, utils.validationErrorMessage('Pool ID'));
     if (!utils.isNamespaceValid(namespace))
         return utils.fail(res, 400, utils.validationErrorMessage('Namespace'));
+    if (!utils.hasPool(poolId))
+        return utils.fail(res, 404, `Pool with ID ${poolId} does not exist.'`);
 
     verifyAccess(app, loggedInUserId, null, true, (err) => {
         if (err)
@@ -89,6 +91,7 @@ registrations.getByPoolAndNamespace = (app, res, loggedInUserId, poolId, namespa
             if (err)
                 return utils.fail(res, 500, 'Registrations: Could not retrieve registrations by pool/namespace.', err);
             // TODO: _links for paging?
+            addPool(poolId, regList);
             return res.json({
                 items: regList
             });
@@ -101,6 +104,8 @@ registrations.getByPoolAndUser = (app, res, loggedInUserId, poolId, userId) => {
 
     if (!utils.isPoolIdValid(poolId))
         return utils.fail(res, 400, utils.validationErrorMessage('Pool ID'));
+    if (!utils.hasPool(poolId))
+        return utils.fail(res, 404, `Pool with ID ${poolId} does not exist.'`);
 
     verifyAccess(app, loggedInUserId, userId, false, (err) => {
         if (err)
@@ -109,6 +114,7 @@ registrations.getByPoolAndUser = (app, res, loggedInUserId, poolId, userId) => {
         dao.registrations.getByPoolAndUser(poolId, userId, (err, reg) => {
             if (err)
                 return utils.fail(res, 500, `Registrations: Could not retrieve registration for user ${userId} and pool ${poolId}.`);
+            addPool(poolId, reg);
             return res.json(reg);
         });
     });
@@ -140,15 +146,24 @@ registrations.upsert = (app, res, loggedInUserId, poolId, userId, reg) => {
         return utils.fail(res, 400, utils.validationErrorMessage('Pool ID'));
     if (!utils.isNamespaceValid(reg.namespace))
         return utils.fail(res, 400, utils.validationErrorMessage('Namespace'));
+    if (!utils.hasPool(poolId))
+        return utils.fail(res, 404, `Pool with ID ${poolId} does not exist.'`);
+    const { errorMessage, validatedData } = validateRegistrationData(poolId, reg);
+    if (errorMessage)
+        return utils.fail(res, 400, errorMessage);
+
+    // id and namespace are never in the prop info, take these explicitly
+    validatedData.id = userId;
+    validatedData.namespace = reg.namespace;
 
     verifyAccess(app, loggedInUserId, userId, false, (err) => {
         if (err)
             return utils.failError(res, err);
 
-        if (!reg.name)
-            return utils.fail(res, 400, 'Registrations: Must contain a "name" property.');
+        // if (!reg.name)
+        //     return utils.fail(res, 400, 'Registrations: Must contain a "name" property.');
 
-        dao.registrations.upsert(poolId, userId, reg, (err) => {
+        dao.registrations.upsert(poolId, userId, validatedData, (err) => {
             if (err)
                 return utils.fail(res, 500, 'Registrations: Failed to upsert.', err);
 
@@ -162,6 +177,8 @@ registrations.delete = (app, res, loggedInUserId, poolId, userId) => {
 
     if (!utils.isPoolIdValid(poolId))
         return utils.fail(res, 400, utils.validationErrorMessage('Pool ID'));
+    if (!utils.hasPool(poolId))
+        return utils.fail(res, 404, `Pool with ID ${poolId} does not exist.'`);
 
     verifyAccess(app, loggedInUserId, userId, false, (err) => {
         if (err)
@@ -175,5 +192,87 @@ registrations.delete = (app, res, loggedInUserId, poolId, userId) => {
         });
     });
 };
+
+function addPool(poolId, regListOrSingle) {
+    if (Array.isArray(regListOrSingle)) {
+        for (let i = 0; i < regListOrSingle.length; ++i)
+            regListOrSingle[i].poolId = poolId;
+    } else {
+        regListOrSingle.poolId = poolId;
+    }
+}
+
+// =======================================
+// Registration Validation Logic
+// =======================================
+
+function validateRegistrationData(poolId, data) {
+    debug(`validateRegistrationData(${poolId})`);
+    debug(data);
+
+    let errorMessage;
+    let validatedData = {};
+
+    const poolInfo = utils.getPool(poolId);
+    for (let propName in poolInfo.properties) {
+        const propInfo = poolInfo.properties[propName];
+        const exists = data.hasOwnProperty(propName);
+        const isRequired = propInfo.required;
+
+        if (isRequired && !exists) {
+            errorMessage = `Property '${propName}' is a required field.`;
+        }
+
+        if (exists) {
+            // If it doesn't exist, we don't have to bother, right?
+            switch (propInfo.type) {
+                case "string":
+                    errorMessage = validateString(propName, propInfo, data[propName]);
+                    break;
+                default:
+                    errorMessage = `Property ${propName} has unsupported type ${propInfo.type}`;
+                    break;
+            }
+
+            // If we haven't found errors, take over data
+            if (!errorMessage)
+                validatedData[propName] = data[propName];
+        }
+
+        if (errorMessage) {
+            validatedData = null;
+            break;
+        }
+    }
+
+    if (!errorMessage) {
+        debug('Validated registration input data');
+        debug(validatedData);
+    } else {
+        debug('Validation failed: ' + errorMessage);
+    }
+
+    return {
+        errorMessage,
+        validatedData
+    };
+}
+
+function validateString(propName, propInfo, prop) {
+    const s = prop ? prop : ""; // null, undefined => empty string
+
+    if (propInfo.required && s.length === 0)
+        return `Property ${propName} is empty, but is required`;
+    if (propInfo.hasOwnProperty('minLength')) {
+        if (s.length < propInfo.minLength)
+            return `Property ${propName} has a required minimum length of ${propInfo.minLength}`;
+    }
+    let maxLength = 255; // Default max length
+    if (propInfo.hasOwnProperty('maxLength'))
+        maxLength = propInfo.maxLength;
+    if (s.length > maxLength)
+        return `Property ${propName} has a max length of ${maxLength}, given string is ${s.length}`;
+    return null;
+}
 
 module.exports = registrations;
