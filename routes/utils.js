@@ -1,11 +1,11 @@
 'use strict';
 
-var crypto = require('crypto');
-var fs = require('fs');
-var path = require('path');
-var { debug, info, warn, error } = require('portal-env').Logger('portal-api:utils');
+const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
+const { debug, info, warn, error } = require('portal-env').Logger('portal-api:utils');
 
-var utils = function () { };
+const utils = function () { };
 
 utils._app = null;
 utils.init = (app) => {
@@ -20,9 +20,9 @@ utils.getStaticDir = function () {
 };
 
 utils.getInitialConfigDir = function () {
-    var appDir = path.join(__dirname, '..');
-    var rootDir = path.join(appDir, 'node_modules');
-    var envDir = path.join(rootDir, 'portal-env');
+    const appDir = path.join(__dirname, '..');
+    const rootDir = path.join(appDir, 'node_modules');
+    const envDir = path.join(rootDir, 'portal-env');
     return path.join(envDir, 'initial-config');
 };
 
@@ -82,33 +82,35 @@ utils.makeError = (statusCode, message) => {
     return err;
 };
 
-var _groups = null;
+let _groups = null;
 utils.loadGroups = function () {
     debug('loadGroups()');
     if (!_groups) {
-        var groupsDir = path.join(utils.getStaticDir(), 'groups');
-        var groupsFile = path.join(groupsDir, 'groups.json');
+        const groupsDir = path.join(utils.getStaticDir(), 'groups');
+        const groupsFile = path.join(groupsDir, 'groups.json');
         _groups = require(groupsFile);
         utils.replaceEnvVars(_groups);
     }
     return _groups;
 };
 
-var _apis = null;
+let _apis = null;
 utils.loadApis = function () {
     debug('loadApis()');
     if (!_apis) {
-        var apisDir = path.join(utils.getStaticDir(), 'apis');
-        var apisFile = path.join(apisDir, 'apis.json');
+        const apisDir = path.join(utils.getStaticDir(), 'apis');
+        const apisFile = path.join(apisDir, 'apis.json');
         _apis = require(apisFile);
-        var internalApisFile = path.join(__dirname, 'internal_apis', 'apis.json');
-        var internalApis = require(internalApisFile);
+        const internalApisFile = path.join(__dirname, 'internal_apis', 'apis.json');
+        const internalApis = require(internalApisFile);
         injectGroupScopes(internalApis);
         _apis.apis.push.apply(_apis.apis, internalApis.apis);
         utils.replaceEnvVars(_apis);
     }
     return _apis;
 };
+
+
 
 function injectGroupScopes(apis) {
     debug('injectGroupScopes()');
@@ -129,28 +131,28 @@ function injectGroupScopes(apis) {
     }
 }
 
-var _plans = null;
+let _plans = null;
 utils.loadPlans = function () {
     debug('loadPlans()');
     if (!_plans) {
-        var plansDir = path.join(utils.getStaticDir(), 'plans');
-        var plansFile = path.join(plansDir, 'plans.json');
+        const plansDir = path.join(utils.getStaticDir(), 'plans');
+        const plansFile = path.join(plansDir, 'plans.json');
         _plans = require(plansFile);
-        var internalPlansFile = path.join(__dirname, 'internal_apis', 'plans.json');
-        var internalPlans = require(internalPlansFile);
+        const internalPlansFile = path.join(__dirname, 'internal_apis', 'plans.json');
+        const internalPlans = require(internalPlansFile);
         _plans.plans.push.apply(_plans.plans, internalPlans.plans);
         utils.replaceEnvVars(_plans);
     }
     return _plans;
 };
 
-var _globalSettings = null;
+let _globalSettings = null;
 utils.loadGlobals = function () {
     debug('loadGlobals()');
-    //    var globalsFile = path.join(utils.getStaticDir(app), 'globals.json');
+    //    const globalsFile = path.join(utils.getStaticDir(app), 'globals.json');
     //    return require(globalsFile);
     if (!_globalSettings) {
-        var globalsFile = path.join(utils.getStaticDir(), 'globals.json');
+        const globalsFile = path.join(utils.getStaticDir(), 'globals.json');
         _globalSettings = JSON.parse(fs.readFileSync(globalsFile, 'utf8'));
         utils.replaceEnvVars(_globalSettings);
         _globalSettings.configDate = getConfigDate();
@@ -161,7 +163,7 @@ utils.loadGlobals = function () {
 
 function getConfigDate() {
     debug('getConfigDate()');
-    var buildDatePath = path.join(utils.getStaticDir(), 'build_date');
+    const buildDatePath = path.join(utils.getStaticDir(), 'build_date');
     if (!fs.existsSync(buildDatePath))
         return "(no config date found)";
     return fs.readFileSync(buildDatePath, 'utf8');
@@ -169,7 +171,7 @@ function getConfigDate() {
 
 function getLastCommit() {
     debug('getLastCommit()');
-    var commitPath = path.join(utils.getStaticDir(), 'last_commit');
+    const commitPath = path.join(utils.getStaticDir(), 'last_commit');
     if (!fs.existsSync(commitPath))
         return "(no last commit found)";
     return fs.readFileSync(commitPath, 'utf8');
@@ -191,9 +193,9 @@ function hasEnvVars(s) {
 }
 
 function replaceEnvVarsInString(s) {
-    var tempString = "" + s;
-    var foundVar = hasEnvVars(tempString);
-    var iterCount = 0;
+    let tempString = "" + s;
+    let foundVar = hasEnvVars(tempString);
+    let iterCount = 0;
     while (foundVar) {
         iterCount++;
         if (iterCount > 10) {
@@ -211,8 +213,8 @@ function replaceEnvVarsInString(s) {
             }
         } else {
             // Inline env var ${...}
-            var envRegExp = /\$\{([A-Za-z\_0-9]+)\}/g; // match ${VAR_NAME}
-            var match = envRegExp.exec(tempString);
+            const envRegExp = /\$\{([A-Za-z\_0-9]+)\}/g; // match ${VAR_NAME}
+            const match = envRegExp.exec(tempString);
             if (match) {
                 let envVarName = match[1]; // Capture group 1
                 // Replace regexp with value of env var
@@ -230,8 +232,8 @@ function replaceEnvVarsInString(s) {
 
 function replaceEnvVarsInternal(someObject) {
     debug(someObject);
-    for (var propName in someObject) {
-        var propValue = someObject[propName];
+    for (let propName in someObject) {
+        const propValue = someObject[propName];
         if (typeof propValue == "string") {
             if (hasEnvVars(propValue)) {
                 debug('Detected env var in ' + propName + ': ' + propValue);
@@ -245,15 +247,15 @@ function replaceEnvVarsInternal(someObject) {
 
 function resolveTemplatesDir() {
     debug('resolveTemplatesDir()');
-    var configDir = utils.getStaticDir();
-    var templatesDir = path.join(configDir, 'templates');
+    let configDir = utils.getStaticDir();
+    let templatesDir = path.join(configDir, 'templates');
     debug(' - trying ' + templatesDir);
-    var chatbotFile = path.join(templatesDir, 'chatbot.json');
+    let chatbotFile = path.join(templatesDir, 'chatbot.json');
     if (fs.existsSync(chatbotFile)) {
         debug('Templates dir (from config): ' + templatesDir);
         return templatesDir;
     }
-    var rootConfigDir = utils.getInitialConfigDir();
+    const rootConfigDir = utils.getInitialConfigDir();
     configDir = path.join(rootConfigDir, 'static');
     templatesDir = path.join(configDir, 'templates');
     debug(' - trying ' + templatesDir);
@@ -269,17 +271,17 @@ utils._chatbotTemplates = null;
 utils.loadChatbotTemplates = function () {
     debug('loadChatbotTemplates()');
     if (!utils._chatbotTemplates) {
-        var templatesDir = resolveTemplatesDir();
-        var chatbotFile = path.join(templatesDir, 'chatbot.json');
+        const templatesDir = resolveTemplatesDir();
+        const chatbotFile = path.join(templatesDir, 'chatbot.json');
         utils._chatbotTemplates = require(chatbotFile);
     }
     return utils._chatbotTemplates;
 };
 
 utils.loadEmailTemplate = function (app, templateName) {
-    var templatesDir = resolveTemplatesDir();
-    var emailTemplatesDir = path.join(templatesDir, 'email');
-    var templateFile = path.join(emailTemplatesDir, templateName + '.mustache');
+    const templatesDir = resolveTemplatesDir();
+    const emailTemplatesDir = path.join(templatesDir, 'email');
+    const templateFile = path.join(emailTemplatesDir, templateName + '.mustache');
     if (!fs.existsSync(templateFile))
         throw new Error('File not found: ' + templateFile);
     return fs.readFileSync(templateFile, 'utf8');
@@ -287,24 +289,24 @@ utils.loadEmailTemplate = function (app, templateName) {
 
 // ENCRYPTION/DECRYPTION
 
-var ALGORITHM = 'aes-256-ctr';
+const ALGORITHM = 'aes-256-ctr';
 
 function getCipher() {
-    var key = getApp().get('aes_key').toString("binary");
-    var cipher = crypto.createCipher(ALGORITHM, key);
+    const key = getApp().get('aes_key').toString("binary");
+    const cipher = crypto.createCipher(ALGORITHM, key);
     return cipher;
 }
 
 function getDecipher() {
-    var key = getApp().get('aes_key').toString("binary");
-    var decipher = crypto.createDecipher(ALGORITHM, key);
+    const key = getApp().get('aes_key').toString("binary");
+    const decipher = crypto.createDecipher(ALGORITHM, key);
     return decipher;
 }
 
 utils.apiEncrypt = function (text) {
-    var cipher = getCipher();
+    const cipher = getCipher();
     // Add random bytes so that it looks different each time.
-    var cipherText = cipher.update(utils.createRandomId() + text, 'utf8', 'hex');
+    let cipherText = cipher.update(utils.createRandomId() + text, 'utf8', 'hex');
     cipherText += cipher.final('hex');
     cipherText = '!' + cipherText;
     return cipherText;
@@ -314,8 +316,8 @@ utils.apiDecrypt = function (cipherText) {
     if (!cipherText.startsWith('!'))
         return cipherText;
     cipherText = cipherText.substring(1); // Strip '!'
-    var decipher = getDecipher();
-    var text = decipher.update(cipherText, 'hex', 'utf8');
+    const decipher = getDecipher();
+    let text = decipher.update(cipherText, 'hex', 'utf8');
     text += decipher.final('utf8');
     text = text.substring(40); // Strip random bytes
     return text;
