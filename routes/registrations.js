@@ -76,10 +76,10 @@ function verifyAccess(app, loggedInUserId, userId, onlyAdmin, callback) {
 registrations.getByPoolAndNamespace = (app, res, loggedInUserId, poolId, namespace, nameFilter, offset, limit) => {
     debug(`getByPoolAndNamespace(${poolId}, ${namespace}, ${nameFilter})`);
 
-    if (!isPoolIdValid(poolId))
-        return utils.fail(res, 400, validationErrorMessage('Pool ID'));
-    if (!isNamespaceValid(namespace))
-        return utils.fail(res, 400, validationErrorMessage('Namespace'));
+    if (!utils.isPoolIdValid(poolId))
+        return utils.fail(res, 400, utils.validationErrorMessage('Pool ID'));
+    if (!utils.isNamespaceValid(namespace))
+        return utils.fail(res, 400, utils.validationErrorMessage('Namespace'));
 
     verifyAccess(app, loggedInUserId, null, true, (err) => {
         if (err)
@@ -99,8 +99,8 @@ registrations.getByPoolAndNamespace = (app, res, loggedInUserId, poolId, namespa
 registrations.getByPoolAndUser = (app, res, loggedInUserId, poolId, userId) => {
     debug(`getByPoolAndUser(${poolId}, ${userId})`);
 
-    if (!isPoolIdValid(poolId))
-        return utils.fail(res, 400, validationErrorMessage('Pool ID'));
+    if (!utils.isPoolIdValid(poolId))
+        return utils.fail(res, 400, utils.validationErrorMessage('Pool ID'));
 
     verifyAccess(app, loggedInUserId, userId, false, (err) => {
         if (err)
@@ -130,37 +130,16 @@ registrations.getByUser = (app, res, loggedInUserId, userId, offset, limit) => {
     });
 };
 
-const validationRegex = /^[a-z0-9_-]+$/;
-function isNamespaceValid(namespace) {
-    // Empty or null namespaces are valid
-    if (!namespace)
-        return true;
-    if (namespace.match(validationRegex))
-        return true;
-    return false;
-}
-
-function isPoolIdValid(poolId) {
-    if (!poolId)
-        return false;
-    if (poolId.match(validationRegex))
-        return true;
-    return false;
-}
-
-function validationErrorMessage(entity) {
-    return `Registrations: ${entity} is invalid, must contain a-z, 0-9, _ and - only.`;
-}
 
 registrations.upsert = (app, res, loggedInUserId, poolId, userId, reg) => {
     debug(`upsert(${poolId}, ${userId})`);
 
     if (!reg)
         return utils.fail(res, 400, 'Missing request body');
-    if (!isPoolIdValid(poolId))
-        return utils.fail(res, 400, validationErrorMessage('Pool ID'));
-    if (!isNamespaceValid(reg.namespace))
-        return utils.fail(res, 400, validationErrorMessage('Namespace'));
+    if (!utils.isPoolIdValid(poolId))
+        return utils.fail(res, 400, utils.validationErrorMessage('Pool ID'));
+    if (!utils.isNamespaceValid(reg.namespace))
+        return utils.fail(res, 400, utils.validationErrorMessage('Namespace'));
 
     verifyAccess(app, loggedInUserId, userId, false, (err) => {
         if (err)
@@ -181,8 +160,8 @@ registrations.upsert = (app, res, loggedInUserId, poolId, userId, reg) => {
 registrations.delete = (app, res, loggedInUserId, poolId, userId) => {
     debug(`upsert(${poolId}, ${userId})`);
 
-    if (!isPoolIdValid(poolId))
-        return utils.fail(res, 400, validationErrorMessage('Pool ID'));
+    if (!utils.isPoolIdValid(poolId))
+        return utils.fail(res, 400, utils.validationErrorMessage('Pool ID'));
 
     verifyAccess(app, loggedInUserId, userId, false, (err) => {
         if (err)

@@ -110,7 +110,67 @@ utils.loadApis = function () {
     return _apis;
 };
 
+let _poolsMap = null;
+utils.getPools = function () {
+    debug(`getPools()`);
+    if (!_poolsMap) {
+        _poolsMap = {};
+        // Load all the pools
+        const poolsDir = path.join(utils.getStaticDir(), 'pools');
+        const poolFiles = fs.readdirSync(poolsDir);
+        for (let i = 0; i < poolFiles.length; ++i) {
+            const file = poolFiles[i];
+            if (!file.endsWith('.json')) {
+                warn(`getPools: Found non-JSON file in pools directory: ${file} (ignoring)`);
+                continue;
+            }
+            const poolFile = path.join(poolsDir, file);
+            const poolId = file.substring(0, file.length - 5); // Cut off .json
+            const poolInfo = JSON.parse(fs.readFileSync(poolFile, 'utf8'));
 
+            _poolsMap[poolId] = poolInfo;
+        }
+    }
+    return _poolsMap;
+};
+
+utils.getPool = function (poolId) {
+    debug(`getPool(${poolId})`);
+    const pools = utils.getPools();
+    if (!utils.isPoolIdValid(poolId))
+        throw utils.makeError(400, utils.validationErrorMessage('Pool ID'));
+    if (!utils.hasPool(poolId))
+        throw utils.makeError(404, `The registration pool ${poolId} is not defined.`);
+    return pools[poolId];
+};
+
+utils.hasPool = function (poolId) {
+    debug(`hasPool(${poolId})`);
+    const pools = utils.getPools();
+    return (pools.hasOwnProperty(poolId));
+};
+
+const validationRegex = /^[a-z0-9_-]+$/;
+utils.isNamespaceValid = (namespace) => {
+    // Empty or null namespaces are valid
+    if (!namespace)
+        return true;
+    if (namespace.match(validationRegex))
+        return true;
+    return false;
+};
+
+utils.isPoolIdValid = (poolId) => {
+    if (!poolId)
+        return false;
+    if (poolId.match(validationRegex))
+        return true;
+    return false;
+};
+
+utils.validationErrorMessage = (entity) => {
+    return `Registrations: ${entity} is invalid, must contain a-z, 0-9, _ and - only.`;
+};
 
 function injectGroupScopes(apis) {
     debug('injectGroupScopes()');

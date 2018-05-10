@@ -18,6 +18,7 @@ const approvals = require('./routes/approvals');
 const webhooks = require('./routes/webhooks');
 const verifications = require('./routes/verifications');
 const registrations = require('./routes/registrations');
+const pools = require('./routes/pools');
 const systemhealth = require('./routes/systemhealth');
 const templates = require('./routes/templates');
 // const deploy = require('./routes/deploy');
@@ -145,6 +146,10 @@ app.use('/verifications', verifications);
 // ----- REGISTRATIONS -----
 
 app.use('/registrations', registrations);
+
+// ----- REGISTRATION POOLS -----
+
+app.use('/pools', pools);
 
 // ----- AUTH-SERVERS -----
 
