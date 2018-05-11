@@ -57,8 +57,10 @@ function verifyAccess(app, loggedInUserId, userId, callback) {
         if (!loggedInUserInfo.admin) {
             // We have a non-admin here
             // Logged in user, and checking data for a user - they have to match
-            if (loggedInUserId !== userId)
-                return callback(utils.makeError(403, 'Grants: Not allowed (user mismatch).'));
+            if (loggedInUserId !== userId) {
+                debug(loggedInUserInfo);
+                return callback(utils.makeError(403, `Grants: Not allowed (user mismatch, ${loggedInUserId} != ${userId}).`));
+            }
         }
         // Looks fine so far, now we must check the user context. That user
         // also has to exist for this to make sense.
@@ -144,11 +146,13 @@ function upsertGrants(app, res, loggedInUserId, userId, applicationId, apiId, ne
     dao.applications.getById(applicationId, (err, appInfo) => {
         if (err)
             return utils.fail(res, 500, 'Grants: Could not retrieve application information.', err);
+        if (!appInfo)
+            return utils.fail(res, 404, 'Grants: Application not found.');
         // OK, we're fine so far
 
         const validationError = validateGrants(apiInfo, newGrants);
         if (validationError)
-            return utils.fail(res, 400, `The granted scopes are invalid: ${validationError}`);
+            return utils.fail(res, 400, `Grants: Invalid request: ${validationError}`);
 
         // Delegate to DAO to write this thing
         dao.grants.upsert(userId, applicationId, apiId, newGrants, (err) => {

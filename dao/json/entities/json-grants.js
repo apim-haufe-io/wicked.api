@@ -59,7 +59,7 @@ jsonGrants.upsert = (userId, applicationId, apiId, grants, callback) => {
     return callback(null);
 };
 
-jsonGrants.delete = (apiId, applicationId, userId, callback) => {
+jsonGrants.delete = (userId, applicationId, apiId, callback) => {
     debug(`delete(${userId}, ${applicationId}, ${apiId})`);
     jsonUtils.checkCallback(callback);
     try {
@@ -93,9 +93,12 @@ jsonGrants.getByUserSync = (userId, offset, limit) => {
 jsonGrants.deleteByUserSync = (userId) => {
     debug(`deleteByUserSync(${userId})`);
     const grantsFile = getGrantsFile(userId);
-    if (!fs.existsSync(grantsFile))
-        throw utils.makeError(404, 'User does not have any grants, cannot delete');
-    fs.unlinkSync(grantsFile);
+    if (fs.existsSync(grantsFile)) {
+        debug(`deleting file ${grantsFile}`);
+        fs.unlinkSync(grantsFile);
+    } else {
+        debug(`file ${grantsFile} not found, ignoring`);
+    }
 };
 
 jsonGrants.upsertSync = (userId, applicationId, apiId, grantsInfo) => {
@@ -134,15 +137,15 @@ jsonGrants.upsertSync = (userId, applicationId, apiId, grantsInfo) => {
             grants: newGrants
         };
     } else {
-        for (let i = 0; i < grantsInfo.length; ++i) {
-            grantsInfo[i].grantedDate = now;
+        for (let i = 0; i < grantsInfo.grants.length; ++i) {
+            grantsInfo.grants[i].grantedDate = now;
         }
         // New grant for this API
         grantsIndex.push({
-            apiId,
-            applicationId,
-            userId,
-            grantsInfo
+            userId: userId,
+            applicationId: applicationId,
+            apiId: apiId,
+            grants: grantsInfo.grants
         });
     }
 
