@@ -184,13 +184,7 @@ apis.getApi = function (app, res, loggedInUserId, apiId) {
         if (err)
             return utils.fail(res, 403, 'Access denied', err);
         var apiList = utils.loadApis(app);
-        var apiIndex = -1;
-        for (var i = 0; i < apiList.apis.length; ++i) {
-            if (apiList.apis[i].id == apiId) {
-                apiIndex = i;
-                break;
-            }
-        }
+        var apiIndex = apiList.apis.findIndex(a => a.id === apiId);
         res.json(apiList.apis[apiIndex]);
     });
 };
@@ -201,13 +195,7 @@ apis.getApiPlans = function (app, res, loggedInUserId, apiId) {
         if (err)
             return utils.fail(res, 403, 'Access denied', err);
         var apiList = utils.loadApis(app);
-        var apiIndex = -1;
-        for (let i = 0; i < apiList.apis.length; ++i) {
-            if (apiList.apis[i].id == apiId) {
-                apiIndex = i;
-                break;
-            }
-        }
+        var apiIndex = apiList.apis.findIndex(a => a.id === apiId);
         if (apiIndex < 0)
             return res.status(404).jsonp({ message: 'API not found:' + apiId });
         var selectedApi = apiList.apis[apiIndex];

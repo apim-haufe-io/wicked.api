@@ -132,10 +132,12 @@ dao.registrations = {
 };
 
 dao.grants = {
-    getByApiAndUser: (apiId, userId, callback) => { dao._impl.grants.getByApiAndUser(apiId, userId, callback); },
+    getByUserApplicationAndApi: (userId, applicationId, apiId, callback) => { dao._impl.grants.getByUserApplicationAndApi(userId, applicationId, apiId, callback); },
+    getByUser: (userId, offset, limit, callback) => { dao._impl.grants.getByUser(userId, offset, limit, callback); },
+    deleteByUser: (userId, callback) => { dao._impl.grants.deleteByUser(userId, callback); },
 
-    upsert: (apiId, userId, grants, callback) => { dao._impl.grant.upsert(apiId, userId, grants, callback); },
-    delete: (apiId, userId, callback) => { dao._impl.grant.delete(apiId, userId, callback); }
+    upsert: (userId, applicationId, apiId, grants, callback) => { dao._impl.grants.upsert(userId, applicationId, apiId, grants, callback); },
+    delete: (userId, applicationId, apiId, callback) => { dao._impl.grants.delete(userId, applicationId, apiId, callback); }
 };
 
 module.exports = dao;

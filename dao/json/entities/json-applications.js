@@ -22,12 +22,13 @@ const jsonApplications = () => { };
 jsonApplications.getById = (appId, callback) => {
     debug('getById()');
     jsonUtils.checkCallback(callback);
+    let appInfo;
     try {
-        const appInfo = jsonApplications.loadApplication(appId);
-        return callback(null, appInfo);
+        appInfo = jsonApplications.loadApplication(appId);
     } catch (err) {
         return callback(err);
     }
+    return callback(null, appInfo);
 };
 
 jsonApplications.create = (appCreateInfo, userInfo, callback) => {

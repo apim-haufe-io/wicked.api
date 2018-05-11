@@ -83,7 +83,8 @@ ALTER TABLE wicked.approvals OWNER TO postgres;
 CREATE TABLE wicked.grants (
     id character varying(128) NOT NULL,
     users_id character varying(128) NOT NULL,
-    subscriptions_id character varying(128) NOT NULL,
+    api_id character varying(128) NOT NULL,
+    application_id character varying(128) NOT NULL,
     data jsonb
 );
 
@@ -334,18 +335,10 @@ CREATE INDEX fki_users_id ON wicked.owners USING btree (users_id);
 
 --
 -- TOC entry 2062 (class 1259 OID 16807)
--- Name: grants_subscriptions_id_idx; Type: INDEX; Schema: wicked; Owner: postgres
+-- Name: grants_user_api_application_id_idx; Type: INDEX; Schema: wicked; Owner: postgres
 --
 
-CREATE INDEX grants_subscriptions_id_idx ON wicked.grants USING btree (subscriptions_id);
-
-
---
--- TOC entry 2063 (class 1259 OID 16808)
--- Name: grants_subscriptions_users_idx; Type: INDEX; Schema: wicked; Owner: postgres
---
-
-CREATE UNIQUE INDEX grants_subscriptions_users_idx ON wicked.grants USING btree (users_id, subscriptions_id);
+CREATE INDEX grants_user_api_application_id_idx ON wicked.grants USING btree (users_id, api_id, application_id);
 
 
 --

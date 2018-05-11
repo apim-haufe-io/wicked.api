@@ -217,9 +217,8 @@ applications.createApplication = function (app, res, loggedInUserId, appCreateIn
             return utils.fail(res, 400, 'redirectUri must be a https URI');
         if (!appCreateInfo.name || appCreateInfo.name.length < 1)
             return utils.fail(res, 400, 'Friendly name of application cannot be empty.');
-        var regex = /^[a-zA-Z0-9\-_]+$/;
-        if (!regex.test(appId))
-            return utils.fail(res, 400, 'Invalid application ID, allowed chars are: a-z, A-Z, -, _');
+        if (!utils.isValidApplicationId(appId))
+            return utils.fail(res, 400, utils.invalidApplicationIdMessage());
         if (appId.length < 4 || appId.length > 50)
             return utils.fail(res, 400, 'Invalid application ID, must have at least 4, max 50 characters.');
 

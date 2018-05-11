@@ -1427,7 +1427,7 @@ paths:
             $ref: '#/definitions/grantCollection'
         '400':
           description: Invalid Request
-        '403'
+        '403':
           description: Forbidden
         '404':
           description: Not Found
@@ -1452,8 +1452,21 @@ paths:
         '404':
           description: Not Found
       
-
-  '/grants/{userId}/apis/{apiId}':
+  '/grants/{userId}/applications/{applicationId}/apis/{apiId}':
+    parameters:
+    - name: userId
+      in: path
+      type: string
+      required: true
+    - name: applicationId
+      in: path
+      type: string
+      required: true
+    - name: apiId
+      in: path
+      type: string
+      required: true
+      
     get:
       security:
       - accessCode: ['read_grants']
@@ -1462,15 +1475,6 @@ paths:
       tags:
       - grants
       description: Read a user's grants for a specific API
-      parameters:
-      - name: userId
-        in: path
-        type: string
-        required: true
-      - name: apiId
-        in: path
-        type: string
-        required: true
       responses:
         '200':
           description: Success
@@ -1490,14 +1494,6 @@ paths:
       - grants
       description: Write a user API grant
       parameters:
-      - name: userId
-        in: path
-        type: string
-        required: true
-      - name: apiId
-        in: path
-        type: string
-        required: true
       - name: body
         in: body
         required: true
@@ -1521,15 +1517,6 @@ paths:
       tags:
       - grants
       description: Delete a specific user API grant
-      parameters:
-      - name: userId
-        in: path
-        type: string
-        required: true
-      - name: apiId
-        in: path
-        type: string
-        required: true
       responses:
         '204':
           description: Success, no result
@@ -1864,6 +1851,8 @@ definitions:
       userId:
         type: string
       apiId:
+        type: string
+      applicationId:
         type: string
       grants:
         type: array

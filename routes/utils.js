@@ -110,6 +110,15 @@ utils.loadApis = function () {
     return _apis;
 };
 
+utils.getApi = function (apiId) {
+    debug(`getApi(${apiId})`);
+    const apiList = utils.loadApis();
+    const apiIndex = apiList.apis.findIndex(a => a.id === apiId);
+    if (apiIndex < 0)
+        throw utils.makeError(404, `API ${apiId} is unknown`);
+    return apiList.apis[apiIndex];
+};
+
 let _poolsMap = null;
 utils.getPools = function () {
     debug(`getPools()`);
@@ -170,6 +179,17 @@ utils.isPoolIdValid = (poolId) => {
 
 utils.validationErrorMessage = (entity) => {
     return `Registrations: ${entity} is invalid, must contain a-z, 0-9, _ and - only.`;
+};
+
+const applicationRegex = /^[a-zA-Z0-9\-_]+$/;
+utils.isValidApplicationId = (appId) => {
+    if (!applicationRegex.test(appId))
+        return false;
+    return true;
+};
+
+utils.invalidApplicationIdMessage = () => {
+    return 'Invalid application ID, allowed chars are: a-z, A-Z, -, _';
 };
 
 function injectGroupScopes(apis) {

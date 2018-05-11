@@ -81,6 +81,18 @@
                     },
                     "webhooks": {
                         "description": "Access and change webhooks"
+                    },
+                    "read_registrations": {
+                        "description": "Read user registrations"
+                    },
+                    "write_registrations": {
+                        "description": "Write user registrations"
+                    },
+                    "read_grants": {
+                        "description": "Read user API/Application grants"
+                    },
+                    "write_grants": {
+                        "description": "Write user API/Application grants"
                     }
                 }
             },
