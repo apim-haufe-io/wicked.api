@@ -1,5 +1,5 @@
-var authMiddleware = function () {};
-var { debug, info, warn, error } = require('portal-env').Logger('portal-api:auth-middleware');
+const authMiddleware = function () { };
+const { debug, info, warn, error } = require('portal-env').Logger('portal-api:auth-middleware');
 
 // ===== MIDDLEWARE =====
 
@@ -22,6 +22,10 @@ authMiddleware.fillUserId = function (req, res, next) {
     const authenticatedUserId = req.get('x-authenticated-userid');
     if (authenticatedUserId)
         req.apiUserId = authenticatedUserId;
+    const scope = req.get('x-authenticated-scope');
+    if (scope) {
+        req.scope = makeScopeMap(scope);
+    }
 
     return next();
 };
@@ -36,15 +40,28 @@ authMiddleware.rejectFromKong = function (req, res, next) {
 
 authMiddleware.verifyConfigKey = function (req, res, next) {
     debug('verifyConfigKey()');
-    var configKey = req.get('Authorization');
+    let configKey = req.get('Authorization');
     if (!configKey)
-        return res.status(403).json({ message: 'Not allowed. Unauthorized.'} );
+        return res.status(403).json({ message: 'Not allowed. Unauthorized.' });
     configKey = configKey.trim();
-    var deployConfigKey = req.app.get('config_key').trim();
-    if (configKey != deployConfigKey)
-        return res.status(403).json({ message: 'Not allowed. Unauthorized.'} );
+    const deployConfigKey = req.app.get('config_key').trim();
+    if (configKey !== deployConfigKey)
+        return res.status(403).json({ message: 'Not allowed. Unauthorized.' });
     // We're okay, let's do this.
     next();
 };
+
+// =======================
+
+function makeScopeMap(scope) {
+    if (!scope)
+        return {};
+    const scopeMap = {};
+    const scopeList = scope.split(' ');
+    for (let i = 0; i < scopeList.length; ++i) {
+        scopeMap[scopeList[i]] = true;
+    }
+    return scopeMap;
+}
 
 module.exports = authMiddleware;

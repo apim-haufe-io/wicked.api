@@ -447,4 +447,17 @@ utils.getOffsetLimit = (req) => {
     };
 };
 
+// Middleware to verify a scope
+utils.verifyScope = (requiredScope) => {
+    return function(req, res, next) {
+        if (requiredScope) {
+            if (!req.scope || (req.scope && !req.scope[requiredScope])) {
+                warn(`Rejecting call due to missing scope ${requiredScope}`);
+                return res.status(403).json({ code: 403, message: `Forbidden, missing required scope '${requiredScope}'` });
+            }
+        }
+        return next();
+    };
+};
+
 module.exports = utils;

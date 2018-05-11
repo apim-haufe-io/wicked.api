@@ -9,9 +9,17 @@ const users = require('./users');
 
 const registrations = require('express').Router();
 
+// ===== SCOPES =====
+
+const READ = 'read_registrations';
+const WRITE = 'write_registrations';
+
+const verifyReadScope = utils.verifyScope(READ);
+const verifyWriteScope = utils.verifyScope(WRITE);
+
 // ===== ENDPOINTS =====
 
-registrations.get('/pools/:poolId', function (req, res, next) {
+registrations.get('/pools/:poolId', verifyReadScope, function (req, res, next) {
     // These may be undefined
     const namespace = req.query.namespace;
     const nameFilter = req.query.name_filter;
@@ -19,19 +27,19 @@ registrations.get('/pools/:poolId', function (req, res, next) {
     registrations.getByPoolAndNamespace(req.app, res, req.apiUserId, req.params.poolId, namespace, nameFilter, offset, limit);
 });
 
-registrations.get('/pools/:poolId/users/:userId', function (req, res, next) {
+registrations.get('/pools/:poolId/users/:userId', verifyReadScope, function (req, res, next) {
     registrations.getByPoolAndUser(req.app, res, req.apiUserId, req.params.poolId, req.params.userId);
 });
 
-registrations.put('/pools/:poolId/users/:userId', function (req, res, next) {
+registrations.put('/pools/:poolId/users/:userId', verifyWriteScope, function (req, res, next) {
     registrations.upsert(req.app, res, req.apiUserId, req.params.poolId, req.params.userId, req.body);
 });
 
-registrations.delete('/pools/:poolId/users/:userId', function (req, res, next) {
+registrations.delete('/pools/:poolId/users/:userId', verifyWriteScope, function (req, res, next) {
     registrations.delete(req.app, res, req.apiUserId, req.params.poolId, req.params.userId);
 });
 
-registrations.get('/users/:userId', function (req, res, next) {
+registrations.get('/users/:userId', verifyReadScope, function (req, res, next) {
     const { offset, limit } = utils.getOffsetLimit(req);
     registrations.getByUser(req.app, res, req.apiUserId, req.params.userId, offset, limit);
 });
