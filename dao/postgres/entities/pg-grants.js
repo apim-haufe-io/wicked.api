@@ -22,7 +22,12 @@ pgGrants.getByUser = (userId, offset, limit, callback) => {
     return callback(utils.makeError(500, 'Not implemented'));
 };
 
-pgGrants.upsert = (userId, applicationId, apiId, callback) => {
+pgGrants.deleteByUser = (userId, callback) => {
+    debug(`deleteByUser(${userId})`);
+    return callback(utils.makeError(500, 'Not implemented'));
+};
+
+pgGrants.upsert = (userId, applicationId, apiId, grants, callback) => {
     debug(`upsert(${userId}, ${applicationId}, ${apiId})`);
     return callback(utils.makeError(500, 'Not implemented'));
 };

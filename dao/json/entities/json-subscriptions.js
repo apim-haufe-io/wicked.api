@@ -103,7 +103,7 @@ jsonSubscriptions.patch = (appId, subsInfo, patchingUserId, callback) => {
 // to take this out, but this does not have to be re-implemented for future
 // DAOs (actually, MUST not)
 
-jsonSubscriptions.legacyWriteSubsIndex = (thisApp, subs) => {
+jsonSubscriptions.legacyWriteSubsIndex = (app, subs) => {
     const subsIndexDir = jsonSubscriptions.getSubsIndexDir();
     for (let i = 0; i < subs.length; ++i) {
         const thisSub = subs[i];

@@ -4,12 +4,19 @@ const { debug, info, warn, error } = require('portal-env').Logger('portal-api:da
 const pgDao = require('./postgres/pg-dao');
 const jsonDao = require('./json/json-dao');
 const utils = require('../routes/utils');
+const daoUtils = require('./dao-utils');
 
 const dao = () => { };
 
 dao._impl = null;
 dao.init = (app) => {
     debug('initialize()');
+
+    // Make sure we have all the right signatures in place for the DAOs;
+    // this has been a source of extremely subtle problems in the past.
+    const functionList = daoUtils.listParameters(dao);
+    daoUtils.checkParameters('JSON DAO', jsonDao, functionList);
+    daoUtils.checkParameters('Postgres DAO', pgDao, functionList);
 
     // This is defined in the globals.json storage property
     const glob = utils.loadGlobals();
@@ -29,6 +36,7 @@ dao.init = (app) => {
     }
 };
 
+
 dao.meta = {
     getInitChecks: () => { return dao._impl.meta.getInitChecks(); },
     // init:              (glob, callback)                         => { dao._impl.meta.init(glob, callback); }
@@ -37,7 +45,7 @@ dao.meta = {
 dao.users = {
     getById: (userId, callback) => { dao._impl.users.getById(userId, callback); },
     getByEmail: (email, callback) => { dao._impl.users.getByEmail(email, callback); },
-    getByCustomId: (customId, callback) => { dao._impl.users.getByCustomId(customId, callback); },
+    // getByCustomId: (customId, callback) => { dao._impl.users.getByCustomId(customId, callback); }, // Not used/needed
 
     getShortInfoByEmail: (email, callback) => { dao._impl.users.getShortInfoByEmail(email, callback); },
     getShortInfoByCustomId: (customId, callback) => { dao._impl.users.getShortInfoByCustomId(customId, callback); },
@@ -57,14 +65,14 @@ dao.applications = {
     create: (appCreateInfo, userInfo, callback) => { dao._impl.applications.create(appCreateInfo, userInfo, callback); },
     save: (appInfo, savingUserId, callback) => { dao._impl.applications.save(appInfo, savingUserId, callback); },
     // patch:             (appInfo, patchingUserId, callback) => { dao._impl.applications.patch(appInfo, patchingUserId, callback); },
-    delete: (applicationId, deletingUserId, callback) => { dao._impl.applications.delete(applicationId, deletingUserId, callback); },
+    delete: (appId, deletingUserId, callback) => { dao._impl.applications.delete(appId, deletingUserId, callback); },
 
     getIndex: (offset, limit, callback) => { dao._impl.applications.getIndex(offset, limit, callback); },
     getCount: (callback) => { dao._impl.applications.getCount(callback); },
 
     getOwners: (appId, callback) => { dao._impl.applications.getOwners(appId, callback); },
     addOwner: (appId, userInfo, role, addingUserId, callback) => { dao._impl.applications.addOwner(appId, userInfo, role, addingUserId, callback); },
-    deleteOwner: (appId, userEmail, deletingUserId, callback) => { dao._impl.applications.deleteOwner(appId, userEmail, deletingUserId, callback); }
+    deleteOwner: (appId, deleteUserId, deletingUserId, callback) => { dao._impl.applications.deleteOwner(appId, deleteUserId, deletingUserId, callback); }
 };
 
 dao.subscriptions = {
@@ -113,7 +121,7 @@ dao.webhooks = {
         hookListeners: (dispatchEvents, callback) => { dao._impl.webhooks.events.hookListeners(dispatchEvents, callback); },
 
         getByListener: (listenerId, callback) => { dao._impl.webhooks.events.getByListener(listenerId, callback); },
-        getTotalCount: (callback) => { dao._impl.webhooks.events.getTotalCount(callback); },
+        //getTotalCount: (callback) => { dao._impl.webhooks.events.getTotalCount(callback); },
 
         create: (eventData, callback) => { dao._impl.webhooks.events.create(eventData, callback); },
         delete: (listenerId, eventId, callback) => { dao._impl.webhooks.events.delete(listenerId, eventId, callback); },

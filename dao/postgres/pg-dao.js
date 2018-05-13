@@ -6,7 +6,7 @@ const pgApplications = require('./entities/pg-applications');
 const pgSubscriptions = require('./entities/pg-subscriptions');
 const pgVerifications = require('./entities/pg-verifications');
 const pgApprovals = require('./entities/pg-approvals');
-const pgRegistrations = require('./entities/pg-approvals');
+const pgRegistrations = require('./entities/pg-registrations');
 const pgGrants = require('./entities/pg-grants');
 const pgWebhooks = require('./entities/pg-webhooks');
 

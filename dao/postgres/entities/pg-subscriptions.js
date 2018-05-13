@@ -60,7 +60,7 @@ pgSubscriptions.patch = (appId, subsInfo, patchingUserId, callback) => {
 // to take this out, but this does not have to be re-implemented for future
 // DAOs (actually, MUST not)
 
-pgSubscriptions.legacyWriteSubsIndex = (thisApp, subs) => { };
+pgSubscriptions.legacyWriteSubsIndex = (app, subs) => { };
 pgSubscriptions.legacySaveSubscriptionApiIndex = (apiId, subs) => { };
 
 // =================================================

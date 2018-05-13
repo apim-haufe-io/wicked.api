@@ -131,4 +131,81 @@ daoUtils.encryptApiCredentials = (subsList) => {
     }
 };
 
+// DAO Validation functions
+daoUtils.listParameters = (o) => {
+    const functionArray = [];
+    listParametersImpl([], functionArray, o);
+    return functionArray;
+};
+
+const listParametersImpl = (prefixArray, functionArray, o) => {
+    for (let k in o) {
+        const p = o[k];
+        if (prefixArray.length === 0 && k === 'meta')
+            continue;
+        if (prefixArray.length > 0 && typeof (p) === 'function') {
+            try {
+                const paramList = utils.getFunctionParams(p);
+                functionArray.push({
+                    path: prefixArray,
+                    name: k,
+                    params: paramList
+                });
+            } catch (err) {
+                console.error('Caught exception while inspecting: ' + prefixArray.join('.') + '.' + k);
+                console.error(err);
+                console.error(err.stack);
+            }
+        } else if (typeof (p) === 'object') {
+            // recurse, but clone the array as we're changing it
+            const moreArray = utils.clone(prefixArray);
+            moreArray.push(k);
+            listParametersImpl(moreArray, functionArray, p);
+        }
+    }
+};
+
+daoUtils.checkParameters = (desc, daoToCheck, functionList) => {
+    debug(`checkParameters(${desc}`);
+    let success = true;
+    for (let i = 0; i < functionList.length; ++i) {
+        const funcToCheck = functionList[i];
+        const funcDesc = funcToCheck.path.join('.') + '.' + funcToCheck.name;
+        try {
+            let tmpFunc = daoToCheck;
+            // Iterate down the object tree
+            for (let j = 0; j < funcToCheck.path.length; ++j) {
+                tmpFunc = tmpFunc[funcToCheck.path[j]];
+            }
+            // Finally select the function to check
+            tmpFunc = tmpFunc[funcToCheck.name];
+            if (!tmpFunc)
+                throw new Error(`Function ${funcDesc} was not found.`);
+            const paramList = utils.getFunctionParams(tmpFunc);
+
+            if (paramList.length !== funcToCheck.params.length)
+                throw new Error(`Parameter list length mismatch: ${paramList.length} !== ${funcToCheck.params.length}`);
+
+            for (let j = 0; j < paramList.length; ++j) {
+                // Each param entry has a name and default value as an array, we'll only check name
+                const paramNameToCheck = paramList[j][0];
+                const paramName = funcToCheck.params[j][0];
+                if (paramName !== paramNameToCheck)
+                    throw new Error(`Parameter naming mismatch: ${paramNameToCheck} != ${paramName}`);
+            }
+            
+            debug(`checkParameters ${desc}: ${funcDesc} - ok`);
+        } catch (err) {
+            error(`An error occurred while checking ${desc}, ${funcDesc}: ${err.message}`);
+            //console.error(JSON.stringify(funcToCheck, null, 2));
+            //console.error(err.stack);
+            success = false;
+        }
+    }
+
+    if (!success)
+        throw new Error('DAO sanity check did not pass');
+};
+
+
 module.exports = daoUtils;
