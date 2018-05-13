@@ -113,7 +113,7 @@ jsonGrants.upsertSync = (userId, applicationId, apiId, grantsInfo) => {
         const newGrants = [];
         for (let i = 0; i < grantsInfo.grants.length; ++i) {
             const thisScope = grantsInfo.grants[i];
-            const prevGrantIndex = prevGrants.findIndex(g => g.scope === thisScope.scope);
+            const prevGrantIndex = prevGrants.findIndex(g => g.scope === thisScope.scope); // jshint ignore:line
             if (prevGrantIndex >= 0) {
                 // Copy previous grantedDate
                 newGrants.push({
