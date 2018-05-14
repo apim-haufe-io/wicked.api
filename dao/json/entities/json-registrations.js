@@ -23,11 +23,9 @@ jsonRegistrations.getByPoolAndUser = (poolId, userId, callback) => {
         return callback(err);
     }
     return callback(null, userRegistration);
-    //return callback(utils.makeError(500, 'Not implemented'));
 };
 
 jsonRegistrations.getByPoolAndNamespace = (poolId, namespace, nameFilter, offset, limit, callback) => {
-    //return callback(utils.makeError(500, 'Not implemented'));
     debug(`getByPoolAndNamespace(${poolId}, ${namespace}, ${nameFilter})`);
     jsonUtils.checkCallback(callback);
     let registrations;
