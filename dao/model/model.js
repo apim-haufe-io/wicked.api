@@ -101,8 +101,11 @@ const model = {
             users_id: {
                 property_name: 'userId'
             },
-            subscriptions_id: {
-                property_name: 'subscriptionId'
+            application_id: {
+                property_name: 'applicationId'
+            },
+            api_id: {
+                property_name: 'apiId'
             }
         }
     }

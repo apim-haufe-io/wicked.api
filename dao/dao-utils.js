@@ -207,5 +207,42 @@ daoUtils.checkParameters = (desc, daoToCheck, functionList) => {
         throw new Error('DAO sanity check did not pass');
 };
 
+// Grants utilities
+
+// mergeGrantData checks a previous record (prevGrants) for already existing scope grants, and takes
+// over the dates to the updated grants information record (nextGrants),
+daoUtils.mergeGrantData = (prevGrants, nextGrants) => {
+    debug(`mergeGrantData()`);
+    const now = (new Date()).toISOString();
+
+    if (prevGrants) {
+        const newGrants = [];
+        for (let i = 0; i < nextGrants.grants.length; ++i) {
+            const thisScope = nextGrants.grants[i];
+            const prevGrantIndex = prevGrants.grants.findIndex(g => g.scope === thisScope.scope); // jshint ignore:line
+            if (prevGrantIndex >= 0) {
+                // Copy previous grantedDate
+                newGrants.push({
+                    scope: thisScope.scope,
+                    grantedDate: prevGrants.grants[prevGrantIndex].grantedDate
+                });
+            } else {
+                // New grant, use "now"
+                newGrants.push({
+                    scope: thisScope.scope,
+                    grantedDate: now
+                });
+            }
+        }
+
+        // Now overwrite previous grant scopes
+        nextGrants.grants = newGrants;
+    } else {
+        // Add current date for all scope grants
+        for (let i = 0; i < nextGrants.grants.length; ++i) {
+            nextGrants.grants[i].grantedDate = now;
+        }
+    }
+};
 
 module.exports = daoUtils;

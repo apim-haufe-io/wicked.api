@@ -154,6 +154,13 @@ function upsertGrants(app, res, loggedInUserId, userId, applicationId, apiId, ne
         if (validationError)
             return utils.fail(res, 400, `Grants: Invalid request: ${validationError}`);
 
+        const upsertData = {
+            userId: userId,
+            applicationId: applicationId,
+            apiId: apiId,
+            grants: newGrants.grants
+        };
+
         // Delegate to DAO to write this thing
         dao.grants.upsert(userId, applicationId, apiId, loggedInUserId, newGrants, (err) => {
             if (err)

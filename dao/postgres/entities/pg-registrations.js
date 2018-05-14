@@ -48,7 +48,15 @@ pgRegistrations.delete = (poolId, userId, deletingUserId, callback) => {
 
 function getByPoolAndUserImpl(poolId, userId, callback) {
     debug(`getByPoolAndUserImpl(${poolId}, ${userId})`);
-    return pgUtils.getSingleBy('registrations', ['pool_id', 'users_id'], [poolId, userId], callback);
+    pgUtils.getSingleBy('registrations', ['pool_id', 'users_id'], [poolId, userId], (err, data) => {
+        if (err)
+            return callback(err);
+        if (!data) {
+            warn(`Registration record for user ${userId} in pool ${poolId} not found.`);
+            return callback(utils.makeError(404, 'Registration not found'));
+        }
+        return callback(null, data);
+    });
 }
 
 function getByPoolAndNamespaceImpl(poolId, namespace, nameFilter, offset, limit, callback) {

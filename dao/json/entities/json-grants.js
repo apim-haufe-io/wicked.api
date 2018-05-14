@@ -6,6 +6,7 @@ const path = require('path');
 
 const utils = require('../../../routes/utils');
 const jsonUtils = require('./json-utils');
+const daoUtils = require('../../dao-utils');
 
 const jsonGrants = function () { };
 
@@ -48,11 +49,11 @@ jsonGrants.deleteByUser = (userId, deletingUserId, callback) => {
     return callback(null);
 };
 
-jsonGrants.upsert = (userId, applicationId, apiId, upsertingUserId, grants, callback) => {
+jsonGrants.upsert = (userId, applicationId, apiId, upsertingUserId, grantsInfo, callback) => {
     debug(`upsert(${userId}, ${applicationId}, ${apiId})`);
     jsonUtils.checkCallback(callback);
     try {
-        jsonGrants.upsertSync(userId, applicationId, apiId, grants);
+        jsonGrants.upsertSync(userId, applicationId, apiId, grantsInfo);
     } catch (err) {
         return callback(err);
     }
@@ -80,7 +81,7 @@ jsonGrants.getByApiApplicationAndUserSync = (userId, applicationId, apiId) => {
     const grantList = jsonGrants.getByUserSync(userId);
     const grantIndex = grantList.findIndex(g => g.apiId === apiId && g.applicationId === applicationId);
     if (grantIndex < 0)
-        throw utils.makeError(404, `User ${userId} does not have a grants record for API ${apiId}`);
+        throw utils.makeError(404, `User ${userId} does not have a grants record for API ${apiId} for application ${applicationId}`);
     return grantList[grantIndex];
 };
 
@@ -108,47 +109,14 @@ jsonGrants.upsertSync = (userId, applicationId, apiId, grantsInfo) => {
     const grantsIndex = readGrants(userId);
     const prevIndex = grantsIndex.findIndex(g => g.apiId === apiId && g.applicationId === applicationId);
     const now = (new Date()).toISOString();
-    if (prevIndex >= 0) {
-        const prevGrants = grantsIndex[prevIndex].grants;
-        const newGrants = [];
-        for (let i = 0; i < grantsInfo.grants.length; ++i) {
-            const thisScope = grantsInfo.grants[i];
-            const prevGrantIndex = prevGrants.findIndex(g => g.scope === thisScope.scope); // jshint ignore:line
-            if (prevGrantIndex >= 0) {
-                // Copy previous grantedDate
-                newGrants.push({
-                    scope: thisScope.scope,
-                    grantedDate: prevGrants[prevGrantIndex].grantedDate
-                });
-            } else {
-                // New grant, use "now"
-                newGrants.push({
-                    scope: thisScope.scope,
-                    grantedDate: now
-                });
-            }
-        }
-
-        // Now overwrite previous index
-        grantsIndex[prevIndex] = {
-            apiId: apiId,
-            applicationId: applicationId,
-            userId: userId,
-            grants: newGrants
-        };
-    } else {
-        for (let i = 0; i < grantsInfo.grants.length; ++i) {
-            grantsInfo.grants[i].grantedDate = now;
-        }
-        // New grant for this API
-        grantsIndex.push({
-            userId: userId,
-            applicationId: applicationId,
-            apiId: apiId,
-            grants: grantsInfo.grants
-        });
-    }
-
+    let prevGrants = null;
+    if (prevIndex >= 0)
+        prevGrants = grantsIndex[prevIndex];
+    daoUtils.mergeGrantData(prevGrants, grantsInfo);
+    if (prevIndex >= 0)
+        grantsIndex[prevIndex] = grantsInfo;
+    else
+        grantsIndex.push(grantsInfo);
     writeGrants(userId, grantsIndex);
 };
 

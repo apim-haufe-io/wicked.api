@@ -144,7 +144,7 @@ dao.grants = {
     getByUser: (userId, offset, limit, callback) => { dao._impl.grants.getByUser(userId, offset, limit, callback); },
     deleteByUser: (userId, deletingUserId, callback) => { dao._impl.grants.deleteByUser(userId, deletingUserId, callback); },
 
-    upsert: (userId, applicationId, apiId, upsertingUserId, grants, callback) => { dao._impl.grants.upsert(userId, applicationId, apiId, upsertingUserId, grants, callback); },
+    upsert: (userId, applicationId, apiId, upsertingUserId, grantsInfo, callback) => { dao._impl.grants.upsert(userId, applicationId, apiId, upsertingUserId, grantsInfo, callback); },
     delete: (userId, applicationId, apiId, deletingUserId, callback) => { dao._impl.grants.delete(userId, applicationId, apiId, deletingUserId, callback); }
 };
 

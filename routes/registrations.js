@@ -121,7 +121,7 @@ registrations.getByPoolAndUser = (app, res, loggedInUserId, poolId, userId) => {
 
         dao.registrations.getByPoolAndUser(poolId, userId, (err, reg) => {
             if (err)
-                return utils.fail(res, 500, `Registrations: Could not retrieve registration for user ${userId} and pool ${poolId}.`);
+                return utils.fail(res, 500, `Registrations: Could not retrieve registration for user ${userId} and pool ${poolId}.`, err);
             addPool(poolId, reg);
             return res.json(reg);
         });
