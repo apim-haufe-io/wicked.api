@@ -37,7 +37,7 @@ jsonGrants.getByUser = (userId, offset, limit, callback) => {
     return callback(null, grantList);
 };
 
-jsonGrants.deleteByUser = (userId, callback) => {
+jsonGrants.deleteByUser = (userId, deletingUserId, callback) => {
     debug(`deleteByUser(${userId})`);
     jsonUtils.checkCallback(callback);
     try {
@@ -48,7 +48,7 @@ jsonGrants.deleteByUser = (userId, callback) => {
     return callback(null);
 };
 
-jsonGrants.upsert = (userId, applicationId, apiId, grants, callback) => {
+jsonGrants.upsert = (userId, applicationId, apiId, upsertingUserId, grants, callback) => {
     debug(`upsert(${userId}, ${applicationId}, ${apiId})`);
     jsonUtils.checkCallback(callback);
     try {
@@ -59,7 +59,7 @@ jsonGrants.upsert = (userId, applicationId, apiId, grants, callback) => {
     return callback(null);
 };
 
-jsonGrants.delete = (userId, applicationId, apiId, callback) => {
+jsonGrants.delete = (userId, applicationId, apiId, deletingUserId, callback) => {
     debug(`delete(${userId}, ${applicationId}, ${apiId})`);
     jsonUtils.checkCallback(callback);
     try {

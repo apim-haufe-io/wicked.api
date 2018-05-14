@@ -128,7 +128,7 @@ CREATE TABLE wicked.registrations (
     id character varying(128) NOT NULL,
     pool_id character varying(128) NOT NULL,
     users_id character varying(128) NOT NULL,
-    namespace character varying(128) NOT NULL,
+    namespace character varying(128),
     name character varying(256) COLLATE pg_catalog."C.UTF-8",
     data jsonb
 );

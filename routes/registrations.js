@@ -160,8 +160,9 @@ registrations.upsert = (app, res, loggedInUserId, poolId, userId, reg) => {
     if (errorMessage)
         return utils.fail(res, 400, errorMessage);
 
-    // id and namespace are never in the prop info, take these explicitly
-    validatedData.id = userId;
+    // pool id, user id and namespace are never in the prop info, take these explicitly
+    validatedData.poolId = poolId;
+    validatedData.userId = userId;
     validatedData.namespace = reg.namespace;
 
     verifyAccess(app, loggedInUserId, userId, false, (err) => {
@@ -171,7 +172,7 @@ registrations.upsert = (app, res, loggedInUserId, poolId, userId, reg) => {
         // if (!reg.name)
         //     return utils.fail(res, 400, 'Registrations: Must contain a "name" property.');
 
-        dao.registrations.upsert(poolId, userId, validatedData, (err) => {
+        dao.registrations.upsert(poolId, userId, loggedInUserId, validatedData, (err) => {
             if (err)
                 return utils.fail(res, 500, 'Registrations: Failed to upsert.', err);
 
@@ -192,7 +193,7 @@ registrations.delete = (app, res, loggedInUserId, poolId, userId) => {
         if (err)
             return utils.failError(res, err);
 
-        dao.registrations.delete(poolId, userId, (err) => {
+        dao.registrations.delete(poolId, userId, loggedInUserId, (err) => {
             if (err)
                 return utils.fail(res, 500, 'Registrations: Could not delete registration.', err);
 

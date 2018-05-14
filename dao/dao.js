@@ -135,17 +135,17 @@ dao.registrations = {
     getByPoolAndNamespace: (poolId, namespace, nameFilter, offset, limit, callback) => { dao._impl.registrations.getByPoolAndNamespace(poolId, namespace, nameFilter, offset, limit, callback); },
     getByUser: (userId, offset, limit, callback) => { dao._impl.registrations.getByUser(userId, offset, limit, callback); },
 
-    upsert: (poolId, userId, userData, callback) => { dao._impl.registrations.upsert(poolId, userId, userData, callback); },
-    delete: (poolId, userId, callback) => { dao._impl.registrations.delete(poolId, userId, callback); }
+    upsert: (poolId, userId, upsertingUserId, userData, callback) => { dao._impl.registrations.upsert(poolId, userId, upsertingUserId, userData, callback); },
+    delete: (poolId, userId, deletingUserId, callback) => { dao._impl.registrations.delete(poolId, userId, deletingUserId, callback); }
 };
 
 dao.grants = {
     getByUserApplicationAndApi: (userId, applicationId, apiId, callback) => { dao._impl.grants.getByUserApplicationAndApi(userId, applicationId, apiId, callback); },
     getByUser: (userId, offset, limit, callback) => { dao._impl.grants.getByUser(userId, offset, limit, callback); },
-    deleteByUser: (userId, callback) => { dao._impl.grants.deleteByUser(userId, callback); },
+    deleteByUser: (userId, deletingUserId, callback) => { dao._impl.grants.deleteByUser(userId, deletingUserId, callback); },
 
-    upsert: (userId, applicationId, apiId, grants, callback) => { dao._impl.grants.upsert(userId, applicationId, apiId, grants, callback); },
-    delete: (userId, applicationId, apiId, callback) => { dao._impl.grants.delete(userId, applicationId, apiId, callback); }
+    upsert: (userId, applicationId, apiId, upsertingUserId, grants, callback) => { dao._impl.grants.upsert(userId, applicationId, apiId, upsertingUserId, grants, callback); },
+    delete: (userId, applicationId, apiId, deletingUserId, callback) => { dao._impl.grants.delete(userId, applicationId, apiId, deletingUserId, callback); }
 };
 
 module.exports = dao;

@@ -100,7 +100,7 @@ function deleteByUser(app, res, loggedInUserId, userId) {
     verifyAccess(app, loggedInUserId, userId, (err) => {
         if (err)
             return utils.failError(res, err);
-        dao.grants.deleteByUser(userId, (err) => {
+        dao.grants.deleteByUser(userId, loggedInUserId, (err) => {
             if (err)
                 return utils.fail(res, 500, 'Grants: Could not delete all user grants', err);
             return res.status(204).json({ code: 204, message: 'Deleted all grants.' });
@@ -155,7 +155,7 @@ function upsertGrants(app, res, loggedInUserId, userId, applicationId, apiId, ne
             return utils.fail(res, 400, `Grants: Invalid request: ${validationError}`);
 
         // Delegate to DAO to write this thing
-        dao.grants.upsert(userId, applicationId, apiId, newGrants, (err) => {
+        dao.grants.upsert(userId, applicationId, apiId, loggedInUserId, newGrants, (err) => {
             if (err)
                 return utils.fail(res, 500, 'Grants: Could not upsert grants', err);
             return res.status(204).json({ code: 204, message: 'Upserted grants.' });
@@ -208,7 +208,7 @@ function deleteGrants(app, res, loggedInUserId, userId, applicationId, apiId) {
         if (err)
             return utils.failError(err);
 
-        dao.grants.delete(userId, applicationId, apiId, (err) => {
+        dao.grants.delete(userId, applicationId, apiId, loggedInUserId, (err) => {
             if (err)
                 return utils.fail(res, 500, 'Grants: Could not delete grants.', err);
             return res.status(204).json({ code: 204, message: 'Deleted.' });

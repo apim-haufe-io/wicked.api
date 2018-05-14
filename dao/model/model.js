@@ -89,7 +89,9 @@ const model = {
             users_id: {
                 property_name: 'userId'
             },
-            namespace: {},
+            namespace: {
+                optional: true
+            },
             name: {}
         }
     },

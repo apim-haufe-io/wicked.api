@@ -227,6 +227,7 @@ pgUtils.getSingleBy = (entity, fieldNameOrNames, fieldValueOrValues, optionsOrCa
 //   limit: result limit (max count),
 //   client: PG client to use, null for pool
 //   orderBy: order by field, e.g. "name ASC"
+//   operators: ['=', 'LIKE', '!=']
 // }
 pgUtils.getBy = (entity, fieldNameOrNames, fieldValueOrValues, optionsOrCallback, callback) => {
     debug(`getBy(${entity}, ${fieldNameOrNames}, ${fieldValueOrValues})`);
@@ -253,6 +254,8 @@ pgUtils.getBy = (entity, fieldNameOrNames, fieldValueOrValues, optionsOrCallback
     let offset = 0;
     let limit = 0;
     let orderBy = null;
+    let operators = [];
+    fieldNames.forEach(f => operators.push('='));
     if (options) {
         if (options.client)
             client = options.client;
@@ -262,16 +265,22 @@ pgUtils.getBy = (entity, fieldNameOrNames, fieldValueOrValues, optionsOrCallback
             limit = options.limit;
         if (options.orderBy)
             orderBy = options.orderBy;
+        if (options.operators) {
+            operators = options.operators;
+            if (operators.length !== fieldNames.length) {
+                return callback(utils.makeError(500, `Querying ${entity}: Length of operators array does not match field names array.`));
+            }
+        }
     }
     getPoolOrClient(client, (err, poolOrClient) => {
         if (err)
             return callback(err);
         let query = `SELECT * FROM wicked.${entity}`;
         if (fieldNames.length > 0)
-            query += ` WHERE ${fieldNames[0]} = $1`;
+            query += ` WHERE ${fieldNames[0]} ${operators[0]} $1`;
         // This may be an empty loop
         for (let i = 1; i < fieldNames.length; ++i)
-            query += " AND " + fieldNames[i] + " = $" + (i + 1);
+            query += ` AND ${fieldNames[i]} ${operators[i]} $${i + 1}`;
         if (offset > 0 && limit > 0)
             query += ` LIMIT ${limit} OFFSET ${offset}`;
         if (orderBy)
@@ -450,10 +459,10 @@ function getPoolOrClient(clientOrCallback, callback, isRetry, retryCounter) {
                     return getPoolOrClient(callback, true);
                 });
             } else if (errorCode === 'ECONNREFUSED' || // Postgres not answering at all
-                       errorCode === '57P03') // "Postgres is starting up"
+                errorCode === '57P03') // "Postgres is starting up"
             {
                 if (retryCounter < POSTGRES_CONNECT_RETRIES - 1) {
-                    error(`Could not connect to Postgres, will retry (#${retryCounter+1}). Host: ${pgOptions.host}:${pgOptions.port}, user ${pgOptions.user}`);
+                    error(`Could not connect to Postgres, will retry (#${retryCounter + 1}). Host: ${pgOptions.host}:${pgOptions.port}, user ${pgOptions.user}`);
                     debug(`getPoolOrClient: Postgres returned ${err.code}, options:`);
                     debug(pgOptions);
                     debug(`Will retry in ${POSTGRES_CONNECT_DELAY}ms`);
@@ -464,7 +473,7 @@ function getPoolOrClient(clientOrCallback, callback, isRetry, retryCounter) {
                 }
             } else {
                 debug(err);
-                debug('getPoolOrClient: pool.connect returned an unknown/unexpected error');
+                debug('getPoolOrClient: pool.connect returned an unknown/unexpected error; error code: ' + errorCode);
                 // Nope. This is something which we do not expect. Return it and fail please.
                 return callback(err);
             }

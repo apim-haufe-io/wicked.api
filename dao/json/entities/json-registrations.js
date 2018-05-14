@@ -51,7 +51,7 @@ jsonRegistrations.getByUser = (userId, offset, limit, callback) => {
     return callback(null, registrations);
 };
 
-jsonRegistrations.upsert = (poolId, userId, userData, callback) => {
+jsonRegistrations.upsert = (poolId, userId, upsertingUserId, userData, callback) => {
     debug(`upsert(${userId})`);
     jsonUtils.checkCallback(callback);
     try {
@@ -62,7 +62,7 @@ jsonRegistrations.upsert = (poolId, userId, userData, callback) => {
     return callback(null);
 };
 
-jsonRegistrations.delete = (poolId, userId, callback) => {
+jsonRegistrations.delete = (poolId, userId, deletingUserId, callback) => {
     debug(`delete(${userId})`);
     jsonUtils.checkCallback(callback);
     try {
@@ -172,7 +172,8 @@ jsonRegistrations.upsertSync = (poolId, userId, userData) => {
     const newName = userData.name ? userData.name : '';
 
     // Probably not necessary, but mustn't hurt
-    userData.id = userId;
+    userData.userId = userId;
+    userData.poolId = poolId;
     const regsFile = makeRegsFileName(poolId, userId);
     fs.writeFileSync(regsFile, JSON.stringify(userData, null, 2), 'utf8');
 
