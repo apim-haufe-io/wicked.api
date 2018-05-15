@@ -14,13 +14,23 @@ var users = require('express').Router();
 var dao = require('../dao/dao');
 var daoUtils = require('../dao/dao-utils');
 
+// ===== SCOPES =====
+
+const READ = 'read_users';
+const WRITE = 'write_users';
+
+const verifyReadScope = utils.verifyScope(READ);
+const verifyWriteScope = utils.verifyScope(WRITE);
+
 // ===== ENDPOINTS =====
 
-users.post('/', authMiddleware.rejectFromKong, function (req, res) {
-    users.createUser(req.app, res, req.body);
+users.post('/', verifyWriteScope, function (req, res) {
+    // TODO: Add authorization below - only Admins should be able to do this
+    // (even if it's a machine user by wicked itself).
+    users.createUser(req.app, res, req.apiUserId, req.body);
 });
 
-users.get('/', function (req, res, next) {
+users.get('/', verifyReadScope, function (req, res, next) {
     if (req.query.customId)
         users.getUserByCustomId(req.app, res, req.query.customId);
     else if (req.query.email)
@@ -31,22 +41,22 @@ users.get('/', function (req, res, next) {
         res.status(403).jsonp({ message: 'Not allowed. Unauthorized.' });
 });
 
-users.get('/:userId', function (req, res, next) {
+users.get('/:userId', verifyReadScope, function (req, res, next) {
     users.getUser(req.app, res, req.apiUserId, req.params.userId);
 });
 
-users.patch('/:userId', function (req, res, next) {
+users.patch('/:userId', verifyWriteScope, function (req, res, next) {
     if (req.get('X-VerificationId'))
-        verifications.patchUserWithVerificationId(req.app, res, users, req.get('X-VerificationId'), req.params.userId, req.body);
+        verifications.patchUserWithVerificationId(req.app, res, users, req.apiUserId, req.get('X-VerificationId'), req.params.userId, req.body);
     else if (req.apiUserId)
         users.patchUser(req.app, res, req.apiUserId, req.params.userId, req.body);
 });
 
-users.delete('/:userId', function (req, res, next) {
+users.delete('/:userId', verifyWriteScope, function (req, res, next) {
     users.deleteUser(req.app, res, req.apiUserId, req.params.userId);
 });
 
-users.delete('/:userId/password', function (req, res, next) {
+users.delete('/:userId/password', verifyWriteScope, function (req, res, next) {
     users.deletePassword(req.app, res, req.apiUserId, req.params.userId);
 });
 
@@ -104,16 +114,16 @@ users.isActionAllowed = function (app, loggedInUserId, userId, callback) {
         throw new Error('isActionAllowed: callback is null or not a function');
     // Do we have a logged in user?
     if (!loggedInUserId)
-        return callback(null, false);
-    if (loggedInUserId == userId || "1" == loggedInUserId)
-        return callback(null, true);
-    // Is user an admin?
+        return callback(null, false, null);
     users.loadUser(app, loggedInUserId, (err, userInfo) => {
         if (err)
-            return callback(err);
+            return callback(err, false, userInfo);
+        if (loggedInUserId == userId)
+            return callback(null, true, userInfo);
         if (!userInfo) // User not found, action not allowed
-            return callback(null, false);
-        return callback(null, userInfo.admin);
+            return callback(null, false, userInfo);
+        // Is user an admin?
+        return callback(null, userInfo.admin, userInfo);
     });
 };
 
@@ -134,18 +144,13 @@ users.loadUser = function (app, userId, callback) {
 function postProcessUser(userInfo) {
     debug('postProcessUser()');
     if (userInfo) {
-        // TBD: This should be done with Profiles later
-        if (userInfo.firstName && userInfo.lastName)
-            userInfo.name = userInfo.firstName + ' ' + userInfo.lastName;
-        else if (!userInfo.firstName && userInfo.lastName)
-            userInfo.name = userInfo.lastName;
-        else if (userInfo.firstName && !userInfo.lastName)
-            userInfo.name = userInfo.firstName;
-        else
-            userInfo.name = 'Unknown User';
-
         userInfo.admin = daoUtils.isUserAdmin(userInfo);
         userInfo.approver = daoUtils.isUserApprover(userInfo);
+
+        // These shouldn't be here anymore anyway, but let's delete them just in case
+        delete userInfo.name;
+        delete userInfo.firstName;
+        delete userInfo.lastName;
 
         // Add generic links
         userInfo._links = {
@@ -190,71 +195,76 @@ users.saveUser = function (app, userInfo, userId, callback) {
     dao.users.save(userInfoToSave, userId, callback);
 };
 
-users.createUser = function (app, res, userCreateInfo) {
+users.createUser = function (app, res, loggedInUserId, userCreateInfo) {
     debug('createUser()');
-    debug(userCreateInfo);
-    if (!userCreateInfo.email && !userCreateInfo.customId)
-        return res.status(400).jsonp({ message: 'Bad request. User needs email address.' });
-    if (userCreateInfo.password &&
-        !users.isGoodPassword(userCreateInfo.password))
-        return res.status(400).jsonp({ message: users.BAD_PASSWORD });
-    if (userCreateInfo.email)
-        userCreateInfo.email = userCreateInfo.email.toLowerCase();
-
-    // Form style create data?
-    if (userCreateInfo.firstname &&
-        !userCreateInfo.firstName) {
-        userCreateInfo.firstName = userCreateInfo.firstname;
-        delete userCreateInfo.firstname;
-    }
-    if (userCreateInfo.lastname &&
-        !userCreateInfo.lastName) {
-        userCreateInfo.lastName = userCreateInfo.lastname;
-        delete userCreateInfo.lastname;
-    }
-
-    const newId = userCreateInfo.id || utils.createRandomId();
-    let password = null;
-    if (userCreateInfo.password)
-        password = bcrypt.hashSync(userCreateInfo.password);
-    if (!userCreateInfo.groups)
-        userCreateInfo.groups = [];
-
-    const newUser = {
-        id: newId,
-        customId: userCreateInfo.customId,
-        firstName: userCreateInfo.firstName,
-        lastName: userCreateInfo.lastName,
-        validated: userCreateInfo.validated,
-        email: userCreateInfo.email,
-        password: password,
-        groups: userCreateInfo.groups
-    };
-
-    dao.users.create(newUser, (err, createdUserInfo) => {
+    // Only admins are allowed to do this (for now)
+    users.loadUser(app, loggedInUserId, (err, creatingUserInfo) => {
         if (err)
-            return utils.fail(res, 500, 'createUser: Could not create user', err);
+            return utils.fail(res, 403, 'Users: Could not load calling user', err);
+        if (!creatingUserInfo.admin)
+            return utils.fail(res, 403, 'Only admins are allowed to create users.');
 
-        // Reload to get links and things
-        users.loadUser(app, newId, (err, freshUser) => {
+        debug(userCreateInfo);
+        if (!userCreateInfo.email && !userCreateInfo.customId)
+            return res.status(400).jsonp({ message: 'Bad request. User needs email address.' });
+        if (userCreateInfo.password &&
+            !users.isGoodPassword(userCreateInfo.password))
+            return res.status(400).jsonp({ message: users.BAD_PASSWORD });
+        if (userCreateInfo.email)
+            userCreateInfo.email = userCreateInfo.email.toLowerCase();
+
+        // Name is no longer part of the user, this goes into registrations!
+        delete userCreateInfo.name;
+        delete userCreateInfo.firstName;
+        delete userCreateInfo.firstname;
+        delete userCreateInfo.lastName;
+        delete userCreateInfo.lastname;
+
+        const newId = userCreateInfo.id || utils.createRandomId();
+        let password = null;
+        if (userCreateInfo.password)
+            password = bcrypt.hashSync(userCreateInfo.password);
+        if (!userCreateInfo.groups)
+            userCreateInfo.groups = [];
+
+        // The "validated" property is stored as-is, we trust the calling
+        // user that it's prefilled correctly. Same goes for the user groups;
+        // if the calling user, which is assumed to be an Admin user, says the
+        // new user is an Admin, the user will be an Admin.
+        const newUser = {
+            id: newId,
+            customId: userCreateInfo.customId,
+            validated: userCreateInfo.validated,
+            email: userCreateInfo.email,
+            password: password,
+            groups: userCreateInfo.groups
+        };
+
+        dao.users.create(newUser, (err, createdUserInfo) => {
             if (err)
-                return utils.fail(res, 500, 'createUser: Could not load user after creating', err);
-            if (!freshUser)
-                return utils.fail(res, 500, `createUser: Newly created user with id ${newId} could not be loaded (not found)`);
+                return utils.fail(res, 500, 'createUser: Could not create user', err);
 
-            // Don't return the password hash
-            if (freshUser.password)
-                delete freshUser.password;
-            res.status(201).json(freshUser);
+            // Reload to get links and things
+            users.loadUser(app, newId, (err, freshUser) => {
+                if (err)
+                    return utils.fail(res, 500, 'createUser: Could not load user after creating', err);
+                if (!freshUser)
+                    return utils.fail(res, 500, `createUser: Newly created user with id ${newId} could not be loaded (not found)`);
 
-            webhooks.logEvent(app, {
-                action: webhooks.ACTION_ADD,
-                entity: webhooks.ENTITY_USER,
-                data: {
-                    userId: freshUser.id,
-                    email: userCreateInfo.email,
-                    customId: userCreateInfo.customId
-                }
+                // Don't return the password hash
+                if (freshUser.password)
+                    delete freshUser.password;
+                res.status(201).json(freshUser);
+
+                webhooks.logEvent(app, {
+                    action: webhooks.ACTION_ADD,
+                    entity: webhooks.ENTITY_USER,
+                    data: {
+                        userId: freshUser.id,
+                        email: userCreateInfo.email,
+                        customId: userCreateInfo.customId
+                    }
+                });
             });
         });
     });
@@ -333,26 +343,32 @@ users.getUserByEmail = function (app, res, email) {
     });
 };
 
-users.getUserByEmailAndPassword = function (app, res, email, password) {
+users.getUserByEmailAndPassword = function (app, res, loggedInUserId, email, password) {
     debug('getUserByEmailAndPassword(): ' + email + ', password=***');
-    users.loadUserByEmail(app, email, (err, userInfo) => {
+    users.loadUser(app, loggedInUserId, (err, loggedInUserInfo) => {
         if (err)
-            return utils.fail(res, 500, 'getUserByEmailAndPassword: loadUserByEmail failed.', err);
-        if (!userInfo)
-            return utils.fail(res, 404, 'User not found or password not correct.');
-        if (!userInfo.password)
-            return utils.fail(res, 400, 'Bad request. User has no defined password.');
-        if (!bcrypt.compareSync(password, userInfo.password))
-            return utils.fail(res, 403, 'Password not correct or user not found.');
-        delete userInfo.password;
-        res.json([userInfo]);
+            return utils.fail(res, 500, 'Could not verify logged in user.', err);
+        if (!loggedInUserInfo || (loggedInUserInfo && !loggedInUserInfo.admin))
+            return utils.fail(res, 403, 'Not allowed. Only admin users can verify a user by email and password.');
+        users.loadUserByEmail(app, email, (err, userInfo) => {
+            if (err)
+                return utils.fail(res, 500, 'getUserByEmailAndPassword: loadUserByEmail failed.', err);
+            if (!userInfo)
+                return utils.fail(res, 404, 'User not found or password not correct.');
+            if (!userInfo.password)
+                return utils.fail(res, 400, 'Bad request. User has no defined password.');
+            if (!bcrypt.compareSync(password, userInfo.password))
+                return utils.fail(res, 403, 'Password not correct or user not found.');
+            delete userInfo.password;
+            res.json([userInfo]);
+        });
     });
 };
 
 users.patchUser = function (app, res, loggedInUserId, userId, userInfo) {
     debug('patchUser(): ' + userId);
     debug(userInfo);
-    users.isActionAllowed(app, loggedInUserId, userId, (err, isAllowed) => {
+    users.isActionAllowed(app, loggedInUserId, userId, (err, isAllowed, loggedInUserInfo) => {
         if (err)
             return utils.fail(res, 500, 'patchUser: isActionAllowed failed.', err);
         if (!isAllowed)
@@ -375,15 +391,19 @@ users.patchUser = function (app, res, loggedInUserId, userId, userInfo) {
                 (userInfo.email != user.email))
                 return utils.fail(res, 400, 'Bad request. You can not change the email address of a username with a local password.');
 
-            if (userInfo.firstName)
-                user.firstName = userInfo.firstName;
-            if (userInfo.lastName)
-                user.lastName = userInfo.lastName;
+            // Groups can only be changed on behalf of an Admin
+            if (userInfo.groups &&
+                !loggedInUserInfo.admin)
+                return utils.fail(res, 403, 'Not allowed. Only admins can change a user\'s groups.');
             if (userInfo.groups)
                 user.groups = userInfo.groups;
             if (userInfo.email)
                 user.email = userInfo.email;
-            if (userInfo.validated)
+            if (userInfo.hasOwnProperty('validated') &&
+                userInfo.validated !== user.validated &&
+                !loggedInUserInfo.admin)
+                return utils.fail(res, 403, 'Not allowed. Only admins can change a user\'s validated email status.');
+            if (userInfo.hasOwnProperty('validated'))
                 user.validated = userInfo.validated;
             if (userInfo.password)
                 user.password = bcrypt.hashSync(userInfo.password);
@@ -429,7 +449,7 @@ users.deleteUser = function (app, res, loggedInUserId, userId) {
                 return utils.fail(res, 404, 'User not found');
             if (userInfo.applications && userInfo.applications.length > 0)
                 return utils.fail(res, 409, 'User has applications; remove user from applications first.');
-                
+
             // OK, now we allow deletion.
             dao.users.delete(userId, loggedInUserId, (err) => {
                 if (err)

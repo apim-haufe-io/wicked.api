@@ -102,10 +102,11 @@ app.use('/apis', apis);
 // ----- USERS -----
 
 app.use('/users', users);
-app.post('/login', authMiddleware.rejectFromKong, function (req, res, next) {
+const verifyLoginScope = utils.verifyScope('login');
+app.post('/login', verifyLoginScope, function (req, res, next) {
     const username = req.body.email || req.body.username;
     const password = req.body.password;
-    users.getUserByEmailAndPassword(app, res, username, password);
+    users.getUserByEmailAndPassword(app, res, req.apiUserId, username, password);
 });
 
 // ----- SUBSCRIPTIONS -----
@@ -136,7 +137,7 @@ app.use('/approvals', approvals);
 // Inject users module to webhooks; it's needed there.
 // Not true anymore: webhooks are not allowed to be called via Kong (from outside docker)
 webhooks.setup(users);
-app.use('/webhooks', /*authMiddleware.rejectFromKong, */webhooks);
+app.use('/webhooks', webhooks);
 
 // ----- VERIFICATIONS -----
 
@@ -167,12 +168,14 @@ app.get('/randomId', function (req, res, next) {
 
 // ------- STATIC DATA ------
 
-app.get('/plans', function (req, res, next) {
+const verifyPlansScope = utils.verifyScope('read_plans');
+app.get('/plans', verifyPlansScope, function (req, res, next) {
     const plans = utils.loadPlans(app);
     res.json(plans);
 });
 
-app.get('/groups', function (req, res, next) {
+const verifyGroupsScope = utils.verifyScope('read_groups');
+app.get('/groups', verifyGroupsScope, function (req, res, next) {
     const groups = utils.loadGroups(app);
     res.json(groups);
 });

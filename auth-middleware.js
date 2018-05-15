@@ -32,7 +32,7 @@ authMiddleware.fillUserId = function (req, res, next) {
 
 authMiddleware.rejectFromKong = function (req, res, next) {
     if (req.kongRequest) {
-        res.status(403).json({ message: 'Not allowed from outside network.' });
+        res.status(403).json({ code: 403, message: 'Not allowed from outside network.' });
         return;
     }
     return next();

@@ -1,20 +1,26 @@
 'use strict';
 
-var fs = require('fs');
-var path = require('path');
-var { debug, info, warn, error } = require('portal-env').Logger('portal-api:auth-servers');
-var utils = require('./utils');
-var users = require('./users');
+const fs = require('fs');
+const path = require('path');
+const { debug, info, warn, error } = require('portal-env').Logger('portal-api:auth-servers');
+const utils = require('./utils');
+const users = require('./users');
 
-var authServers = require('express').Router();
+const authServers = require('express').Router();
+
+// ===== SCOPES =====
+
+const READ = 'read_auth_servers';
+
+const verifyScope = utils.verifyScope(READ);
 
 // ===== ENDPOINTS =====
 
-authServers.get('/', function (req, res, next) {
+authServers.get('/', verifyScope, function (req, res, next) {
     authServers.getAuthServers(req.app, res);
 });
 
-authServers.get('/:serverId', function (req, res, next) {
+authServers.get('/:serverId', verifyScope, function (req, res, next) {
     authServers.getAuthServer(req.app, res, req.apiUserId, req.params.serverId);
 });
 
@@ -56,7 +62,7 @@ authServers.getAuthServers = function (app, res) {
 
 authServers._authServers = {};
 authServers.getAuthServer = function (app, res, loggedInUserId, serverId) {
-    debug('getAuthServer() ' + serverId);
+    debug(`getAuthServer(${serverId})`);
 
     if (!authServers._authServers[serverId]) {
         const staticDir = utils.getStaticDir();
@@ -88,24 +94,30 @@ authServers.getAuthServer = function (app, res, loggedInUserId, serverId) {
         }
     }
 
-    const authServer = authServers._authServers[serverId];
+    const authServer = utils.clone(authServers._authServers[serverId]);
 
     if (!authServer.exists)
         return utils.fail(res, 404, 'Not found.');
 
+    debug(`getAuthServer(${serverId}), logged in User: ${loggedInUserId}`);
     users.isUserIdAdmin(app, loggedInUserId, (err, isAdmin) => {
         if (!isAdmin) {
+            debug(`getAuthServer(${serverId}), logged in User is not ADMIN`);
             // Restrict what we return in case it's a non-admin user (or no user),
-            // only return the request path, not the backend URL or any other
+            // only return the request path (uris), not the backend URL or any other
             // type of information (like used plugins).
-            var tempConfig = authServer.config;
-            if (tempConfig && tempConfig.api) {
-                authServer.config = {
+            const tempConfig = authServer.data.config;
+            if (tempConfig && tempConfig.api && tempConfig.api.uris) {
+                authServer.data.config = {
                     api: {
-                        request_path: tempConfig.api.request_path
+                        uris: tempConfig.api.uris
                     }
                 };
+            } else {
+                authServer.data.config = {};
             }
+        } else {
+            debug(`getAuthServer(${serverId}), logged in User is ADMIN, returning all data`);
         }
 
         return res.json(authServer.data);

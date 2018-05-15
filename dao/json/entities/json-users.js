@@ -184,13 +184,8 @@ jsonUsers.saveUser = (userInfo, savingUserId) => {
     // to also change the email address, so let's check that as well.
     let indexChanged = false;
     const prevUser = jsonUsers.loadUser(userInfo.id);
-    if (prevUser) {
-        if (prevUser.firstName !== userInfo.firstName)
-            indexChanged = true;
-        if (prevUser.lastName !== userInfo.lastName)
-            indexChanged = true;
-        if (prevUser.email !== userInfo.email)
-            indexChanged = true;
+    if (prevUser && prevUser.email !== userInfo.email) {
+        indexChanged = true;
     }
 
     userInfo.changedBy = savingUserId;
@@ -204,7 +199,7 @@ jsonUsers.saveUser = (userInfo, savingUserId) => {
     fs.writeFileSync(userFileName, JSON.stringify(userInfo, null, 2), 'utf8');
 
     if (indexChanged) {
-        debug('saveUser: Detected name/email change, updating index.');
+        debug('saveUser: Detected email change, updating index.');
         // We must update the index, as the name changed
         const userIndex = jsonUsers.loadUserIndex();
         const userId = userInfo.id;
@@ -212,7 +207,6 @@ jsonUsers.saveUser = (userInfo, savingUserId) => {
         for (let i = 0; i < userIndex.length; ++i) {
             if (userIndex[i].id === userId) {
                 // Use user variable, not userInfo; user has already been updated
-                userIndex[i].name = daoUtils.makeName(userInfo);
                 userIndex[i].email = userInfo.email;
                 break;
             }
@@ -245,7 +239,6 @@ jsonUsers.createUser = (userCreateInfo) => {
 
         userIndex.push({
             id: newId,
-            name: daoUtils.makeName(newUser),
             email: newUser.email,
             customId: newUser.customId,
         });
@@ -357,7 +350,7 @@ jsonUsers.getShortInfoByCustomIdSync = (customId) => {
     }
     if (index < 0)
         return null;
-        // throw utils.makeError(404, 'User with customId "' + customId + '" not found.');
+    // throw utils.makeError(404, 'User with customId "' + customId + '" not found.');
     return userIndex[index];
 };
 
@@ -374,7 +367,7 @@ jsonUsers.getShortInfoByEmailSync = (email) => {
     }
     if (index < 0)
         return null;
-        // throw utils.makeError(404, 'User with email "' + email + '" not found.');
+    // throw utils.makeError(404, 'User with email "' + email + '" not found.');
     return userIndex[index];
 };
 

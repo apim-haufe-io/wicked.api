@@ -8,17 +8,23 @@ var utils = require('./utils');
 
 var content = require('express').Router();
 
+// ===== SCOPES =====
+
+const READ = 'read_content';
+
+const verifyScope = utils.verifyScope(READ);
+
 // ===== ENDPOINTS =====
 
-content.get('/', function (req, res, next) {
+content.get('/', verifyScope, function (req, res, next) {
     content.getContent(req.app, res, req.apiUserId, req.path);
 });
 
-content.get('/toc', function (req, res, next) {
+content.get('/toc', verifyScope, function (req, res, next) {
     content.getToc(req.app, res, req.apiUserId);
 });
 
-content.get('/*', function (req, res, next) {
+content.get('/*', verifyScope, function (req, res, next) {
     content.getContent(req.app, res, req.apiUserId, req.path);
 });
 

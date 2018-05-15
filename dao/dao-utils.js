@@ -7,44 +7,54 @@ const daoUtils = function () { };
 
 daoUtils.isUserAdmin = (userInfo) => {
     debug('isUserAdmin()');
-    var groups = utils.loadGroups();
+    const groups = utils.loadGroups();
 
-    var isAdmin = false;
-    for (var i = 0; i < userInfo.groups.length; ++i) {
-        var groupId = userInfo.groups[i];
-        for (var groupIndex = 0; groupIndex < groups.groups.length; ++groupIndex) {
-            var group = groups.groups[groupIndex];
-            if (groupId != group.id)
-                continue;
-            if (group.adminGroup) {
-                isAdmin = true;
-                break;
+    let isAdmin = false;
+    if (!userInfo.groups) {
+        warn('isUserAdmin: userInfo.groups is not defined.');
+        warn(userInfo);
+    } else {
+        for (let i = 0; i < userInfo.groups.length; ++i) {
+            let groupId = userInfo.groups[i];
+            for (let groupIndex = 0; groupIndex < groups.groups.length; ++groupIndex) {
+                const group = groups.groups[groupIndex];
+                if (groupId != group.id)
+                    continue;
+                if (group.adminGroup) {
+                    isAdmin = true;
+                    break;
+                }
             }
+            if (isAdmin)
+                break;
         }
-        if (isAdmin)
-            break;
     }
     return isAdmin;
 };
 
 daoUtils.isUserApprover = (userInfo) => {
     debug('isUserApprover()');
-    var groups = utils.loadGroups();
+    const groups = utils.loadGroups();
 
-    var isApprover = false;
-    for (var i = 0; i < userInfo.groups.length; ++i) {
-        var groupId = userInfo.groups[i];
-        for (var groupIndex = 0; groupIndex < groups.groups.length; ++groupIndex) {
-            var group = groups.groups[groupIndex];
-            if (groupId != group.id)
-                continue;
-            if (group.approverGroup) {
-                isApprover = true;
-                break;
+    let isApprover = false;
+    if (!userInfo.groups) {
+        warn('isUserApprover: userInfo.groups is not defined.');
+        warn(userInfo);
+    } else {
+        for (let i = 0; i < userInfo.groups.length; ++i) {
+            const groupId = userInfo.groups[i];
+            for (let groupIndex = 0; groupIndex < groups.groups.length; ++groupIndex) {
+                const group = groups.groups[groupIndex];
+                if (groupId != group.id)
+                    continue;
+                if (group.approverGroup) {
+                    isApprover = true;
+                    break;
+                }
             }
+            if (isApprover)
+                break;
         }
-        if (isApprover)
-            break;
     }
     return isApprover;
 };
@@ -53,10 +63,10 @@ daoUtils.checkValidatedUserGroup = (userInfo) => {
     debug('checkValidatedUserGroup()');
     if (!userInfo.validated)
         return;
-    var globalSettings = utils.loadGlobals();
+    const globalSettings = utils.loadGlobals();
     if (!globalSettings.validatedUserGroup)
         return;
-    var devGroup = globalSettings.validatedUserGroup;
+    const devGroup = globalSettings.validatedUserGroup;
     if (!userInfo.groups.find(function (group) { return group == devGroup; }))
         userInfo.groups.push(devGroup);
 };
@@ -152,9 +162,8 @@ const listParametersImpl = (prefixArray, functionArray, o) => {
                     params: paramList
                 });
             } catch (err) {
-                console.error('Caught exception while inspecting: ' + prefixArray.join('.') + '.' + k);
-                console.error(err);
-                console.error(err.stack);
+                error('Caught exception while inspecting: ' + prefixArray.join('.') + '.' + k);
+                error(err);
             }
         } else if (typeof (p) === 'object') {
             // recurse, but clone the array as we're changing it
@@ -193,7 +202,7 @@ daoUtils.checkParameters = (desc, daoToCheck, functionList) => {
                 if (paramName !== paramNameToCheck)
                     throw new Error(`Parameter naming mismatch: ${paramNameToCheck} != ${paramName}`);
             }
-            
+
             debug(`checkParameters ${desc}: ${funcDesc} - ok`);
         } catch (err) {
             error(`An error occurred while checking ${desc}, ${funcDesc}: ${err.message}`);

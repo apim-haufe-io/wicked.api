@@ -15,37 +15,48 @@ var apis = require('express').Router();
 var dao = require('../dao/dao');
 var daoUtils = require('../dao/dao-utils');
 
+// ===== SCOPES =====
+
+const READ = 'read_apis';
+const READ_SUBS = 'read_subscriptions';
+const READ_PLANS = 'read_plans';
+
+const verifyScope = utils.verifyScope(READ);
+const verifyPlansScope = utils.verifyScope(READ_PLANS);
+const verifyReadSubsScope = utils.verifyScope(READ_SUBS);
+
 // ===== ENDPOINTS =====
 
-apis.get('/', function (req, res, next) {
+apis.get('/', verifyScope, function (req, res, next) {
     apis.getApis(req.app, res, req.apiUserId); //utils.loadApis(app);
 });
 
-apis.get('/desc', function (req, res, next) {
+apis.get('/desc', verifyScope, function (req, res, next) {
     apis.getDesc(req.app, res);
 });
 
-apis.get('/:apiId', function (req, res, next) {
+apis.get('/:apiId', verifyScope, function (req, res, next) {
     apis.getApi(req.app, res, req.apiUserId, req.params.apiId);
 });
 
-apis.get('/:apiId/config', function (req, res, next) {
+apis.get('/:apiId/config', verifyScope, function (req, res, next) {
     apis.getConfig(req.app, res, req.apiUserId, req.params.apiId);
 });
 
-apis.get('/:apiId/desc', function (req, res, next) {
+apis.get('/:apiId/desc', verifyScope, function (req, res, next) {
     apis.getApiDesc(req.app, res, req.apiUserId, req.params.apiId);
 });
 
-apis.get('/:apiId/plans', function (req, res, next) {
+apis.get('/:apiId/plans', verifyScope, verifyPlansScope, function (req, res, next) {
     apis.getApiPlans(req.app, res, req.apiUserId, req.params.apiId);
 });
 
-apis.get('/:apiId/swagger', function (req, res, next) {
+apis.get('/:apiId/swagger', verifyScope, function (req, res, next) {
     apis.getSwagger(req.app, res, req.apiUserId, req.params.apiId);
 });
 
-apis.get('/:apiId/subscriptions', function (req, res, next) {
+// Requires both read_apis and read_subscriptions scopes.
+apis.get('/:apiId/subscriptions', verifyScope, verifyReadSubsScope, function (req, res, next) {
     apis.getSubscriptions(req.app, res, req.apiUserId, req.params.apiId);
 });
 

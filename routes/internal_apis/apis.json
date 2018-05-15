@@ -24,6 +24,7 @@
                 "default:local",
                 "default:dummy"
             ],
+            "registrationPool": "wicked",
             "settings": {
                 "enable_client_credentials": true,
                 "enable_implicit_grant": true,
@@ -57,6 +58,9 @@
                     },
                     "write_users": {
                         "description": "Write user information"
+                    },
+                    "login": {
+                        "description": "Verify username and password"
                     },
                     "read_applications": {
                         "description": "Read application data"

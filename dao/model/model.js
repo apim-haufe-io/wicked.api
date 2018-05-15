@@ -15,7 +15,7 @@ const model = {
                 property_name: 'customId',
                 optional: true
             },
-            name: {},
+            // name: {},
             email: {}
         }
     },

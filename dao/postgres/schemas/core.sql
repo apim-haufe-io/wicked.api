@@ -160,9 +160,8 @@ ALTER TABLE wicked.subscriptions OWNER TO postgres;
 
 CREATE TABLE wicked.users (
     id character varying(64) NOT NULL,
-    email character varying(256) COLLATE pg_catalog."C.UTF-8",
+    email character varying(256) COLLATE pg_catalog."C.UTF-8" NOT NULL,
     custom_id character varying(256) COLLATE pg_catalog."C.UTF-8",
-    name character varying(256) COLLATE pg_catalog."C.UTF-8",
     data jsonb NOT NULL
 );
 

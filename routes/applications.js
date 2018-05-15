@@ -15,59 +15,78 @@ var daoUtils = require('../dao/dao-utils');
 
 var applications = require('express').Router();
 
+// ===== SCOPES =====
+
+const READ_APPLICATIONS = 'read_applications';
+const WRITE_APPLICATIONS = 'write_applications';
+
+const verifyApplicationsReadScope = utils.verifyScope(READ_APPLICATIONS);
+const verifyApplicationsWriteScope = utils.verifyScope(WRITE_APPLICATIONS);
+
+const READ_SUBSCRIPTIONS = 'read_subscriptions';
+const WRITE_SUBSCRIPTIONS = 'write_subscriptions';
+
+const verifySubscriptionsReadScope = utils.verifyScope(READ_SUBSCRIPTIONS);
+const verifySubscriptionsWriteScope = utils.verifyScope(WRITE_SUBSCRIPTIONS);
+
+// Temporarily use a null middleware
+// const verifySubscriptionsReadScope = function (req, res, next) { next(); };
+// const verifySubscriptionsWriteScope = function (req, res, next) { next(); };
+
+
 // ===== ENDPOINTS =====
 
-applications.get('/', function (req, res, next) {
+applications.get('/', verifyApplicationsReadScope, function (req, res, next) {
     applications.getApplications(req.app, res, req.apiUserId);
 });
 
-applications.post('/', function (req, res, next) {
+applications.post('/', verifyApplicationsWriteScope, function (req, res, next) {
     applications.createApplication(req.app, res, req.apiUserId, req.body);
 });
 
-applications.get('/roles', function (req, res, next) {
+applications.get('/roles', verifyApplicationsReadScope, function (req, res, next) {
     applications.getRoles(req.app, res);
 });
 
-applications.get('/:appId', function (req, res, next) {
+applications.get('/:appId', verifyApplicationsReadScope, function (req, res, next) {
     applications.getApplication(req.app, res, req.apiUserId, req.params.appId);
 });
 
-applications.patch('/:appId', function (req, res, next) {
+applications.patch('/:appId', verifyApplicationsWriteScope, function (req, res, next) {
     applications.patchApplication(req.app, res, req.apiUserId, req.params.appId, req.body);
 });
 
-applications.delete('/:appId', function (req, res, next) {
+applications.delete('/:appId', verifyApplicationsWriteScope, function (req, res, next) {
     applications.deleteApplication(req.app, res, req.apiUserId, req.params.appId);
 });
 
-applications.post('/:appId/owners', function (req, res, next) {
+applications.post('/:appId/owners', verifyApplicationsWriteScope, function (req, res, next) {
     applications.addOwner(req.app, res, req.apiUserId, req.params.appId, req.body);
 });
 
-applications.delete('/:appId/owners', function (req, res, next) {
+applications.delete('/:appId/owners', verifyApplicationsWriteScope, function (req, res, next) {
     applications.deleteOwner(req.app, res, req.apiUserId, req.params.appId, req.query.userEmail);
 });
 
 // ===== SUBSCRIPTIONS ENDPOINTS ======
 
-applications.get('/:appId/subscriptions', function (req, res, next) {
+applications.get('/:appId/subscriptions', verifySubscriptionsReadScope, function (req, res, next) {
     subscriptions.getSubscriptions(req.app, res, applications, req.apiUserId, req.params.appId);
 });
 
-applications.post('/:appId/subscriptions', function (req, res, next) {
+applications.post('/:appId/subscriptions', verifySubscriptionsWriteScope, function (req, res, next) {
     subscriptions.addSubscription(req.app, res, applications, req.apiUserId, req.params.appId, req.body);
 });
 
-applications.get('/:appId/subscriptions/:apiId', function (req, res, next) {
+applications.get('/:appId/subscriptions/:apiId', verifySubscriptionsReadScope, function (req, res, next) {
     subscriptions.getSubscription(req.app, res, applications, req.apiUserId, req.params.appId, req.params.apiId);
 });
 
-applications.delete('/:appId/subscriptions/:apiId', function (req, res, next) {
+applications.delete('/:appId/subscriptions/:apiId', verifySubscriptionsWriteScope, function (req, res, next) {
     subscriptions.deleteSubscription(req.app, res, applications, req.apiUserId, req.params.appId, req.params.apiId);
 });
 
-applications.patch('/:appId/subscriptions/:apiId', function (req, res, next) {
+applications.patch('/:appId/subscriptions/:apiId', verifySubscriptionsWriteScope, function (req, res, next) {
     subscriptions.patchSubscription(req.app, res, applications, req.apiUserId, req.params.appId, req.params.apiId, req.body);
 });
 

@@ -14,29 +14,35 @@ webhooks.setup = function (users) {
     webhooks._usersModule = users;
 };
 
+// ===== SCOPES =====
+
+const WEBHOOKS_SCOPE = 'webhooks';
+
+const verifyScope = utils.verifyScope(WEBHOOKS_SCOPE);
+
 // ===== ENDPOINTS =====
 
-webhooks.put('/listeners/:listenerId', function (req, res, next) {
+webhooks.put('/listeners/:listenerId', verifyScope, function (req, res, next) {
     webhooks.putListener(req.app, res, webhooks._usersModule, req.apiUserId, req.params.listenerId, req.body);
 });
 
-webhooks.delete('/listeners/:listenerId', function (req, res, next) {
+webhooks.delete('/listeners/:listenerId', verifyScope, function (req, res, next) {
     webhooks.deleteListener(req.app, res, webhooks._usersModule, req.apiUserId, req.params.listenerId);
 });
 
-webhooks.get('/listeners', function (req, res, next) {
+webhooks.get('/listeners', verifyScope, function (req, res, next) {
     webhooks.getListeners(req.app, res, webhooks._usersModule, req.apiUserId);
 });
 
-webhooks.get('/events/:listenerId', function (req, res, next) {
+webhooks.get('/events/:listenerId', verifyScope, function (req, res, next) {
     webhooks.getEvents(req.app, res, webhooks._usersModule, req.apiUserId, req.params.listenerId);
 });
 
-webhooks.delete('/events/:listenerId', function (req, res, next) {
+webhooks.delete('/events/:listenerId', verifyScope, function (req, res, next) {
     webhooks.flushEvents(req.app, res, webhooks._usersModule, req.apiUserId, req.params.listenerId);
 });
 
-webhooks.delete('/events/:listenerId/:eventId', function (req, res, next) {
+webhooks.delete('/events/:listenerId/:eventId', verifyScope, function (req, res, next) {
     webhooks.deleteEvent(req.app, res, webhooks._usersModule, req.apiUserId, req.params.listenerId, req.params.eventId);
 });
 

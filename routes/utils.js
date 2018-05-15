@@ -57,10 +57,6 @@ utils.getText = function (ob) {
 utils.fail = function (res, statusCode, message, err) {
     if (err) {
         error(err);
-        if (err.stack) {
-            console.error(err.stack);
-            error(err.stack);
-        }
         const status = err.status || statusCode || 500;
         res.status(status).json({ status: status, message: message, error: err.message });
     } else {

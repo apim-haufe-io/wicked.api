@@ -263,7 +263,7 @@ paths:
       - accessCode: ['read_apis']
       - implicit: ['read_apis']
       - password: ['read_apis']
-      - clientCredentials: []
+      - clientCredentials: ['read_apis']
       tags:
         - apis
       description: Returns the Swagger represenstation of the API as JSON
@@ -835,7 +835,7 @@ paths:
       - accessCode: ['read_content']
       - implicit: ['read_content']
       - password: ['read_content']
-      - clientCredentials: []
+      - clientCredentials: ['read_content']
       tags:
         - misc
       description: Returns data from the static content section of the repository.
@@ -1559,12 +1559,8 @@ definitions:
         type: string
       customId:
         type: string
-      loggedIn:
-        type: boolean
-      firstName:
-        type: string
-      lastName:
-        type: string
+      # loggedIn:
+      #   type: boolean
       email:
         type: string
       validated:

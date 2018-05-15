@@ -199,13 +199,12 @@ function checkDynamicConfigDir(glob, callback) {
 function runMigrations(glob, callback) {
     debug('runMigrations()');
     return callback(null);
-
-
 }
 
 function getDynamicVersion(glob) {
     debug('getDynamicVersion()');
-    
+
+    // TODO: Update users -> users + registrations
 }
 
 module.exports = jsonMeta;

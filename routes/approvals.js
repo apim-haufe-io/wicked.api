@@ -10,9 +10,14 @@ var dao = require('../dao/dao');
 
 var approvals = require('express').Router();
 
+// ===== SCOPES =====
+
+const READ_SCOPE = 'read_approvals';
+const verifyReadScope = utils.verifyScope(READ_SCOPE);
+
 // ===== ENDPOINTS =====
 
-approvals.get('/', function (req, res, next) {
+approvals.get('/', verifyReadScope, function (req, res, next) {
     approvals.getApprovals(req.app, res, req.apiUserId);
 });
 

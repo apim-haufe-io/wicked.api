@@ -108,7 +108,6 @@ function createOrSaveImpl(userInfo, callback) {
     // to the application via the "owners" table.
     if (tmpUser.applications)
         delete tmpUser.applications;
-    updateName(userInfo);
     // Need to add developer group if validated?
     daoUtils.checkValidatedUserGroup(userInfo);
 
@@ -163,13 +162,12 @@ function makeShortInfo(userInfo) {
     return {
         id: userInfo.id,
         email: userInfo.email,
-        name: userInfo.name,
         customId: userInfo.customId
     };
 }
 
-function updateName(userInfo) {
-    userInfo.name = daoUtils.makeName(userInfo);
-}
+// function updateName(userInfo) {
+//     userInfo.name = daoUtils.makeName(userInfo);
+// }
 
 module.exports = pgUsers;
