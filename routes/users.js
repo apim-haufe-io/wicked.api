@@ -25,9 +25,17 @@ const verifyWriteScope = utils.verifyScope(WRITE);
 // ===== ENDPOINTS =====
 
 users.post('/', verifyWriteScope, function (req, res) {
-    // TODO: Add authorization below - only Admins should be able to do this
-    // (even if it's a machine user by wicked itself).
-    users.createUser(req.app, res, req.apiUserId, req.body);
+    debug(`POST /`);
+    const isMachineUser = false;
+    users.createUser(req.app, res, req.apiUserId, req.body, isMachineUser);
+});
+
+// Endpoint for creating machine users, which can only be called from within the same network
+// as the API, e.g. not using the Kong as API Gateway.
+users.post('/machine', authMiddleware.rejectFromKong, function (req, res, next) {
+    debug(`POST /machine`);
+    const isMachineUser = true;
+    users.createUser(req.app, res, null, req.body, isMachineUser);
 });
 
 users.get('/', verifyReadScope, function (req, res, next) {
@@ -195,80 +203,98 @@ users.saveUser = function (app, userInfo, userId, callback) {
     dao.users.save(userInfoToSave, userId, callback);
 };
 
-users.createUser = function (app, res, loggedInUserId, userCreateInfo) {
-    debug('createUser()');
+users.createUser = function (app, res, loggedInUserId, userCreateInfo, isMachineUser) {
+    debug(`createUser(${loggedInUserId}, ..., ${isMachineUser})`);
     // Only admins are allowed to do this (for now)
-    users.loadUser(app, loggedInUserId, (err, creatingUserInfo) => {
-        if (err)
-            return utils.fail(res, 403, 'Users: Could not load calling user', err);
-        if (!creatingUserInfo.admin)
-            return utils.fail(res, 403, 'Only admins are allowed to create users.');
-
-        debug(userCreateInfo);
-        if (!userCreateInfo.email && !userCreateInfo.customId)
-            return res.status(400).jsonp({ message: 'Bad request. User needs email address.' });
-        if (userCreateInfo.password &&
-            !users.isGoodPassword(userCreateInfo.password))
-            return res.status(400).jsonp({ message: users.BAD_PASSWORD });
-        if (userCreateInfo.email)
-            userCreateInfo.email = userCreateInfo.email.toLowerCase();
-
-        // Name is no longer part of the user, this goes into registrations!
-        delete userCreateInfo.name;
-        delete userCreateInfo.firstName;
-        delete userCreateInfo.firstname;
-        delete userCreateInfo.lastName;
-        delete userCreateInfo.lastname;
-
-        const newId = userCreateInfo.id || utils.createRandomId();
-        let password = null;
-        if (userCreateInfo.password)
-            password = bcrypt.hashSync(userCreateInfo.password);
-        if (!userCreateInfo.groups)
-            userCreateInfo.groups = [];
-
-        // The "validated" property is stored as-is, we trust the calling
-        // user that it's prefilled correctly. Same goes for the user groups;
-        // if the calling user, which is assumed to be an Admin user, says the
-        // new user is an Admin, the user will be an Admin.
-        const newUser = {
-            id: newId,
-            customId: userCreateInfo.customId,
-            validated: userCreateInfo.validated,
-            email: userCreateInfo.email,
-            password: password,
-            groups: userCreateInfo.groups
-        };
-
-        dao.users.create(newUser, (err, createdUserInfo) => {
+    if (!isMachineUser) {
+        users.loadUser(app, loggedInUserId, (err, creatingUserInfo) => {
             if (err)
-                return utils.fail(res, 500, 'createUser: Could not create user', err);
+                return utils.fail(res, 403, 'Users: Could not load calling user', err);
+            if (!creatingUserInfo.admin)
+                return utils.fail(res, 403, 'Only admins are allowed to create users.');
 
-            // Reload to get links and things
-            users.loadUser(app, newId, (err, freshUser) => {
-                if (err)
-                    return utils.fail(res, 500, 'createUser: Could not load user after creating', err);
-                if (!freshUser)
-                    return utils.fail(res, 500, `createUser: Newly created user with id ${newId} could not be loaded (not found)`);
+            // Now fire off the user creation
+            createUserImpl(app, res, userCreateInfo);
+        });
+    } else {
+        // Slightly other checks here...
+        if (!userCreateInfo.customId)
+            return utils.fail(res, 400, 'Machines users must have a custom ID');
+        if (!userCreateInfo.customId.startsWith('internal:'))
+            return utils.fail(res, 400, 'Machine user customId must start with "internal:"');
+        if (userCreateInfo.password)
+            return utils.fail(res, 400, 'Machine users must not have a password');
+        // Off you go...
+        createUserImpl(app, res, userCreateInfo);
+    }
+};
 
-                // Don't return the password hash
-                if (freshUser.password)
-                    delete freshUser.password;
-                res.status(201).json(freshUser);
+function createUserImpl(app, res, userCreateInfo) {
+    debug('createUserImpl(), user create info:');
+    debug(userCreateInfo);
+    if (!userCreateInfo.email && !userCreateInfo.customId)
+        return res.status(400).jsonp({ message: 'Bad request. User needs email address.' });
+    if (userCreateInfo.password &&
+        !users.isGoodPassword(userCreateInfo.password))
+        return res.status(400).jsonp({ message: users.BAD_PASSWORD });
+    if (userCreateInfo.email)
+        userCreateInfo.email = userCreateInfo.email.toLowerCase();
 
-                webhooks.logEvent(app, {
-                    action: webhooks.ACTION_ADD,
-                    entity: webhooks.ENTITY_USER,
-                    data: {
-                        userId: freshUser.id,
-                        email: userCreateInfo.email,
-                        customId: userCreateInfo.customId
-                    }
-                });
+    // Name is no longer part of the user, this goes into registrations!
+    delete userCreateInfo.name;
+    delete userCreateInfo.firstName;
+    delete userCreateInfo.firstname;
+    delete userCreateInfo.lastName;
+    delete userCreateInfo.lastname;
+
+    const newId = userCreateInfo.id || utils.createRandomId();
+    let password = null;
+    if (userCreateInfo.password)
+        password = bcrypt.hashSync(userCreateInfo.password);
+    if (!userCreateInfo.groups)
+        userCreateInfo.groups = [];
+
+    // The "validated" property is stored as-is, we trust the calling
+    // user that it's prefilled correctly. Same goes for the user groups;
+    // if the calling user, which is assumed to be an Admin user, says the
+    // new user is an Admin, the user will be an Admin.
+    const newUser = {
+        id: newId,
+        customId: userCreateInfo.customId,
+        validated: userCreateInfo.validated,
+        email: userCreateInfo.email,
+        password: password,
+        groups: userCreateInfo.groups
+    };
+
+    dao.users.create(newUser, (err, createdUserInfo) => {
+        if (err)
+            return utils.fail(res, 500, 'createUser: Could not create user', err);
+
+        // Reload to get links and things
+        users.loadUser(app, newId, (err, freshUser) => {
+            if (err)
+                return utils.fail(res, 500, 'createUser: Could not load user after creating', err);
+            if (!freshUser)
+                return utils.fail(res, 500, `createUser: Newly created user with id ${newId} could not be loaded (not found)`);
+
+            // Don't return the password hash
+            if (freshUser.password)
+                delete freshUser.password;
+            res.status(201).json(freshUser);
+
+            webhooks.logEvent(app, {
+                action: webhooks.ACTION_ADD,
+                entity: webhooks.ENTITY_USER,
+                data: {
+                    userId: freshUser.id,
+                    email: userCreateInfo.email,
+                    customId: userCreateInfo.customId
+                }
             });
         });
     });
-};
+}
 
 users.getUser = function (app, res, loggedInUserId, userId) {
     debug('getUser(): ' + userId);
