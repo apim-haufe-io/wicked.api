@@ -1,13 +1,13 @@
 'use strict';
 
-var utils = require('./utils');
-var { debug, info, warn, error } = require('portal-env').Logger('portal-api:verifications');
-var bcrypt = require('bcrypt-nodejs');
-var dao = require('../dao/dao');
+const utils = require('./utils');
+const { debug, info, warn, error } = require('portal-env').Logger('portal-api:verifications');
+const bcrypt = require('bcrypt-nodejs');
+const dao = require('../dao/dao');
 
-var webhooks = require('./webhooks');
+const webhooks = require('./webhooks');
 
-var verifications = require('express').Router();
+const verifications = require('express').Router();
 verifications.setup = function (users) {
     verifications._usersModule = users;
 };
@@ -54,15 +54,20 @@ verifications.addVerification = function (app, res, users, loggedInUserId, body)
             !loggedInUserInfo.admin)
             return utils.fail(res, 403, 'Only admins can add verifications');
 
-        var verificationType = body.type;
-        var email = body.email;
+        const verificationType = body.type;
+        let email = body.email;
+        const verificationLink = body.link;
 
         if (!verificationType ||
             ("email" != verificationType &&
                 "lostpassword" != verificationType))
             return utils.fail(res, 400, 'Unknown verification type.');
+        if (!verificationLink)
+            return utils.fail(res, 400, 'Verification link (property "link") is missing.');
+        if (verificationLink.indexOf('{{id}}') < 0)
+            return utils.fail(res, 400, 'Verification link must contain a mustache placeholder for the id: {{id}}');
 
-        var entityName = webhooks.ENTITY_VERIFICATION_LOSTPASSWORD;
+        let entityName = webhooks.ENTITY_VERIFICATION_LOSTPASSWORD;
         if ("email" == verificationType)
             entityName = webhooks.ENTITY_VERIFICATION_EMAIL;
 
@@ -75,11 +80,12 @@ verifications.addVerification = function (app, res, users, loggedInUserId, body)
             if (userInfo.customId && "lostpassword" == verificationType)
                 return utils.fail(res, 400, 'Email address belongs to a federated user. Cannot change password as the user does not have a password. Log in using federation.');
 
-            var newVerif = {
+            const newVerif = {
                 id: utils.createRandomId(),
                 type: verificationType,
                 email: email,
                 userId: userInfo.id,
+                link: verificationLink,
                 utc: utils.getUtc(),
             };
             dao.verifications.create(newVerif, (err, persistedVerif) => {

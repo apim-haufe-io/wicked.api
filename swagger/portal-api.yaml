@@ -1803,6 +1803,9 @@ definitions:
       userId:
         type: string
         description: 'When retrieved, this field will contain the associated user ID'
+      link:
+        type: string
+        description: The fully qualified link to the verification page, with a placeholder for the ID (mustache {{id}})
   authServerType:
     type: object
     properties:
