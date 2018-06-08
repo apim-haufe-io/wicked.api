@@ -76,7 +76,7 @@ function verifyAccess(app, loggedInUserId, userId, onlyAdmin, callback) {
             if (!userInfo)
                 return callback(utils.makeError(404, 'Registration: Context user not found.'));
             // OK, user exists, we'll be fine
-            return callback(null);
+            return callback(null, userInfo);
         });
     });
 }
@@ -165,12 +165,15 @@ registrations.upsert = (app, res, loggedInUserId, poolId, userId, reg) => {
     validatedData.userId = userId;
     validatedData.namespace = reg.namespace;
 
-    verifyAccess(app, loggedInUserId, userId, false, (err) => {
+    // verifyAccess also can return the userInfo object of the user in question; we want
+    // to use this to amend the registration with the email address and custom ID of the
+    // user.
+    verifyAccess(app, loggedInUserId, userId, false, (err, userInfo) => {
         if (err)
             return utils.failError(res, err);
 
-        // if (!reg.name)
-        //     return utils.fail(res, 400, 'Registrations: Must contain a "name" property.');
+        validatedData.email = userInfo.email;
+        validatedData.customId = userInfo.customId;
 
         dao.registrations.upsert(poolId, userId, loggedInUserId, validatedData, (err) => {
             if (err)
