@@ -100,6 +100,7 @@ utils.loadApis = function () {
         const internalApisFile = path.join(__dirname, 'internal_apis', 'apis.json');
         const internalApis = require(internalApisFile);
         injectGroupScopes(internalApis);
+        injectAuthMethods(internalApis);
         _apis.apis.push.apply(_apis.apis, internalApis.apis);
         utils.replaceEnvVars(_apis);
     }
@@ -193,7 +194,7 @@ function injectGroupScopes(apis) {
     const groups = utils.loadGroups();
     const portalApi = apis.apis.find(api => api.id === 'portal-api');
     if (!portalApi)
-        throw utils.makeError(500, 'Internal API portal-api not found in internal APIs list');
+        throw utils.makeError(500, 'injectGroupScopes: Internal API portal-api not found in internal APIs list');
     if (portalApi.settings && portalApi.settings.scopes) {
         const scopes = portalApi.settings.scopes;
         for (let groupIndex = 0; groupIndex < groups.groups.length; ++groupIndex) {
@@ -205,6 +206,22 @@ function injectGroupScopes(apis) {
     } else {
         throw utils.makeError(500, 'Internal API portal-api does not have a settings.scopes property');
     }
+}
+
+function injectAuthMethods(apis) {
+    debug('injectAuthMethods()');
+    const globals = utils.loadGlobals();
+    if (!globals.portal ||
+        !globals.portal.authMethods ||
+        !Array.isArray(globals.portal.authMethods)) {
+        throw utils.makeError(500, 'injectAuthMethods: globals.json does not contain a portal.authMethods array.');
+    }
+    const portalApi = apis.apis.find(api => api.id === 'portal-api');
+    if (!portalApi)
+        throw utils.makeError(500, 'injectAuthMethods: Internal API portal-api not found in internal APIs list');
+    debug('Configuring auth methods for portal-api API:');
+    debug(globals.portal.authMethods);
+    portalApi.authMethods = utils.clone(globals.portal.authMethods);
 }
 
 let _plans = null;
@@ -497,14 +514,14 @@ const REGEX_PARAMETERS_VALUES = /\s*(\w+)\s*(?:=\s*((?:(?:(['"])(?:\3|(?:.*?[^\\
  * @returns {Array} - An array of the given function's parameter [key, default value] pairs.
  */
 utils.getFunctionParams = (func) => {
-  let functionAsString = func.toString();
-  let params = [];
-  let match;
-  functionAsString = functionAsString.replace(REGEX_COMMENTS, '');
-  functionAsString = functionAsString.match(REGEX_FUNCTION_PARAMS)[1];
-  if (functionAsString.charAt(0) === '(') functionAsString = functionAsString.slice(1, -1);
-  while (match = REGEX_PARAMETERS_VALUES.exec(functionAsString)) params.push([match[1], match[2]]); // jshint ignore:line
-  return params;
+    let functionAsString = func.toString();
+    let params = [];
+    let match;
+    functionAsString = functionAsString.replace(REGEX_COMMENTS, '');
+    functionAsString = functionAsString.match(REGEX_FUNCTION_PARAMS)[1];
+    if (functionAsString.charAt(0) === '(') functionAsString = functionAsString.slice(1, -1);
+    while (match = REGEX_PARAMETERS_VALUES.exec(functionAsString)) params.push([match[1], match[2]]); // jshint ignore:line
+    return params;
 };
 
 utils.clone = (ob) => {
