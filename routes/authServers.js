@@ -60,6 +60,41 @@ authServers.getAuthServers = function (app, res) {
     res.json(authServers._authServerNames);
 };
 
+const checkEndpoint = (authServerId, authMethodId, config, endpointName, defaultValue) => {
+    if (!config.hasOwnProperty(endpointName)) {
+        config[endpointName] = defaultValue;
+    } else {
+        warn(`appendAuthMethodEndpoints(${authServerId}): Auth method ${authMethodId} has a specified ${endpointName} endpoint; consider using the default. Defined: ${config[endpointName]}, default: ${defaultValue}`);
+    }
+};
+
+const appendAuthMethodEndpoints = (authServer) => {
+    debug('appendAuthMethodEndpoints()');
+    if (!authServer.authMethods ||
+        !Array.isArray(authServer.authMethods)) {
+        warn(`appendAuthMethodEndpoints(${authServer.id}): There are no authMethods defined, or it is not an array.`);
+        return;
+    }
+
+    const authServerId = authServer.id;
+    for (let i = 0; i < authServer.authMethods.length; ++i) {
+        const authMethod = authServer.authMethods[i];
+        const authMethodId = authMethod.name;
+
+        let config = authMethod.config;
+        if (!config) {
+            warn(`appendAuthMethodEndpoints(${authServerId}): Auth method ${authMethodId} does not have a config property; creating a default one.`);
+            config = {};
+            authMethod.config = config;
+        }
+
+        checkEndpoint(authServerId, authMethodId, config, 'authorizeEndpoint', '/{{name}}/api/{{api}}/authorize');
+        checkEndpoint(authServerId, authMethodId, config, 'tokenEndpoint', '/{{name}}/api/{{api}}/token');
+        checkEndpoint(authServerId, authMethodId, config, 'profileEndpoint', '/profile');
+        checkEndpoint(authServerId, authMethodId, config, 'verifyEmailEndpoint', '/{{name}}/verifyemail');
+    }
+};
+
 authServers._authServers = {};
 authServers.getAuthServer = function (app, res, loggedInUserId, serverId) {
     debug(`getAuthServer(${serverId})`);
@@ -84,6 +119,10 @@ authServers.getAuthServer = function (app, res, loggedInUserId, serverId) {
                 data.name = serverId;
             if (!data.id)
                 data.id = serverId;
+
+            // Check a couple of standard end points for the auth methods
+            appendAuthMethodEndpoints(data);
+
             debug('Found auth server "' + serverId + '"');
             debug(data);
             authServers._authServers[serverId] = {

@@ -93,7 +93,7 @@ function addInitialUsers(glob, callback) {
 
 function checkApiPlans(glob, callback) {
     debug('checkApiPlans()');
-    let error = null;
+    let internalErr = null;
     const messages = [];
     try {
         const apis = utils.loadApis();
@@ -110,14 +110,13 @@ function checkApiPlans(glob, callback) {
         }
     } catch (err) {
         error(err);
-        error(err.stack);
-        error = err;
+        internalErr = err;
     }
 
     let resultMessages = null;
     if (messages.length > 0)
         resultMessages = messages;
-    callback(error, resultMessages);
+    callback(internalErr, resultMessages);
 }
 
 // I think this is one of the worst functions I have ever written.

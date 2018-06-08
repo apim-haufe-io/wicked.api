@@ -21,8 +21,7 @@
                 "default"
             ],
             "authMethods": [
-                "default:local",
-                "default:dummy"
+                "will be overridden from globals.json settings"
             ],
             "registrationPool": "wicked",
             "settings": {
