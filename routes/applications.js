@@ -115,7 +115,7 @@ applications.isValidRedirectUri = function (redirectUri) {
             (redirectUri.startsWith('http://localhost')) ||
             (redirectUri.startsWith('http://127.0.0.1')) ||
             (redirectUri.startsWith('http://portal.local')) ||
-            (redirectUri.startsWith('http://') && process.env.NODE_ENV == 'localhost') // Allow unsafe redirects for local development
+            (redirectUri.startsWith('http://') && process.env.NODE_ENV.indexOf('local') >= 0) // Allow unsafe redirects for local development
         );
 };
 
