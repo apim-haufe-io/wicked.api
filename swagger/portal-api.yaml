@@ -1610,10 +1610,6 @@ definitions:
     properties:
       customId:
         type: string
-      firstName:
-        type: string
-      lastName:
-        type: string
       email:
         type: string
       password:
