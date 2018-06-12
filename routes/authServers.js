@@ -92,6 +92,7 @@ const appendAuthMethodEndpoints = (authServer) => {
         checkEndpoint(authServerId, authMethodId, config, 'tokenEndpoint', '/{{name}}/api/{{api}}/token');
         checkEndpoint(authServerId, authMethodId, config, 'profileEndpoint', '/profile');
         checkEndpoint(authServerId, authMethodId, config, 'verifyEmailEndpoint', '/{{name}}/verifyemail');
+        checkEndpoint(authServerId, authMethodId, config, 'grantsEndpoint', '/{{name}}/grants');
     }
 };
 
