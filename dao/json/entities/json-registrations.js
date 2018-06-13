@@ -25,7 +25,7 @@ jsonRegistrations.getByPoolAndUser = (poolId, userId, callback) => {
     return callback(null, userRegistration);
 };
 
-jsonRegistrations.getByPoolAndNamespace = (poolId, namespace, nameFilter, offset, limit, callback) => {
+jsonRegistrations.getByPoolAndNamespace = (poolId, namespace, nameFilter, offset, limit, noCountCache, callback) => {
     debug(`getByPoolAndNamespace(${poolId}, ${namespace}, ${nameFilter})`);
     jsonUtils.checkCallback(callback);
     let registrations;

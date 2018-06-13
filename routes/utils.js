@@ -480,6 +480,13 @@ utils.getOffsetLimit = (req) => {
     };
 };
 
+utils.getNoCountCache = (req) => {
+    const no_cache = req.query.no_cache;
+    if (no_cache && no_cache == '1')
+        return true;
+    return false;
+};
+
 // Middleware to verify a scope
 utils.verifyScope = (requiredScope) => {
     return function (req, res, next) {

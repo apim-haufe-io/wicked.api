@@ -18,10 +18,10 @@ pgRegistrations.getByPoolAndUser = (poolId, userId, callback) => {
     return getByPoolAndUserImpl(poolId, userId, callback);
 };
 
-pgRegistrations.getByPoolAndNamespace = (poolId, namespace, nameFilter, offset, limit, callback) => {
+pgRegistrations.getByPoolAndNamespace = (poolId, namespace, nameFilter, offset, limit, noCountCache, callback) => {
     debug(`getByPoolAndNamespace(${poolId}, ${namespace}, ${nameFilter}, ${offset}, ${limit})`);
     pgUtils.checkCallback(callback);
-    return getByPoolAndNamespaceImpl(poolId, namespace, nameFilter, offset, limit, callback);
+    return getByPoolAndNamespaceImpl(poolId, namespace, nameFilter, offset, limit, noCountCache, callback);
 };
 
 pgRegistrations.getByUser = (userId, callback) => {
@@ -59,12 +59,13 @@ function getByPoolAndUserImpl(poolId, userId, callback) {
     });
 }
 
-function getByPoolAndNamespaceImpl(poolId, namespace, nameFilter, offset, limit, callback) {
-    debug(`getByPoolAndNamespaceImpl(${poolId}, ${namespace}, ${nameFilter}, ${offset}, ${limit})`);
+function getByPoolAndNamespaceImpl(poolId, namespace, nameFilter, offset, limit, noCountCache, callback) {
+    debug(`getByPoolAndNamespaceImpl(${poolId}, ${namespace}, ${nameFilter}, ${offset}, ${limit}, ${noCountCache})`);
     const options = {
         limit: limit,
         offset: offset,
-        orderBy: 'name ASC'
+        orderBy: 'name ASC',
+        noCountCache: noCountCache
     };
     if (namespace && nameFilter) {
         options.operators = ['=', '=', 'ILIKE'];

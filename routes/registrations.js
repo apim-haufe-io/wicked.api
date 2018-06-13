@@ -24,7 +24,8 @@ registrations.get('/pools/:poolId', verifyReadScope, function (req, res, next) {
     const namespace = req.query.namespace;
     const nameFilter = req.query.name_filter;
     const { offset, limit } = utils.getOffsetLimit(req);
-    registrations.getByPoolAndNamespace(req.app, res, req.apiUserId, req.params.poolId, namespace, nameFilter, offset, limit);
+    const noCountCache = utils.getNoCountCache(req);
+    registrations.getByPoolAndNamespace(req.app, res, req.apiUserId, req.params.poolId, namespace, nameFilter, offset, limit, noCountCache);
 });
 
 registrations.get('/pools/:poolId/users/:userId', verifyReadScope, function (req, res, next) {
@@ -80,7 +81,7 @@ function verifyAccess(app, loggedInUserId, userId, onlyAdmin, callback) {
     });
 }
 
-registrations.getByPoolAndNamespace = (app, res, loggedInUserId, poolId, namespace, nameFilter, offset, limit) => {
+registrations.getByPoolAndNamespace = (app, res, loggedInUserId, poolId, namespace, nameFilter, offset, limit, noCountCache) => {
     debug(`getByPoolAndNamespace(${poolId}, ${namespace}, ${nameFilter})`);
 
     if (!utils.isPoolIdValid(poolId))
@@ -94,7 +95,7 @@ registrations.getByPoolAndNamespace = (app, res, loggedInUserId, poolId, namespa
         if (err)
             return utils.failError(res, err);
 
-        dao.registrations.getByPoolAndNamespace(poolId, namespace, nameFilter, offset, limit, (err, regList, countResult) => {
+        dao.registrations.getByPoolAndNamespace(poolId, namespace, nameFilter, offset, limit, noCountCache, (err, regList, countResult) => {
             if (err)
                 return utils.fail(res, 500, 'Registrations: Could not retrieve registrations by pool/namespace.', err);
             // TODO: _links for paging?
