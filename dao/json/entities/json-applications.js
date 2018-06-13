@@ -75,7 +75,7 @@ jsonApplications.getIndex = (offset, limit, callback) => {
     } catch (err) {
         return callback(err);
     }
-    return callback(null, appsIndex);
+    return callback(null, appsIndex.rows, { count: appsIndex.count, cached: false });
 };
 
 jsonApplications.getCount = (callback) => {
@@ -135,7 +135,10 @@ jsonApplications.deleteOwner = (appId, deleteUserId, deletingUserId, callback) =
 jsonApplications.getIndexSync = (offset, limit) => {
     debug('getIndexSync()');
     const appsIndex = jsonApplications.loadAppsIndex();
-    return jsonUtils.pageArray(appsIndex, offset, limit);
+    return {
+        rows: jsonUtils.pageArray(appsIndex, offset, limit),
+        count: appsIndex.length
+    };
 };
 
 jsonApplications.getCountSync = () => {

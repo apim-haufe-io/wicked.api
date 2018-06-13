@@ -5,6 +5,7 @@ const { debug, info, warn, error } = require('portal-env').Logger('portal-api:da
 const fs = require('fs');
 const path = require('path');
 const pg = require('pg');
+const crypto = require('crypto');
 
 const utils = require('../../routes/utils');
 const model = require('../model/model');
@@ -229,7 +230,7 @@ pgUtils.getSingleBy = (entity, fieldNameOrNames, fieldValueOrValues, optionsOrCa
 //   orderBy: order by field, e.g. "name ASC"
 //   operators: ['=', 'LIKE', '!=']
 // }
-pgUtils.getBy = (entity, fieldNameOrNames, fieldValueOrValues, optionsOrCallback, callback) => {
+pgUtils.getBy = (entity, fieldNameOrNames, fieldValueOrValues, options, callback) => {
     debug(`getBy(${entity}, ${fieldNameOrNames}, ${fieldValueOrValues})`);
     if (!fieldNameOrNames)
         fieldNameOrNames = [];
@@ -245,63 +246,138 @@ pgUtils.getBy = (entity, fieldNameOrNames, fieldValueOrValues, optionsOrCallback
     if (fieldNames.length !== fieldValues.length)
         return callback(utils.makeError(500, 'PG Utils: field names array length mismatches field value array length'));
 
-    let options = optionsOrCallback;
-    if (!callback && typeof (optionsOrCallback) === 'function') {
-        callback = optionsOrCallback;
-        options = null;
-    }
+    if (typeof options === 'function')
+        return callback(utils.makeError('pgUtils.getBy: options is a function'));
+    if (!options)
+        options = {};
     let client = null;
     let offset = 0;
     let limit = 0;
     let orderBy = null;
     let operators = [];
+    let noCountCache = false;
     fieldNames.forEach(f => operators.push('='));
-    if (options) {
-        if (options.client)
-            client = options.client;
-        if (options.offset)
-            offset = options.offset;
-        if (options.limit)
-            limit = options.limit;
-        if (options.orderBy)
-            orderBy = options.orderBy;
-        if (options.operators) {
-            operators = options.operators;
-            if (operators.length !== fieldNames.length) {
-                return callback(utils.makeError(500, `Querying ${entity}: Length of operators array does not match field names array.`));
-            }
+    if (options.client)
+        client = options.client;
+    if (options.offset)
+        offset = options.offset;
+    if (options.limit)
+        limit = options.limit;
+    if (options.orderBy)
+        orderBy = options.orderBy;
+    if (options.operators) {
+        operators = options.operators;
+        if (operators.length !== fieldNames.length) {
+            return callback(utils.makeError(500, `Querying ${entity}: Length of operators array does not match field names array.`));
         }
     }
+    if (options.noCountCache)
+        noCountCache = options.noCountCache;
+
     getPoolOrClient(client, (err, poolOrClient) => {
         if (err)
             return callback(err);
-        let query = `SELECT * FROM wicked.${entity}`;
-        if (fieldNames.length > 0)
-            query += ` WHERE ${fieldNames[0]} ${operators[0]} $1`;
-        // This may be an empty loop
-        for (let i = 1; i < fieldNames.length; ++i)
-            query += ` AND ${fieldNames[i]} ${operators[i]} $${i + 1}`;
-        if (offset > 0 && limit > 0)
-            query += ` LIMIT ${limit} OFFSET ${offset}`;
-        if (orderBy)
-            query += ` ORDER BY ${orderBy}`;
-        poolOrClient.query(query, fieldValues, (err, result) => {
+        const queries = makeSqlQuery(entity, fieldNames, operators, orderBy, offset, limit);
+        const query = queries.query;
+
+        async.parallel({
+            rows: function (callback) { queryPostgres(poolOrClient, entity, queries.query, fieldValues, callback); },
+            countResult: function (callback) { queryCount(poolOrClient, queries.countQuery, fieldValues, noCountCache, callback); }
+        }, function (err, results) {
             if (err)
                 return callback(err);
-            try {
-                const normalizedResult = normalizeResult(entity, result);
-                return callback(null, normalizedResult);
-            } catch (err) {
-                debug('normalizeResult failed: ' + err.message);
-                debug(query);
-                debug(fieldValues);
-                debug(result);
-                debug(err);
-                return callback(err);
-            }
+            return callback(null, results.rows, results.countResult);
         });
     });
 };
+
+// TODO: Put this in redis instead
+const _countCache = {};
+const COUNT_CACHE_TIMEOUT = 1 * 60 * 1000; // 1 minute
+function queryCount(poolOrClient, countQuery, fieldValues, noCache, callback) {
+    debug(`countRecords()`);
+    const cacheKey = JSON.stringify({ query: countQuery, fieldValues: fieldValues });
+    const queryHash = crypto.createHash('sha1').update(cacheKey).digest('base64');
+    const now = (new Date()).getTime();
+    if (_countCache[queryHash] && !noCache) {
+        debug(`countRecords() - cache hit`);
+        return callback(null, { count: _countCache[queryHash].count, cached: true });
+    }
+    poolOrClient.query(countQuery, fieldValues, (err, result) => {
+        if (err)
+            return callback(err);
+        if (result.rows.length !== 1)
+            return callback(utils.makeError(500, 'countRows: SELECT COUNT(*) did not return a single row.'));
+        if (!noCache)
+            debug(`countRecords() - cache miss, adding record`);
+        else
+            debug(`countRecords() - forced re-count`);
+        const count = result.rows[0].count;
+        _countCache[queryHash] = {
+            count: count,
+            timestamp: now
+        };
+        return callback(null, { count: result.rows[0].count, cached: false });
+    });
+}
+
+setInterval(function () {
+    debug(`countRecords() - purging cache entries`);
+    const now = (new Date()).getTime();
+    let purgeCount = 0;
+    for (let hash in _countCache) {
+        if ((now - _countCache[hash].timestamp) > COUNT_CACHE_TIMEOUT) {
+            delete _countCache[hash];
+            purgeCount++;
+        }
+    }
+    if (purgeCount > 0)
+        debug(`countRecords() - purged ${purgeCount} cache entries`);
+}, 15000);
+
+function queryPostgres(poolOrClient, entity, query, fieldValues, callback) {
+    debug(`queryPostgres()`);
+    poolOrClient.query(query, fieldValues, (err, result) => {
+        if (err)
+            return callback(err);
+        try {
+            const normalizedResult = normalizeResult(entity, result);
+            return callback(null, normalizedResult);
+        } catch (err) {
+            debug('normalizeResult failed: ' + err.message);
+            debug(query);
+            debug(fieldValues);
+            debug(result);
+            debug(err);
+            return callback(err);
+        }
+    });
+}
+
+function makeSqlQuery(entity, fieldNames, operators, orderBy, offset, limit) {
+    let query = `SELECT * FROM wicked.${entity}`;
+    let countQuery = `SELECT COUNT(*) AS count FROM wicked.${entity}`;
+    let queryWhere = '';
+    if (fieldNames.length > 0)
+        queryWhere += ` WHERE ${fieldNames[0]} ${operators[0]} $1`;
+    // This may be an empty loop
+    for (let i = 1; i < fieldNames.length; ++i)
+        queryWhere += ` AND ${fieldNames[i]} ${operators[i]} $${i + 1}`;
+
+    countQuery += queryWhere;
+
+    if (offset > 0 && limit > 0)
+        queryWhere += ` LIMIT ${limit} OFFSET ${offset}`;
+    if (orderBy)
+        queryWhere += ` ORDER BY ${orderBy}`;
+
+    query += queryWhere;
+
+    return {
+        query: query,
+        countQuery: countQuery
+    };
+}
 
 // If you're in a transaction, pass in the client given from withTransaction
 // as clientOrCallback, otherwise just pass in the callback, and the PG pool

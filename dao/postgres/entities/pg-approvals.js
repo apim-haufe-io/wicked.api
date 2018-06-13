@@ -15,7 +15,7 @@ const pgApprovals = () => { };
 pgApprovals.getAll = (callback) => {
     debug('getAll()');
     pgUtils.checkCallback(callback);
-    return pgUtils.getBy('approvals', [], [], callback);
+    return pgUtils.getBy('approvals', [], [], {}, callback);
 };
 
 pgApprovals.create = (approvalInfo, callback) => {

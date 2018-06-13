@@ -14,6 +14,7 @@ dao.init = (app) => {
 
     // Make sure we have all the right signatures in place for the DAOs;
     // this has been a source of extremely subtle problems in the past.
+    // TypeScript would presumably have helped tons here.
     const functionList = daoUtils.listParameters(dao);
     daoUtils.checkParameters('JSON DAO', jsonDao, functionList);
     daoUtils.checkParameters('Postgres DAO', pgDao, functionList);
@@ -133,7 +134,7 @@ dao.webhooks = {
 dao.registrations = {
     getByPoolAndUser: (poolId, userId, callback) => { dao._impl.registrations.getByPoolAndUser(poolId, userId, callback); },
     getByPoolAndNamespace: (poolId, namespace, nameFilter, offset, limit, callback) => { dao._impl.registrations.getByPoolAndNamespace(poolId, namespace, nameFilter, offset, limit, callback); },
-    getByUser: (userId, offset, limit, callback) => { dao._impl.registrations.getByUser(userId, offset, limit, callback); },
+    getByUser: (userId, callback) => { dao._impl.registrations.getByUser(userId, callback); },
 
     upsert: (poolId, userId, upsertingUserId, userData, callback) => { dao._impl.registrations.upsert(poolId, userId, upsertingUserId, userData, callback); },
     delete: (poolId, userId, deletingUserId, callback) => { dao._impl.registrations.delete(poolId, userId, deletingUserId, callback); }
@@ -141,7 +142,7 @@ dao.registrations = {
 
 dao.grants = {
     getByUserApplicationAndApi: (userId, applicationId, apiId, callback) => { dao._impl.grants.getByUserApplicationAndApi(userId, applicationId, apiId, callback); },
-    getByUser: (userId, offset, limit, callback) => { dao._impl.grants.getByUser(userId, offset, limit, callback); },
+    getByUser: (userId, callback) => { dao._impl.grants.getByUser(userId, callback); },
     deleteByUser: (userId, deletingUserId, callback) => { dao._impl.grants.deleteByUser(userId, deletingUserId, callback); },
 
     upsert: (userId, applicationId, apiId, upsertingUserId, grantsInfo, callback) => { dao._impl.grants.upsert(userId, applicationId, apiId, upsertingUserId, grantsInfo, callback); },

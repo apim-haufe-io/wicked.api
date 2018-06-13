@@ -93,7 +93,7 @@ jsonUsers.getIndex = (offset, limit, callback) => {
     } catch (err) {
         return callback(err);
     }
-    return callback(null, userIndex);
+    return callback(null, userIndex.rows, { count: userIndex.count, cached: false });
 };
 
 jsonUsers.getCount = (callback) => {
@@ -381,7 +381,10 @@ jsonUsers.loadUserIndex = function () {
 jsonUsers.getIndexSync = (offset, limit) => {
     debug('getIndexSync()');
     const userIndex = jsonUsers.loadUserIndex();
-    return jsonUtils.pageArray(userIndex, offset, limit);
+    return {
+        rows: jsonUtils.pageArray(userIndex, offset, limit),
+        count: userIndex.length
+    };
 };
 
 jsonUsers.saveUserIndex = function (userIndex) {

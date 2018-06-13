@@ -37,7 +37,8 @@ const verifySubscriptionsWriteScope = utils.verifyScope(WRITE_SUBSCRIPTIONS);
 // ===== ENDPOINTS =====
 
 applications.get('/', verifyApplicationsReadScope, function (req, res, next) {
-    applications.getApplications(req.app, res, req.apiUserId);
+    const { offset, limit } = utils.getOffsetLimit(req);
+    applications.getApplications(req.app, res, req.apiUserId, offset, limit);
 });
 
 applications.post('/', verifyApplicationsWriteScope, function (req, res, next) {
@@ -140,7 +141,7 @@ applications.getAllowedAccess = function (app, appInfo, userInfo) {
     return accessFlags.NONE;
 };
 
-applications.getApplications = function (app, res, loggedInUserId) {
+applications.getApplications = function (app, res, loggedInUserId, offset, limit) {
     debug('getApplications()');
     users.loadUser(app, loggedInUserId, (err, userInfo) => {
         if (err)
@@ -150,11 +151,14 @@ applications.getApplications = function (app, res, loggedInUserId) {
         if (!userInfo.admin)
             return utils.fail(res, 403, 'Not allowed. This is admin land.');
 
-        // TODO: Paging (supported for Postgres)
-        dao.applications.getIndex(0, 0, (err, appsIndex) => {
+        dao.applications.getIndex(offset, limit, (err, appsIndex, countResult) => {
             if (err)
                 return utils.fail(res, 500, 'getApplications: getIndex failed', err);
-            res.json(appsIndex);
+            res.json({
+                items: appsIndex,
+                count: countResult.count,
+                count_cached: countResult.cached
+            });
         });
     });
 };

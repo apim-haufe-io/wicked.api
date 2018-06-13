@@ -79,7 +79,7 @@ function getByIdImpl(userId, callback) {
             return callback(err);
         if (!userInfo)
             return callback(null, null);
-        pgUtils.getBy('owners', 'users_id', userId, (err, ownerList) => {
+        pgUtils.getBy('owners', 'users_id', userId, {}, (err, ownerList) => {
             if (err)
                 return callback(err);
             userInfo.applications = ownerList.map(o => { return { id: o.appId }; });
@@ -136,12 +136,12 @@ function deleteImpl(userId, deletingUserId, callback) {
 
 function getIndexImpl(offset, limit, callback) {
     debug(`getIndexImpl(offset: ${offset}, limit: ${limit})`);
-    pgUtils.getBy('users', [], [], { offset: offset, limit: limit }, (err, userList) => {
+    pgUtils.getBy('users', [], [], { offset: offset, limit: limit }, (err, userList, countResult) => {
         if (err)
             return callback(err);
         // This might be more efficient with a dedicated SELECT, but...
         const userIndex = userList.map(userInfo => makeShortInfo(userInfo));
-        return callback(null, userIndex);
+        return callback(null, userIndex, countResult);
     });
 }
 

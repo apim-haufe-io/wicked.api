@@ -39,12 +39,13 @@ users.post('/machine', authMiddleware.rejectFromKong, function (req, res, next) 
 });
 
 users.get('/', verifyReadScope, function (req, res, next) {
+    const { offset, limit } = utils.getOffsetLimit(req);
     if (req.query.customId)
         users.getUserByCustomId(req.app, res, req.query.customId);
     else if (req.query.email)
         users.getUserByEmail(req.app, res, req.query.email);
     else if (req.apiUserId)
-        users.getUsers(req.app, res, req.apiUserId);
+        users.getUsers(req.app, res, req.apiUserId, offset, limit);
     else
         res.status(403).jsonp({ message: 'Not allowed. Unauthorized.' });
 });
@@ -325,7 +326,7 @@ users.getUser = function (app, res, loggedInUserId, userId) {
     });
 };
 
-users.getUsers = function (app, res, loggedInUserId) {
+users.getUsers = function (app, res, loggedInUserId, offset, limit) {
     debug('getUsers()');
     users.loadUser(app, loggedInUserId, (err, user) => {
         if (err)
@@ -335,10 +336,14 @@ users.getUsers = function (app, res, loggedInUserId) {
         if (!user.admin)
             return utils.fail(res, 403, 'Not allowed. Only admins can retrieve user list.');
 
-        dao.users.getIndex(0, 0, (err, userIndex) => {
+        dao.users.getIndex(offset, limit, (err, userIndex, countResult) => {
             if (err)
                 return utils.fail(res, 500, 'getUsers: DAO getIndex failed.', err);
-            res.json(userIndex);
+            res.json({
+                items: userIndex,
+                count: countResult.count,
+                count_cached: countResult.cached
+            });
         });
     });
 };

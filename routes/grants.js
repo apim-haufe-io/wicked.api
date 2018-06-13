@@ -20,8 +20,7 @@ const verifyWriteScope = utils.verifyScope(WRITE);
 // ===== ENDPOINTS =====
 
 grants.get('/:userId', verifyReadScope, function (req, res, next) {
-    const { offset, limit } = utils.getOffsetLimit(req);
-    getByUser(req.app, res, req.apiUserId, req.params.userId, offset, limit);
+    getByUser(req.app, res, req.apiUserId, req.params.userId);
 });
 
 grants.delete('/:userId', verifyWriteScope, function (req, res, next) {
@@ -75,20 +74,21 @@ function verifyAccess(app, loggedInUserId, userId, callback) {
     });
 }
 
-function getByUser(app, res, loggedInUserId, userId, offset, limit) {
-    debug(`getByUser(${loggedInUserId}, ${userId}, ${offset}, ${limit})`);
+function getByUser(app, res, loggedInUserId, userId) {
+    debug(`getByUser(${loggedInUserId}, ${userId})`);
 
     verifyAccess(app, loggedInUserId, userId, (err) => {
         if (err)
             return utils.failError(res, err);
 
-        dao.grants.getByUser(userId, offset, limit, (err, grantList) => {
+        dao.grants.getByUser(userId, (err, grantList, countResult) => {
             if (err)
                 return utils.fail(res, 500, 'Grants: Could not load grants by user', err);
 
-            // TODO: Paging links
             return res.json({
-                items: grantList
+                items: grantList,
+                count: countResult.count,
+                count_cached: countResult.cached
             });
         });
     });

@@ -159,11 +159,11 @@ function saveImpl(appInfo, savingUserId, callback) {
 
 function getIndexImpl(offset, limit, callback) {
     debug(`getIndex(offset: ${offset}, limit: ${limit})`);
-    pgUtils.getBy('applications', [], [], { orderBy: 'id ASC' }, (err, appList) => {
+    pgUtils.getBy('applications', [], [], { orderBy: 'id ASC' }, (err, appList, countResult) => {
         if (err)
             return callback(err);
         const appIdList = appList.map(app => { return { id: app.id }; });
-        return callback(null, appIdList);
+        return callback(null, appIdList, countResult);
     });
 }
 

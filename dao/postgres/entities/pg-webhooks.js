@@ -49,7 +49,7 @@ pgWebhooks.events.hookListeners = (dispatchEvents, callback) => {
 pgWebhooks.events.getByListener = (listenerId, callback) => {
     debug(`getByListener(${listenerId})`);
     pgUtils.checkCallback(callback);
-    return pgUtils.getBy('webhook_events', 'webhook_listeners_id', listenerId, callback);
+    return pgUtils.getBy('webhook_events', 'webhook_listeners_id', listenerId, {}, callback);
 };
 
 pgWebhooks.events.flush = (listenerId, callback) => {
@@ -77,7 +77,7 @@ pgWebhooks.events.delete = (listenerId, eventId, callback) => {
 
 function getAllListenersImpl(callback) {
     debug('getAllListenersImpl()');
-    return pgUtils.getBy('webhook_listeners', [], [], callback);    
+    return pgUtils.getBy('webhook_listeners', [], [], {}, callback);
 }
 
 function createImpl(eventData, callback) {

@@ -40,8 +40,7 @@ registrations.delete('/pools/:poolId/users/:userId', verifyWriteScope, function 
 });
 
 registrations.get('/users/:userId', verifyReadScope, function (req, res, next) {
-    const { offset, limit } = utils.getOffsetLimit(req);
-    registrations.getByUser(req.app, res, req.apiUserId, req.params.userId, offset, limit);
+    registrations.getByUser(req.app, res, req.apiUserId, req.params.userId);
 });
 
 // ===== IMPLEMENTATION =====
@@ -95,13 +94,15 @@ registrations.getByPoolAndNamespace = (app, res, loggedInUserId, poolId, namespa
         if (err)
             return utils.failError(res, err);
 
-        dao.registrations.getByPoolAndNamespace(poolId, namespace, nameFilter, offset, limit, (err, regList) => {
+        dao.registrations.getByPoolAndNamespace(poolId, namespace, nameFilter, offset, limit, (err, regList, countResult) => {
             if (err)
                 return utils.fail(res, 500, 'Registrations: Could not retrieve registrations by pool/namespace.', err);
             // TODO: _links for paging?
             addPool(poolId, regList);
             return res.json({
-                items: regList
+                items: regList,
+                count: countResult.count,
+                count_cached: countResult.cached
             });
         });
     });
@@ -128,17 +129,16 @@ registrations.getByPoolAndUser = (app, res, loggedInUserId, poolId, userId) => {
     });
 };
 
-registrations.getByUser = (app, res, loggedInUserId, userId, offset, limit) => {
+registrations.getByUser = (app, res, loggedInUserId, userId) => {
     debug(`getByUser(${userId})`);
 
     verifyAccess(app, loggedInUserId, userId, false, (err) => {
         if (err)
             return utils.failError(res, err);
 
-        dao.registrations.getByUser(userId, offset, limit, (err, regMap) => {
+        dao.registrations.getByUser(userId, (err, regMap) => {
             if (err)
                 return utils.fail(res, 500, 'Registrations: Could not retrieve registrations for user.', err);
-            // TODO: _links for paging?
             return res.json(regMap);
         });
     });

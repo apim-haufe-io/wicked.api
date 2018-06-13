@@ -61,7 +61,7 @@ jsonSubscriptions.getByApi = (apiId, offset, limit, callback) => {
     } catch (err) {
         return callback(err);
     }
-    return callback(null, apiSubs);
+    return callback(null, apiSubs.rows, { count: apiSubs.count, cached: false });
 };
 
 jsonSubscriptions.create = (newSubscription, creatingUserId, callback) => {
@@ -383,7 +383,7 @@ jsonSubscriptions.getByClientIdSync = (clientId) => {
 jsonSubscriptions.getByApiSync = (apiId, offset, limit) => {
     debug(`getByApi(${apiId})`);
     const apiSubs = jsonSubscriptions.loadSubscriptionApiIndex(apiId);
-    return apiSubs;
+    return { rows: apiSubs, count: apiSubs.length };
 };
 
 module.exports = jsonSubscriptions;

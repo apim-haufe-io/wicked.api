@@ -18,10 +18,10 @@ pgGrants.getByUserApplicationAndApi = (userId, applicationId, apiId, callback) =
     return getByUserApplicationAndApiImpl(userId, applicationId, apiId, callback);
 };
 
-pgGrants.getByUser = (userId, offset, limit, callback) => {
-    debug(`getByUser(${userId}, ${offset}, ${limit})`);
+pgGrants.getByUser = (userId, callback) => {
+    debug(`getByUser(${userId})`);
     pgUtils.checkCallback(callback);
-    return getByUserImpl(userId, offset, limit, callback);
+    return getByUserImpl(userId, callback);
 };
 
 pgGrants.deleteByUser = (userId, deletingUserId, callback) => {
@@ -57,11 +57,9 @@ function getByUserApplicationAndApiImpl(userId, applicationId, apiId, callback) 
     });
 }
 
-function getByUserImpl(userId, offset, limit, callback) {
-    debug(`getByUserImpl(${userId}, ${offset}, ${limit})`);
+function getByUserImpl(userId, callback) {
+    debug(`getByUserImpl(${userId})`);
     const options = {
-        offset: offset,
-        limit: limit,
         orderBy: 'application_id ASC'
     };
     pgUtils.getBy('grants', 'users_id', userId, options, callback);

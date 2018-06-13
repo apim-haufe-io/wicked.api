@@ -301,14 +301,21 @@ paths:
         200:
           description: Successful response
           schema:
-            type: array
-            items:
-              type: object
-              properties:
-                application:
-                  type: string
-                plan:
-                  type: string
+            type: object
+            properties:
+              count:
+                type: number
+              count_cached:
+                type: boolean
+              items:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    application:
+                      type: string
+                    plan:
+                      type: string
         403:
           description: Not allowed (Admins only)
         404:
@@ -392,9 +399,16 @@ paths:
         '200':
           description: Successful response
           schema:
-            type: array
-            items:
-              $ref: '#/definitions/userShortType'
+            type: object
+            properties:
+              items:
+                type: array
+                items:
+                  $ref: '#/definitions/userShortType'
+              count:
+                type: number
+              count_cached:
+                type: boolean
   '/users/{userId}':
     get:
       security:
@@ -502,18 +516,33 @@ paths:
       - password: ['read_applications']
       tags:
         - applications
+      parameters:
+      - name: offset
+        in: query
+        type: number
+        required: false
+      - name: limit
+        in: query
+        type: number
+        required: false
       responses:
         '200':
           description: Successful response
           schema:
-            title: ApplicationIdArray
-            type: array
-            items:
-              title: AppId
-              type: object
-              properties:
-                id:
-                  type: string
+            type: object
+            properties:
+              items:
+                type: array
+                items:
+                  title: AppId
+                  type: object
+                  properties:
+                    id:
+                      type: string
+              count:
+                type: number
+              count_cached:
+                type: boolean
         '403':
           description: Not allowed
     post:
@@ -1837,6 +1866,10 @@ definitions:
         type: array
         items:
           $ref: '#/definitions/registrationType'
+      count:
+        type: number
+      count_cached:
+        type: boolean
       _links:
         type: object
         properties: {}    
@@ -1860,6 +1893,10 @@ definitions:
         type: array
         items:
           $ref: '#/definitions/grantType'
+      count:
+        type: number
+      count_cached:
+        type: boolean
       _links:
         type: object
         properties: {}

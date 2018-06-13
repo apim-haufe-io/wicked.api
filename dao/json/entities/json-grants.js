@@ -26,16 +26,16 @@ jsonGrants.getByUserApplicationAndApi = (userId, applicationId, apiId, callback)
     return callback(null, grantInfo);
 };
 
-jsonGrants.getByUser = (userId, offset, limit, callback) => {
-    debug(`getByUser(${userId}, ${offset}, ${limit})`);
+jsonGrants.getByUser = (userId, callback) => {
+    debug(`getByUser(${userId})`);
     jsonUtils.checkCallback(callback);
     let grantList;
     try {
-        grantList = jsonGrants.getByUserSync(userId, offset, limit);
+        grantList = jsonGrants.getByUserSync(userId);
     } catch (err) {
         return callback(err);
     }
-    return callback(null, grantList);
+    return callback(null, grantList, { count: grantList.length, cached: false });
 };
 
 jsonGrants.deleteByUser = (userId, deletingUserId, callback) => {
@@ -85,8 +85,8 @@ jsonGrants.getByApiApplicationAndUserSync = (userId, applicationId, apiId) => {
     return grantList[grantIndex];
 };
 
-jsonGrants.getByUserSync = (userId, offset, limit) => {
-    debug(`getByUserSync(${userId}, ${offset}, ${limit})`);
+jsonGrants.getByUserSync = (userId) => {
+    debug(`getByUserSync(${userId})`);
     const grantList = readGrants(userId);
     return grantList;
 };

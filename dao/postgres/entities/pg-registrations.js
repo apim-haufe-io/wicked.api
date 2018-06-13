@@ -24,10 +24,10 @@ pgRegistrations.getByPoolAndNamespace = (poolId, namespace, nameFilter, offset, 
     return getByPoolAndNamespaceImpl(poolId, namespace, nameFilter, offset, limit, callback);
 };
 
-pgRegistrations.getByUser = (userId, offset, limit, callback) => {
-    debug(`getByUser(${userId}, ${offset}, ${limit})`);
+pgRegistrations.getByUser = (userId, callback) => {
+    debug(`getByUser(${userId})`);
     pgUtils.checkCallback(callback);
-    return getByUserImpl(userId, offset, limit, callback);
+    return getByUserImpl(userId, callback);
 };
 
 pgRegistrations.upsert = (poolId, userId, upsertingUserId, userData, callback) => {
@@ -79,26 +79,24 @@ function getByPoolAndNamespaceImpl(poolId, namespace, nameFilter, offset, limit,
     return pgUtils.getBy('registrations', 'pool_id', poolId, options, callback);
 }
 
-function getByUserImpl(userId, offset, limit, callback) {
-    debug(`getByUserImpl(${userId}, ${offset}, ${limit})`);
+function getByUserImpl(userId, callback) {
+    debug(`getByUserImpl(${userId})`);
     return pgUtils.getBy('registrations', 'users_id', userId, {
-        limit: limit,
-        offset: offset,
         orderBy: 'pool_id ASC'
-    }, (err, data) => {
+    }, (err, data, countResult) => {
         if (err)
             return callback(err);
         const tmp = {
             pools: {}
         };
         data.forEach(r => tmp.pools[r.poolId] = r);
-        return callback(null, tmp);
+        return callback(null, tmp, countResult);
     });
 }
 
 function upsertImpl(poolId, userId, upsertingUserId, userData, callback) {
     debug(`upsertImpl(${poolId}, ${userId}, ${userData})`);
-    pgUtils.getBy('registrations', ['pool_id', 'users_id'], [poolId, userId], (err, data) => {
+    pgUtils.getBy('registrations', ['pool_id', 'users_id'], [poolId, userId], {}, (err, data) => {
         if (err)
             return callback(err);
         if (data.length > 1)

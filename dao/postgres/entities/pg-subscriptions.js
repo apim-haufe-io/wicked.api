@@ -69,7 +69,7 @@ pgSubscriptions.legacySaveSubscriptionApiIndex = (apiId, subs) => { };
 
 function getByAppIdImpl(appId, callback) {
     debug('getByAppIdImpl()');
-    pgUtils.getBy('subscriptions', ['applications_id'], [appId], (err, subsList) => {
+    pgUtils.getBy('subscriptions', ['applications_id'], [appId], {}, (err, subsList) => {
         if (err)
             return callback(err);
         daoUtils.decryptApiCredentials(subsList);
@@ -79,11 +79,11 @@ function getByAppIdImpl(appId, callback) {
 
 function getByApiImpl(apiId, offset, limit, callback) {
     debug('getByApiImpl()');
-    pgUtils.getBy('subscriptions', ['api_id'], [apiId], { offset: offset, limit: limit }, (err, subsList) => {
+    pgUtils.getBy('subscriptions', ['api_id'], [apiId], { offset: offset, limit: limit }, (err, subsList, countResult) => {
         if (err)
             return callback(err);
         daoUtils.decryptApiCredentials(subsList);
-        return callback(null, subsList);
+        return callback(null, subsList, countResult);
     });
 }
 

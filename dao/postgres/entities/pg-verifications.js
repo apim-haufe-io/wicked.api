@@ -21,7 +21,7 @@ pgVerifications.create = (verifInfo, callback) => {
 pgVerifications.getAll = (callback) => {
     debug('getAll()');
     pgUtils.checkCallback(callback);
-    return pgUtils.getBy('verifications', [], [], callback);
+    return pgUtils.getBy('verifications', [], [], {}, callback);
 };
 
 pgVerifications.getById = (verificationId, callback) => {

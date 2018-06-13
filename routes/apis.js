@@ -57,7 +57,8 @@ apis.get('/:apiId/swagger', verifyScope, function (req, res, next) {
 
 // Requires both read_apis and read_subscriptions scopes.
 apis.get('/:apiId/subscriptions', verifyScope, verifyReadSubsScope, function (req, res, next) {
-    apis.getSubscriptions(req.app, res, req.apiUserId, req.params.apiId);
+    const { offset, limit } = utils.getOffsetLimit(req);
+    apis.getSubscriptions(req.app, res, req.apiUserId, req.params.apiId, offset, limit);
 });
 
 // ===== IMPLEMENTATION =====
@@ -634,11 +635,8 @@ function initPortalSwagger(app) {
     return swaggerYaml;
 }
 
-apis.getSubscriptions = function (app, res, loggedInUserId, apiId) {
+apis.getSubscriptions = function (app, res, loggedInUserId, apiId, offset, limit) {
     debug('getSubscriptions() ' + apiId);
-    // TODO: Paging parameters
-    const limit = 0;
-    const offset = 0;
     users.loadUser(app, loggedInUserId, (err, userInfo) => {
         if (err)
             return utils.fail(res, 500, 'getSubscriptions: Could not load user', err);
@@ -646,11 +644,15 @@ apis.getSubscriptions = function (app, res, loggedInUserId, apiId) {
             !userInfo.admin) {
             return utils.fail(res, 403, 'Not Allowed. Only Admins can get subscriptions for an API.');
         }
-        dao.subscriptions.getByApi(apiId, offset, limit, (err, apiSubs) => {
+        dao.subscriptions.getByApi(apiId, offset, limit, (err, apiSubs, countResult) => {
             if (err)
                 return utils.fail(res, 500, 'api.getSubscriptions: DAO failed to get subscriptions per API', err);
             if (apiSubs) {
-                return res.json(apiSubs);
+                return res.json({
+                    items: apiSubs,
+                    count: countResult.count,
+                    count_cached: countResult.cached
+                });
             }
             utils.fail(res, 404, 'Not Found.');
         });

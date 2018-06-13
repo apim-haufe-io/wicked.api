@@ -34,19 +34,19 @@ jsonRegistrations.getByPoolAndNamespace = (poolId, namespace, nameFilter, offset
     } catch (err) {
         return callback(err);
     }
-    return callback(null, registrations);
+    return callback(null, registrations.rows, { count: registrations.count, cached: false });
 };
 
-jsonRegistrations.getByUser = (userId, offset, limit, callback) => {
-    debug(`getByUser(${userId}, ${offset}, ${limit})`);
+jsonRegistrations.getByUser = (userId, callback) => {
+    debug(`getByUser(${userId})`);
     jsonUtils.checkCallback(callback);
     let registrations;
     try {
-        registrations = jsonRegistrations.getByUserSync(userId, offset, limit);
+        registrations = jsonRegistrations.getByUserSync(userId);
     } catch (err) {
         return callback(err);
     }
-    return callback(null, registrations);
+    return callback(null, registrations.rows, { count: registrations.count, cached: false });
 };
 
 jsonRegistrations.upsert = (poolId, userId, upsertingUserId, userData, callback) => {
@@ -102,8 +102,8 @@ jsonRegistrations.getByPoolAndUserSync = (poolId, userId) => {
     return regsJson;
 };
 
-jsonRegistrations.getByUserSync = (userId, offset, limit) => {
-    debug(`getByUser(${userId}, ${offset}, ${limit})`);
+jsonRegistrations.getByUserSync = (userId) => {
+    debug(`getByUser(${userId})`);
 
     // The userIndex contains pools this user has registrations for
     const userIndex = readUserIndex(userId);
@@ -112,7 +112,7 @@ jsonRegistrations.getByUserSync = (userId, offset, limit) => {
         const poolId = userIndex[i];
         tmp.pools[poolId] = jsonRegistrations.getByPoolAndUserSync(poolId, userId);
     }
-    return tmp;
+    return { rows: tmp, count: userIndex.length };
 };
 
 function filterAndPage(regs, nameFilter, offset, limit) {
@@ -138,13 +138,16 @@ jsonRegistrations.getByPoolAndNamespaceSync = (poolId, namespace, nameFilter, of
     // Note: All indexes are always sorted by name internally anyway,
     // so we don't have to do that here.
     let filteredList;
+    let count = -1;
     if (!namespace) {
         // Use the "big" pool index
         const poolIndex = readPoolIndex(poolId);
+        count = poolIndex.length;
         filteredList = filterAndPage(poolIndex, nameFilter, offset, limit);
     } else {
         // We need to use the namespace index
         const namespaceIndex = readNamespaceIndex(poolId, namespace);
+        count = namespaceIndex.length;
         filteredList = filterAndPage(namespaceIndex, nameFilter, offset, limit);
     }
 
@@ -155,7 +158,7 @@ jsonRegistrations.getByPoolAndNamespaceSync = (poolId, namespace, nameFilter, of
         tmpArray.push(thisReg);
     }
     // Now return the list
-    return tmpArray;
+    return { rows: tmpArray, count: count };
 };
 
 jsonRegistrations.upsertSync = (poolId, userId, userData) => {
@@ -199,7 +202,7 @@ jsonRegistrations.deleteSync = (poolId, userId) => {
     }
     fs.unlinkSync(regsFile);
     debug(`deleteSync: Deleted file ${regsFile}`);
- 
+
     // Clean up in indexes
     deleteFromUserIndex(poolId, userId);
     deleteFromPoolIndex(poolId, userId);
