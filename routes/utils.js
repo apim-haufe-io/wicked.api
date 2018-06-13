@@ -487,6 +487,49 @@ utils.getNoCountCache = (req) => {
     return false;
 };
 
+utils.getFilter = (req) => {
+    const filterString = req.query.filter;
+    if (filterString && filterString.startsWith("{")) {
+        try {
+            const filter = JSON.parse(filterString);
+            let invalidObject = false;
+            for (let p in filter) {
+                if (typeof(filter[p]) !== 'string')
+                    invalidObject = true;
+            }
+            if (invalidObject) {
+                warn(`Detected nested/invalid filter object, expected plain string properties: ${filterString}`);
+            } else {
+                return filter;
+            }
+        } catch (err) {
+            warn(`Invalid filter string used: ${filterString}, expected valid JSON`);
+        }
+    }
+    return {};
+};
+
+utils.getOrderBy = (req) => {
+    let orderByInput = req.query.order_by;
+    let orderBy = null;
+    if (orderByInput) {
+        const oList = orderByInput.split(' ');
+        let invalidInput = false;
+        if (oList.length === 2) {
+            const field = oList[0];
+            const direction = oList[1].toUpperCase();
+            if (direction !== 'ASC' && direction !== 'DESC') {
+                warn(`Invalid order_by request parameter, direction to be either ASC or DESC: "${orderByInput}"`);
+            } else {
+                orderBy = `${field} ${direction}`;
+            }
+        } else {
+            warn(`Invalid order_by request parameter, expected '<field> <ASC|DESC>': "${orderByInput}"`);
+        }
+    }
+    return orderBy;
+};
+
 // Middleware to verify a scope
 utils.verifyScope = (requiredScope) => {
     return function (req, res, next) {

@@ -358,18 +358,39 @@ function makeSqlQuery(entity, fieldNames, operators, orderBy, offset, limit) {
     let query = `SELECT * FROM wicked.${entity}`;
     let countQuery = `SELECT COUNT(*) AS count FROM wicked.${entity}`;
     let queryWhere = '';
+    const processedFieldNames = [];
+    const entityModel = model[entity];
+    const props = entityModel.properties;
+    for (let i = 0; i < fieldNames.length; ++i) {
+        const f = fieldNames[i];
+        if (f === 'id')
+            processedFieldNames.push(f);
+        else if (props[f])
+            processedFieldNames.push(f);
+        else // field is in JSONB
+            processedFieldNames.push(`data->>'${f}'`);
+    }
     if (fieldNames.length > 0)
-        queryWhere += ` WHERE ${fieldNames[0]} ${operators[0]} $1`;
+        queryWhere += ` WHERE ${processedFieldNames[0]} ${operators[0]} $1`;
     // This may be an empty loop
     for (let i = 1; i < fieldNames.length; ++i)
-        queryWhere += ` AND ${fieldNames[i]} ${operators[i]} $${i + 1}`;
+        queryWhere += ` AND ${processedFieldNames[i]} ${operators[i]} $${i + 1}`;
 
     countQuery += queryWhere;
 
-    if (offset > 0 && limit > 0)
+    if (orderBy) {
+        const tmp = orderBy.split(' ');
+        const tmpOrderField = tmp[0];
+        const direction = tmp[1];
+        let orderField = null;
+        if (tmpOrderField === 'id' || props[tmpOrderField])
+            orderField = tmpOrderField;
+        else // field in jsonb presumably
+            orderField = `data->>'${tmpOrderField}'`;
+        queryWhere += ` ORDER BY ${orderField} ${direction}`;
+    }
+    if (offset >= 0 && limit > 0)
         queryWhere += ` LIMIT ${limit} OFFSET ${offset}`;
-    if (orderBy)
-        queryWhere += ` ORDER BY ${orderBy}`;
 
     query += queryWhere;
 

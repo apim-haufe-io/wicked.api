@@ -23,9 +23,11 @@ registrations.get('/pools/:poolId', verifyReadScope, function (req, res, next) {
     // These may be undefined
     const namespace = req.query.namespace;
     const nameFilter = req.query.name_filter;
+    const filter = utils.getFilter(req);
+    const orderBy = utils.getOrderBy(req);
     const { offset, limit } = utils.getOffsetLimit(req);
     const noCountCache = utils.getNoCountCache(req);
-    registrations.getByPoolAndNamespace(req.app, res, req.apiUserId, req.params.poolId, namespace, nameFilter, offset, limit, noCountCache);
+    registrations.getByPoolAndNamespace(req.app, res, req.apiUserId, req.params.poolId, namespace, filter, orderBy, offset, limit, noCountCache);
 });
 
 registrations.get('/pools/:poolId/users/:userId', verifyReadScope, function (req, res, next) {
@@ -81,8 +83,8 @@ function verifyAccess(app, loggedInUserId, userId, onlyAdmin, callback) {
     });
 }
 
-registrations.getByPoolAndNamespace = (app, res, loggedInUserId, poolId, namespace, nameFilter, offset, limit, noCountCache) => {
-    debug(`getByPoolAndNamespace(${poolId}, ${namespace}, ${nameFilter})`);
+registrations.getByPoolAndNamespace = (app, res, loggedInUserId, poolId, namespace, filter, orderBy, offset, limit, noCountCache) => {
+    debug(`getByPoolAndNamespace(${poolId}, ${namespace}, ${filter}, ${orderBy})`);
 
     if (!utils.isPoolIdValid(poolId))
         return utils.fail(res, 400, utils.validationErrorMessage('Pool ID'));
@@ -95,7 +97,7 @@ registrations.getByPoolAndNamespace = (app, res, loggedInUserId, poolId, namespa
         if (err)
             return utils.failError(res, err);
 
-        dao.registrations.getByPoolAndNamespace(poolId, namespace, nameFilter, offset, limit, noCountCache, (err, regList, countResult) => {
+        dao.registrations.getByPoolAndNamespace(poolId, namespace, filter, orderBy, offset, limit, noCountCache, (err, regList, countResult) => {
             if (err)
                 return utils.fail(res, 500, 'Registrations: Could not retrieve registrations by pool/namespace.', err);
             // TODO: _links for paging?

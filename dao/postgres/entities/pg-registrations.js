@@ -18,10 +18,10 @@ pgRegistrations.getByPoolAndUser = (poolId, userId, callback) => {
     return getByPoolAndUserImpl(poolId, userId, callback);
 };
 
-pgRegistrations.getByPoolAndNamespace = (poolId, namespace, nameFilter, offset, limit, noCountCache, callback) => {
-    debug(`getByPoolAndNamespace(${poolId}, ${namespace}, ${nameFilter}, ${offset}, ${limit})`);
+pgRegistrations.getByPoolAndNamespace = (poolId, namespace, filter, orderBy, offset, limit, noCountCache, callback) => {
+    debug(`getByPoolAndNamespace(${poolId}, ${namespace}, ${filter}, ${orderBy}, ${offset}, ${limit})`);
     pgUtils.checkCallback(callback);
-    return getByPoolAndNamespaceImpl(poolId, namespace, nameFilter, offset, limit, noCountCache, callback);
+    return getByPoolAndNamespaceImpl(poolId, namespace, filter, orderBy, offset, limit, noCountCache, callback);
 };
 
 pgRegistrations.getByUser = (userId, callback) => {
@@ -59,25 +59,29 @@ function getByPoolAndUserImpl(poolId, userId, callback) {
     });
 }
 
-function getByPoolAndNamespaceImpl(poolId, namespace, nameFilter, offset, limit, noCountCache, callback) {
-    debug(`getByPoolAndNamespaceImpl(${poolId}, ${namespace}, ${nameFilter}, ${offset}, ${limit}, ${noCountCache})`);
+function getByPoolAndNamespaceImpl(poolId, namespace, filter, orderBy, offset, limit, noCountCache, callback) {
+    debug(`getByPoolAndNamespaceImpl(${poolId}, ${namespace}, ${filter}, ${orderBy}, ${offset}, ${limit}, ${noCountCache})`);
+    const fields = ['pool_id'];
+    const values = [poolId];
+    const operators = ['='];
+    if (namespace) {
+        fields.push('namespace');
+        values.push(namespace);
+        operators.push('=');
+    }
+    for (let fieldName in filter) {
+        fields.push(fieldName);
+        values.push(`%${filter[fieldName]}%`);
+        operators.push('ILIKE');
+    }
     const options = {
         limit: limit,
         offset: offset,
-        orderBy: 'name ASC',
+        orderBy: orderBy ? orderBy : 'name ASC',
+        operators: operators,
         noCountCache: noCountCache
     };
-    if (namespace && nameFilter) {
-        options.operators = ['=', '=', 'ILIKE'];
-        return pgUtils.getBy('registrations', ['pool_id', 'namespace', 'name'], [poolId, namespace, `%${nameFilter}%`], options, callback);
-    } else if (!namespace && nameFilter) {
-        options.operators = ['=', 'ILIKE'];
-        return pgUtils.getBy('registrations', ['pool_id', 'name'], [poolId, `%${nameFilter}%`], options, callback);
-    } else if (namespace && !nameFilter) {
-        return pgUtils.getBy('registrations', ['pool_id', 'namespace'], [poolId, namespace], options, callback);
-    }
-    // Neither nameFilter nor namespace filter
-    return pgUtils.getBy('registrations', 'pool_id', poolId, options, callback);
+    return pgUtils.getBy('registrations', fields, values, options, callback);
 }
 
 function getByUserImpl(userId, callback) {

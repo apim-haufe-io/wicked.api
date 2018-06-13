@@ -25,12 +25,12 @@ jsonRegistrations.getByPoolAndUser = (poolId, userId, callback) => {
     return callback(null, userRegistration);
 };
 
-jsonRegistrations.getByPoolAndNamespace = (poolId, namespace, nameFilter, offset, limit, noCountCache, callback) => {
-    debug(`getByPoolAndNamespace(${poolId}, ${namespace}, ${nameFilter})`);
+jsonRegistrations.getByPoolAndNamespace = (poolId, namespace, filter, orderBy, offset, limit, noCountCache, callback) => {
+    debug(`getByPoolAndNamespace(${poolId}, ${namespace}, ${filter}, ${orderBy})`);
     jsonUtils.checkCallback(callback);
     let registrations;
     try {
-        registrations = jsonRegistrations.getByPoolAndNamespaceSync(poolId, namespace, nameFilter, offset, limit);
+        registrations = jsonRegistrations.getByPoolAndNamespaceSync(poolId, namespace, filter, orderBy, offset, limit);
     } catch (err) {
         return callback(err);
     }
@@ -114,27 +114,78 @@ jsonRegistrations.getByUserSync = (userId) => {
     }
     return { rows: tmp, count: userIndex.length };
 };
+/**
+ * Filters, sorts and pages an array of objects. Returns an object containing two
+ * properties: `list` and `filterCount`. The list is the filtered, sorted and paged
+ * list (taking limit and offset into account), and filterCount is the total count
+ * before the paging was applied.
+ * 
+ * @param {array} rows 
+ * @param {object} filter object containing {"name": "value"} pairs to filter for
+ * @param {*} orderBy "<field> ASC|DESC"
+ * @param {*} offset 
+ * @param {*} limit 
+ */
+function filterAndPage(rows, filter, orderBy, offset, limit) {
+    let filteredRows = rows;
 
-function filterAndPage(regs, nameFilter, offset, limit) {
-    let filteredList = regs;
-
-    if (nameFilter) {
-        const filter = nameFilter.toLowerCase();
+    if (filter) {
         const tempList = [];
-        for (let i = 0; i < regs.length; ++i) {
-            let name = regs[i].name;
-            name = name ? name.toLowerCase() : "";
-            if (name.indexOf(filter) >= 0) {
-                tempList.push(regs[i]);
+        for (let i = 0; i < rows.length; ++i) {
+            const row = rows[i];
+            let matches = true;
+            for (let prop in filter) {
+                const filterValue = filter[prop].toLowerCase();
+                if (!filterValue)
+                    continue;
+                if (!row.hasOwnProperty(prop)) {
+                    matches = false;
+                    break;
+                }
+                const thisValue = row[prop].toLowerCase();
+                if (thisValue.indexOf(filterValue) < 0) {
+                    matches = false;
+                    break;
+                }
+            }
+            if (matches) {
+                tempList.push(row);
             }
         }
-        filteredList = tempList;
+        filteredRows = tempList;
     }
-    return jsonUtils.pageArray(filteredList, offset, limit);
+
+    if (orderBy) {
+        const o = orderBy.split(' ');
+        const sortField = o[0];
+        const dir = o[1];
+        const firstOrder = dir === 'ASC' ? -1 : 1;
+        const lastOrder = dir === 'ASC' ? 1 : -1;
+        filteredRows.sort((a, b) => {
+            if (!a.hasOwnProperty(sortField) && !b.hasOwnProperty(sortField))
+                return 0;
+            if (a.hasOwnProperty(sortField) && !b.hasOwnProperty(sortField))
+                return firstOrder;
+            if (!a.hasOwnProperty(sortField) && b.hasOwnProperty(sortField))
+                return firstOrder;
+            const aVal = a[sortField];
+            const bVal = b[sortField];
+            if (aVal < bVal)
+                return firstOrder;
+            if (aVal > bVal)
+                return lastOrder;
+            return 0;
+        });
+    }
+
+    return {
+        list: jsonUtils.pageArray(filteredRows, offset, limit),
+        filterCount: filteredRows.length
+    };
 }
 
-jsonRegistrations.getByPoolAndNamespaceSync = (poolId, namespace, nameFilter, offset, limit) => {
-    debug(`getByPoolAndNamespaceSync(${poolId}, ${namespace}, ${nameFilter})`);
+jsonRegistrations.getByPoolAndNamespaceSync = (poolId, namespace, filter, orderBy, offset, limit) => {
+    debug(`getByPoolAndNamespaceSync(${poolId}, ${namespace}, ${filter}, ${orderBy})`);
     // Note: All indexes are always sorted by name internally anyway,
     // so we don't have to do that here.
     let filteredList;
@@ -142,13 +193,17 @@ jsonRegistrations.getByPoolAndNamespaceSync = (poolId, namespace, nameFilter, of
     if (!namespace) {
         // Use the "big" pool index
         const poolIndex = readPoolIndex(poolId);
-        count = poolIndex.length;
-        filteredList = filterAndPage(poolIndex, nameFilter, offset, limit);
+        //count = poolIndex.length;
+        const { list, filterCount } = filterAndPage(poolIndex, filter, orderBy, offset, limit);
+        filteredList = list;
+        count = filterCount;
     } else {
         // We need to use the namespace index
         const namespaceIndex = readNamespaceIndex(poolId, namespace);
-        count = namespaceIndex.length;
-        filteredList = filterAndPage(namespaceIndex, nameFilter, offset, limit);
+        //count = namespaceIndex.length;
+        const { list, filterCount } = filterAndPage(namespaceIndex, filter, orderBy, offset, limit);
+        filteredList = list;
+        count = filterCount;
     }
 
     const tmpArray = [];
