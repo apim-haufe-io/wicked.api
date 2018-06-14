@@ -248,6 +248,7 @@ applications.createApplication = function (app, res, loggedInUserId, appCreateIn
         const newAppInfo = {
             id: appId,
             name: appCreateInfo.name.substring(0, 128),
+            description: appCreateInfo.description.substring(0, 128),
             redirectUri: appCreateInfo.redirectUri,
             confidential: !!appCreateInfo.confidential,
         };
@@ -298,6 +299,8 @@ applications.patchApplication = function (app, res, loggedInUserId, appId, appPa
             // Update app
             if (appPatchInfo.name)
                 appInfo.name = appPatchInfo.name.substring(0, 128);
+            if (appPatchInfo.description)
+                appInfo.description = appPatchInfo.description.substring(0, 128);
             if (redirectUri)
                 appInfo.redirectUri = redirectUri;
             if (appPatchInfo.hasOwnProperty('confidential'))

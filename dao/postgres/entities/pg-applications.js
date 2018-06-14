@@ -108,6 +108,7 @@ function createImpl(appCreateInfo, userInfo, callback) {
         const newApp = {
             id: appId,
             name: appCreateInfo.name.substring(0, 128),
+            description: appCreateInfo.description.substring(0, 128),
             redirectUri: appCreateInfo.redirectUri,
             confidential: !!appCreateInfo.confidential,
         };
