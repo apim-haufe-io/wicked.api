@@ -48,7 +48,7 @@ pgGrants.delete = (userId, applicationId, apiId, deletingUserId, callback) => {
 
 function getByUserApplicationAndApiImpl(userId, applicationId, apiId, callback) {
     debug(`getByUserApplicationAndApiImpl(${userId}, ${applicationId}, ${apiId})`);
-    pgUtils.getSingleBy('grants', ['users_id', 'application_id', 'api_id'], [userId, applicationId, apiId], (err, data) => {
+    pgUtils.getSingleBy('grants', ['userId', 'applicationId', 'apiId'], [userId, applicationId, apiId], (err, data) => {
         if (err)
             return callback(err);
         if (!data)
@@ -60,21 +60,21 @@ function getByUserApplicationAndApiImpl(userId, applicationId, apiId, callback) 
 function getByUserImpl(userId, callback) {
     debug(`getByUserImpl(${userId})`);
     const options = {
-        orderBy: 'application_id ASC'
+        orderBy: 'applicationId ASC'
     };
-    pgUtils.getBy('grants', 'users_id', userId, options, callback);
+    pgUtils.getBy('grants', 'userId', userId, options, callback);
 }
 
 function deleteByUserImpl(userId, deletingUserId, callback) {
     debug(`deleteByUserImpl(${userId})`);
-    pgUtils.deleteBy('grants', 'users_id', userId, callback);
+    pgUtils.deleteBy('grants', 'userId', userId, callback);
 }
 
 function upsertImpl(userId, applicationId, apiId, upsertingUserId, grantsInfo, callback) {
     debug(`upsertImpl(${userId}, ${applicationId}, ${apiId})`);
 
     // getSingleBy returns either exactly one record, or null (if there is no matching record)
-    pgUtils.getSingleBy('grants', ['users_id', 'application_id', 'api_id'], [userId, applicationId, apiId], (err, prevGrants) => {
+    pgUtils.getSingleBy('grants', ['userId', 'applicationId', 'apiId'], [userId, applicationId, apiId], (err, prevGrants) => {
         if (err)
             return callback(err);
         let nextGrants = {
@@ -99,7 +99,7 @@ function deleteImpl(userId, applicationId, apiId, deletingUserId, callback) {
     getByUserApplicationAndApiImpl(userId, applicationId, apiId, (err, data) => {
         if (err) // This can be a 404 for example
             return callback(err);
-        pgUtils.deleteBy('grants', ['users_id', 'application_id', 'api_id'], [userId, applicationId, apiId], callback);
+        pgUtils.deleteBy('grants', ['userId', 'applicationId', 'apiId'], [userId, applicationId, apiId], callback);
     });
 }
 

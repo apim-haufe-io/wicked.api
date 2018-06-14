@@ -68,6 +68,7 @@ dao.applications = {
     // patch:             (appInfo, patchingUserId, callback) => { dao._impl.applications.patch(appInfo, patchingUserId, callback); },
     delete: (appId, deletingUserId, callback) => { dao._impl.applications.delete(appId, deletingUserId, callback); },
 
+    getAll: (filter, orderBy, offset, limit, noCountCache, callback) => { dao._impl.applications.getAll(filter, orderBy, offset, limit, noCountCache, callback); },
     getIndex: (offset, limit, callback) => { dao._impl.applications.getIndex(offset, limit, callback); },
     getCount: (callback) => { dao._impl.applications.getCount(callback); },
 

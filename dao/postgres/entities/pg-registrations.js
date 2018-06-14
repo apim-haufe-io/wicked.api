@@ -48,7 +48,7 @@ pgRegistrations.delete = (poolId, userId, deletingUserId, callback) => {
 
 function getByPoolAndUserImpl(poolId, userId, callback) {
     debug(`getByPoolAndUserImpl(${poolId}, ${userId})`);
-    pgUtils.getSingleBy('registrations', ['pool_id', 'users_id'], [poolId, userId], (err, data) => {
+    pgUtils.getSingleBy('registrations', ['poolId', 'userId'], [poolId, userId], (err, data) => {
         if (err)
             return callback(err);
         if (!data) {
@@ -61,7 +61,7 @@ function getByPoolAndUserImpl(poolId, userId, callback) {
 
 function getByPoolAndNamespaceImpl(poolId, namespace, filter, orderBy, offset, limit, noCountCache, callback) {
     debug(`getByPoolAndNamespaceImpl(${poolId}, ${namespace}, ${filter}, ${orderBy}, ${offset}, ${limit}, ${noCountCache})`);
-    const fields = ['pool_id'];
+    const fields = ['poolId'];
     const values = [poolId];
     const operators = ['='];
     if (namespace) {
@@ -69,11 +69,7 @@ function getByPoolAndNamespaceImpl(poolId, namespace, filter, orderBy, offset, l
         values.push(namespace);
         operators.push('=');
     }
-    for (let fieldName in filter) {
-        fields.push(fieldName);
-        values.push(`%${filter[fieldName]}%`);
-        operators.push('ILIKE');
-    }
+    pgUtils.addFilterOptions(filter, fields, values, operators);
     const options = {
         limit: limit,
         offset: offset,
@@ -86,7 +82,7 @@ function getByPoolAndNamespaceImpl(poolId, namespace, filter, orderBy, offset, l
 
 function getByUserImpl(userId, callback) {
     debug(`getByUserImpl(${userId})`);
-    return pgUtils.getBy('registrations', 'users_id', userId, {
+    return pgUtils.getBy('registrations', 'userId', userId, {
         orderBy: 'pool_id ASC'
     }, (err, data, countResult) => {
         if (err)
@@ -101,7 +97,7 @@ function getByUserImpl(userId, callback) {
 
 function upsertImpl(poolId, userId, upsertingUserId, userData, callback) {
     debug(`upsertImpl(${poolId}, ${userId}, ${userData})`);
-    pgUtils.getBy('registrations', ['pool_id', 'users_id'], [poolId, userId], {}, (err, data) => {
+    pgUtils.getBy('registrations', ['poolId', 'userId'], [poolId, userId], {}, (err, data) => {
         if (err)
             return callback(err);
         if (data.length > 1)
@@ -117,7 +113,7 @@ function upsertImpl(poolId, userId, upsertingUserId, userData, callback) {
 
 function deleteImpl(poolId, userId, deletingUserId, callback) {
     debug(`deleteImpl(${poolId}, ${userId})`);
-    return pgUtils.deleteBy('registrations', ['pool_id', 'users_id'], [poolId, userId], callback);
+    return pgUtils.deleteBy('registrations', ['poolId', 'userId'], [poolId, userId], callback);
 }
 
 module.exports = pgRegistrations;

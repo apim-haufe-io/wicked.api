@@ -40,6 +40,12 @@ pgApplications.delete = (appId, deletingUserId, callback) => {
     return pgUtils.deleteById('applications', appId, callback);
 };
 
+pgApplications.getAll = (filter, orderBy, offset, limit, noCountCache, callback) => {
+    debug('getAll()');
+    pgUtils.checkCallback(callback);
+    return getAllImpl(filter, orderBy, offset, limit, noCountCache, callback);
+};
+
 pgApplications.getIndex = (offset, limit, callback) => {
     debug('getIndex()');
     pgUtils.checkCallback(callback);
@@ -96,7 +102,6 @@ function getByIdImpl(appId, client, callback) {
 function createImpl(appCreateInfo, userInfo, callback) {
     debug('createImpl()');
     const appId = appCreateInfo.id.trim();
-    const redirectUri = appCreateInfo.redirectUri;
 
     // Check for Dupe
     pgUtils.getById('applications', appId, (err, existingApp) => {
@@ -110,6 +115,7 @@ function createImpl(appCreateInfo, userInfo, callback) {
             name: appCreateInfo.name.substring(0, 128),
             redirectUri: appCreateInfo.redirectUri,
             confidential: !!appCreateInfo.confidential,
+            mainUrl: appCreateInfo.mainUrl
         };
         const ownerInfo = makeOwnerInfo(appId, userInfo, ownerRoles.OWNER);
 
@@ -157,6 +163,37 @@ function saveImpl(appInfo, savingUserId, callback) {
     });
 }
 
+function getAllImpl(filter, orderBy, offset, limit, noCountCache, callback) {
+    debug(`getAll(filter: ${filter}, orderBy: ${orderBy}, offset: ${offset}, limit: ${limit})`);
+    //return callback(new Error('PG.getAllImpl: Not implemented.'));
+    const fields = [];
+    const values = [];
+    const operators = [];
+    pgUtils.addFilterOptions(filter, fields, values, operators);
+    // This may be one of the most complicated queries we have here...
+    const options = {
+        limit: limit,
+        offset: offset,
+        orderBy: orderBy ? orderBy : 'id ASC',
+        operators: operators,
+        noCountCache: noCountCache,
+        additionalFields: ', b.users_id AS owner_user_id, b.data->>\'email\' AS owner_email',
+        joinClause: 'LEFT JOIN wicked.owners b ON a.id = b.applications_id AND b.id = (SELECT id FROM wicked.owners c WHERE c.applications_id = a.id AND c.data->>\'role\' = \'owner\' LIMIT 1)'
+    };
+    return pgUtils.getBy('applications', fields, values, options, (err, rows, countResult) => {
+        if (err)
+            return callback(err);
+        // Map owner_user_id and owner_email to nicer properties
+        for (let i = 0; i < rows.length; ++i) {
+            rows[i].ownerUserId = rows[i].owner_user_id;
+            delete rows[i].owner_user_id;
+            rows[i].ownerEmail = rows[i].owner_email;
+            delete rows[i].owner_email;
+        }
+        return callback(null, rows, countResult);
+    });
+}
+
 function getIndexImpl(offset, limit, callback) {
     debug(`getIndex(offset: ${offset}, limit: ${limit})`);
     pgUtils.getBy('applications', [], [], { orderBy: 'id ASC' }, (err, appList, countResult) => {
@@ -200,7 +237,7 @@ function addOwnerImpl(appId, userInfo, role, addingUserId, callback) {
 
 function deleteOwnerImpl(appId, deleteUserId, deletingUserId, callback) {
     debug(`deleteOwnerImpl(${appId}, ${deleteUserId}`);
-    pgUtils.deleteBy('owners', ['applications_id', 'users_id'], [appId, deleteUserId], (err) => {
+    pgUtils.deleteBy('owners', ['appId', 'userId'], [appId, deleteUserId], (err) => {
         if (err)
             return callback(err);
         // Return the updated appInfo as a result
