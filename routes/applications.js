@@ -248,10 +248,13 @@ applications.createApplication = function (app, res, loggedInUserId, appCreateIn
         const newAppInfo = {
             id: appId,
             name: appCreateInfo.name.substring(0, 128),
-            description: appCreateInfo.description.substring(0, 128),
             redirectUri: appCreateInfo.redirectUri,
             confidential: !!appCreateInfo.confidential,
         };
+
+        if(appCreateInfo.description){
+          newAppInfo.description = appCreateInfo.description.substring(0, 128);
+        }
 
         dao.applications.create(newAppInfo, userInfo, (err, createdAppInfo) => {
             if (err)
@@ -299,8 +302,7 @@ applications.patchApplication = function (app, res, loggedInUserId, appId, appPa
             // Update app
             if (appPatchInfo.name)
                 appInfo.name = appPatchInfo.name.substring(0, 128);
-            if (appPatchInfo.description)
-                appInfo.description = appPatchInfo.description.substring(0, 128);
+            appInfo.description = (appPatchInfo.description) ? appPatchInfo.description.substring(0, 128): "";    
             if (redirectUri)
                 appInfo.redirectUri = redirectUri;
             if (appPatchInfo.hasOwnProperty('confidential'))
