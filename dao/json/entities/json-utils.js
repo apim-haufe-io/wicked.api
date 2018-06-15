@@ -17,6 +17,83 @@ jsonUtils.pageArray = (array, offset, limit) => {
     return array.slice(offset, offset + limit);
 };
 
+/**
+ * Filters, sorts and pages an array of objects. Returns an object containing two
+ * properties: `list` and `filterCount`. The list is the filtered, sorted and paged
+ * list (taking limit and offset into account), and filterCount is the total count
+ * before the paging was applied.
+ * 
+ * @param {array} rows 
+ * @param {object} filter object containing {"name": "value"} pairs to filter for
+ * @param {*} orderBy "<field> ASC|DESC"
+ * @param {*} offset 
+ * @param {*} limit 
+ */
+jsonUtils.filterAndPage = (rows, filter, orderBy, offset, limit) => {
+    debug(`filterAndPage()`);
+    let filteredRows = rows;
+
+    if (filter) {
+        const tempList = [];
+        for (let i = 0; i < rows.length; ++i) {
+            const row = rows[i];
+            let matches = true;
+            for (let prop in filter) {
+                if (!filter[prop])
+                    continue;
+                const filterValue = filter[prop].toLowerCase();
+                if (!filterValue)
+                    continue;
+                if (!row.hasOwnProperty(prop)) {
+                    matches = false;
+                    break;
+                }
+                if (!row[prop]) {
+                    matches = false;
+                    break;
+                }
+                const thisValue = row[prop].toLowerCase();
+                if (thisValue.indexOf(filterValue) < 0) {
+                    matches = false;
+                    break;
+                }
+            }
+            if (matches) {
+                tempList.push(row);
+            }
+        }
+        filteredRows = tempList;
+    }
+
+    if (orderBy) {
+        const o = orderBy.split(' ');
+        const sortField = o[0];
+        const dir = o[1];
+        const firstOrder = dir === 'ASC' ? -1 : 1;
+        const lastOrder = dir === 'ASC' ? 1 : -1;
+        filteredRows.sort((a, b) => {
+            if (!a.hasOwnProperty(sortField) && !b.hasOwnProperty(sortField))
+                return 0;
+            if (a.hasOwnProperty(sortField) && !b.hasOwnProperty(sortField))
+                return firstOrder;
+            if (!a.hasOwnProperty(sortField) && b.hasOwnProperty(sortField))
+                return firstOrder;
+            const aVal = a[sortField];
+            const bVal = b[sortField];
+            if (aVal < bVal)
+                return firstOrder;
+            if (aVal > bVal)
+                return lastOrder;
+            return 0;
+        });
+    }
+
+    return {
+        list: jsonUtils.pageArray(filteredRows, offset, limit),
+        filterCount: filteredRows.length
+    };
+};
+
 jsonUtils.checkCallback = (callback) => {
     if (!callback || typeof(callback) !== 'function') {
         error('Value of callback: ' + callback);

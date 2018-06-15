@@ -66,6 +66,19 @@ jsonApplications.delete = (appId, deletingUserId, callback) => {
     return callback(null, deletedAppInfo);
 };
 
+jsonApplications.getAll = (filter, orderBy, offset, limit, noCountCache, callback) => {
+    debug('getAll()');
+    // noCountCache not used here, it doesn't have any impact
+    jsonUtils.checkCallback(callback);
+    let allApps;
+    try {
+        allApps = jsonApplications.getAllSync(filter, orderBy, offset, limit);
+    } catch (err) {
+        return callback(err);
+    }
+    return callback(null, allApps.rows, { count: allApps.count, cached: false });
+};
+
 jsonApplications.getIndex = (offset, limit, callback) => {
     debug('getIndex()');
     jsonUtils.checkCallback(callback);
@@ -132,6 +145,54 @@ jsonApplications.deleteOwner = (appId, deleteUserId, deletingUserId, callback) =
 // DAO implementation/internal methods
 // =================================================
 
+function findOwner(appInfo) {
+    if (!appInfo.owners || appInfo.owners.length === 0)
+        return null;
+
+    for (let i = 0; i < appInfo.owners.length; ++i) {
+        const owner = appInfo.owners[i];
+        if (owner.role === 'owner')
+            return owner;
+    }
+
+    warn(`Application ${appInfo.id} does not have an owner with role 'owner'.`);
+    return appInfo.owners[0];
+}
+
+jsonApplications.getAllSync = (filter, orderBy, offset, limit) => {
+    debug('getAllSync()');
+    // Meh. This is super expensive, but you shouldn't use the JSON
+    // backend for production anyway. Plus, this is only for admins.
+    // So it's not that bad.
+    const appsIndex = jsonApplications.loadAppsIndex();
+    const appInfoList = [];
+    for (let i = 0; i < appsIndex.length; ++i) {
+        const appId = appsIndex[i].id;
+        const appInfo = jsonApplications.loadApplication(appId);
+        if (!appInfo) {
+            warn(`getAllSync: Could not load application with id ${appId}`);
+            continue;
+        }
+        const owner = findOwner(appInfo);
+        if (owner) {
+            appInfo.ownerUserId = owner.userId;
+            appInfo.ownerEmail = owner.email;
+        }
+        delete appInfo.owners;
+        appInfoList.push(appInfo);
+    }
+
+    if (!orderBy)
+        orderBy = 'id ASC';
+
+    const filterResult = jsonUtils.filterAndPage(appInfoList, filter, orderBy, offset, limit);
+
+    return {
+        rows: filterResult.list,
+        count: filterResult.filterCount
+    };
+};
+
 jsonApplications.getIndexSync = (offset, limit) => {
     debug('getIndexSync()');
     const appsIndex = jsonApplications.loadAppsIndex();
@@ -168,6 +229,7 @@ jsonApplications.createSync = (appCreateInfo, userInfo) => {
                 description: appCreateInfo.description.substring(0, 128),
                 redirectUri: appCreateInfo.redirectUri,
                 confidential: !!appCreateInfo.confidential,
+                mainUrl: appCreateInfo.mainUrl,
                 owners: [
                     {
                         userId: userInfo.id,

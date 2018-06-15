@@ -38,7 +38,11 @@ const verifySubscriptionsWriteScope = utils.verifyScope(WRITE_SUBSCRIPTIONS);
 
 applications.get('/', verifyApplicationsReadScope, function (req, res, next) {
     const { offset, limit } = utils.getOffsetLimit(req);
-    applications.getApplications(req.app, res, req.apiUserId, offset, limit);
+    const filter = utils.getFilter(req);
+    const orderBy = utils.getOrderBy(req);
+    const noCountCache = utils.getNoCountCache(req);
+    const embed = utils.getEmbed(req);
+    applications.getApplications(req.app, res, req.apiUserId, filter, orderBy, offset, limit, noCountCache, embed);
 });
 
 applications.post('/', verifyApplicationsWriteScope, function (req, res, next) {
@@ -141,7 +145,7 @@ applications.getAllowedAccess = function (app, appInfo, userInfo) {
     return accessFlags.NONE;
 };
 
-applications.getApplications = function (app, res, loggedInUserId, offset, limit) {
+applications.getApplications = function (app, res, loggedInUserId, filter, orderBy, offset, limit, noCountCache, embed) {
     debug('getApplications()');
     users.loadUser(app, loggedInUserId, (err, userInfo) => {
         if (err)
@@ -151,15 +155,31 @@ applications.getApplications = function (app, res, loggedInUserId, offset, limit
         if (!userInfo.admin)
             return utils.fail(res, 403, 'Not allowed. This is admin land.');
 
-        dao.applications.getIndex(offset, limit, (err, appsIndex, countResult) => {
-            if (err)
-                return utils.fail(res, 500, 'getApplications: getIndex failed', err);
-            res.json({
-                items: appsIndex,
-                count: countResult.count,
-                count_cached: countResult.cached
+        if (embed) {
+            dao.applications.getAll(filter, orderBy, offset, limit, noCountCache, (err, appsIndex, countResult) => {
+                if (err)
+                    return utils.fail(res, 500, 'getApplications: getAll failed', err);
+                res.json({
+                    items: appsIndex,
+                    count: countResult.count,
+                    count_cached: countResult.cached,
+                    offset: offset,
+                    limit: limit
+                });
             });
-        });
+        } else {
+            dao.applications.getIndex(offset, limit, (err, appsIndex, countResult) => {
+                if (err)
+                    return utils.fail(res, 500, 'getApplications: getIndex failed', err);
+                res.json({
+                    items: appsIndex,
+                    count: countResult.count,
+                    count_cached: countResult.cached,
+                    offset: offset,
+                    limit: limit
+                });
+            });
+        }
     });
 };
 
@@ -250,6 +270,7 @@ applications.createApplication = function (app, res, loggedInUserId, appCreateIn
             name: appCreateInfo.name.substring(0, 128),
             redirectUri: appCreateInfo.redirectUri,
             confidential: !!appCreateInfo.confidential,
+            mainUrl: appCreateInfo.mainUrl
         };
 
         if(appCreateInfo.description){

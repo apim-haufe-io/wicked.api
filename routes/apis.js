@@ -651,7 +651,9 @@ apis.getSubscriptions = function (app, res, loggedInUserId, apiId, offset, limit
                 return res.json({
                     items: apiSubs,
                     count: countResult.count,
-                    count_cached: countResult.cached
+                    count_cached: countResult.cached,
+                    offset: offset,
+                    limit: limit
                 });
             }
             utils.fail(res, 404, 'Not Found.');

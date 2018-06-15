@@ -482,7 +482,14 @@ utils.getOffsetLimit = (req) => {
 
 utils.getNoCountCache = (req) => {
     const no_cache = req.query.no_cache;
-    if (no_cache && no_cache == '1')
+    if (no_cache && (no_cache == '1' || no_cache == 'true'))
+        return true;
+    return false;
+};
+
+utils.getEmbed = (req) => {
+    const embed = req.query.embed;
+    if (embed && (embed == '1' || embed == 'true'))
         return true;
     return false;
 };

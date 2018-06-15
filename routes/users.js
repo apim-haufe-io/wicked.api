@@ -342,7 +342,9 @@ users.getUsers = function (app, res, loggedInUserId, offset, limit) {
             res.json({
                 items: userIndex,
                 count: countResult.count,
-                count_cached: countResult.cached
+                count_cached: countResult.cached,
+                offset: offset,
+                limit: limit
             });
         });
     });

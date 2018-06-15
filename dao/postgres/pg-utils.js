@@ -256,6 +256,8 @@ pgUtils.getBy = (entity, fieldNameOrNames, fieldValueOrValues, options, callback
     let orderBy = null;
     let operators = [];
     let noCountCache = false;
+    let joinClause = null;
+    let additionalFields = null;
     fieldNames.forEach(f => operators.push('='));
     if (options.client)
         client = options.client;
@@ -273,11 +275,15 @@ pgUtils.getBy = (entity, fieldNameOrNames, fieldValueOrValues, options, callback
     }
     if (options.noCountCache)
         noCountCache = options.noCountCache;
+    if (options.joinClause)
+        joinClause = options.joinClause;
+    if (options.additionalFields)
+        additionalFields = options.additionalFields;
 
     getPoolOrClient(client, (err, poolOrClient) => {
         if (err)
             return callback(err);
-        const queries = makeSqlQuery(entity, fieldNames, operators, orderBy, offset, limit);
+        const queries = makeSqlQuery(entity, fieldNames, operators, orderBy, offset, limit, additionalFields, joinClause);
         const query = queries.query;
 
         async.parallel({
@@ -289,6 +295,15 @@ pgUtils.getBy = (entity, fieldNameOrNames, fieldValueOrValues, options, callback
             return callback(null, results.rows, results.countResult);
         });
     });
+};
+
+pgUtils.addFilterOptions = (filter, fields, values, operators) => {
+    debug(`addFilterOptions()`);
+    for (let fieldName in filter) {
+        fields.push(fieldName);
+        values.push(`%${filter[fieldName]}%`);
+        operators.push('ILIKE');
+    }
 };
 
 // TODO: Put this in redis instead
@@ -354,21 +369,56 @@ function queryPostgres(poolOrClient, entity, query, fieldValues, callback) {
     });
 }
 
-function makeSqlQuery(entity, fieldNames, operators, orderBy, offset, limit) {
-    let query = `SELECT * FROM wicked.${entity}`;
-    let countQuery = `SELECT COUNT(*) AS count FROM wicked.${entity}`;
-    let queryWhere = '';
-    const processedFieldNames = [];
+function resolveFieldName(entity, mainPrefix, fieldName) {
+    // The field 'id' is always present, just use it
+    if (fieldName === 'id')
+        return fieldName;
+    // JOIN extra field with given table prefix?
+    if (mainPrefix && fieldName.indexOf('.') >= 0)
+        return fieldName;
+    if (!model[entity])
+        throw new Error(`resolveFieldName: Unknown entity '${entity}'`);
     const entityModel = model[entity];
     const props = entityModel.properties;
+    // Is this already the name of a database field?
+    if (props[fieldName])
+        return fieldName;
+    // Apparently not; iterate to see whether a "friendly name" was used,
+    // i.e. if a property_name to use node-side was defined.
+    for (let propName in props) {
+        // Does this property have a friendly name?
+        const dbPropName = props[propName].property_name;
+        if (!dbPropName)
+            continue; // Nope, check the next
+        // Yes, does it match?
+        if (dbPropName === fieldName)
+            return propName; // Yes, return the database name
+    }
+    // Not known, we will assume it's part of the JSONB data property
+    return `${mainPrefix}data->>'${fieldName}'`;
+}
+
+function makeSqlQuery(entity, fieldNames, operators, orderBy, offset, limit, additionalFields, joinClause) {
+    let mainPrefix = '';
+    let tableName = '';
+    if (joinClause) {
+        tableName = 'a';
+        mainPrefix = `${tableName}.`;
+    } else {
+        joinClause = '';
+    }
+    if (!additionalFields)
+        additionalFields = '';
+    let query = `SELECT ${mainPrefix}*${additionalFields} FROM wicked.${entity} ${tableName}`;
+    if (joinClause)
+        query += ` ${joinClause}`;
+    let countQuery = `SELECT COUNT(*) AS count FROM wicked.${entity} ${tableName}`;
+    if (joinClause)
+        countQuery += ` ${joinClause}`;
+    let queryWhere = '';
+    const processedFieldNames = [];
     for (let i = 0; i < fieldNames.length; ++i) {
-        const f = fieldNames[i];
-        if (f === 'id')
-            processedFieldNames.push(f);
-        else if (props[f])
-            processedFieldNames.push(f);
-        else // field is in JSONB
-            processedFieldNames.push(`data->>'${f}'`);
+        processedFieldNames.push(resolveFieldName(entity, mainPrefix, fieldNames[i]));
     }
     if (fieldNames.length > 0)
         queryWhere += ` WHERE ${processedFieldNames[0]} ${operators[0]} $1`;
@@ -380,19 +430,17 @@ function makeSqlQuery(entity, fieldNames, operators, orderBy, offset, limit) {
 
     if (orderBy) {
         const tmp = orderBy.split(' ');
-        const tmpOrderField = tmp[0];
         const direction = tmp[1];
-        let orderField = null;
-        if (tmpOrderField === 'id' || props[tmpOrderField])
-            orderField = tmpOrderField;
-        else // field in jsonb presumably
-            orderField = `data->>'${tmpOrderField}'`;
+        let orderField = resolveFieldName(entity, mainPrefix, tmp[0]);
         queryWhere += ` ORDER BY ${orderField} ${direction}`;
     }
     if (offset >= 0 && limit > 0)
         queryWhere += ` LIMIT ${limit} OFFSET ${offset}`;
 
     query += queryWhere;
+
+    debug('query: ' + query);
+    debug('countQuery: ' + countQuery);
 
     return {
         query: query,
@@ -450,9 +498,9 @@ pgUtils.deleteBy = (entity, fieldNameOrNames, fieldValueOrValues, clientOrCallba
         let sql = `DELETE FROM wicked.${entity} `;
         if (fieldNames.length === 0)
             return callback(utils.makeError(500, 'deleteBy: Unconditional DELETE detected, not allowing'));
-        sql += ` WHERE ${fieldNames[0]} = $1`;
+        sql += ` WHERE ${resolveFieldName(entity, '', fieldNames[0])} = $1`;
         for (let i = 1; i < fieldNames.length; ++i)
-            sql += ` AND ${fieldNames[i]} = \$${i + 1} `;
+            sql += ` AND ${resolveFieldName(entity, '', fieldNames[i])} = \$${i + 1} `;
         client.query(sql, fieldValues, (err, result) => {
             if (err)
                 return callback(err);
@@ -678,6 +726,7 @@ function normalizeResult(entity, resultList) {
         const normRow = Object.assign({}, row.data || {});
         normRow.id = row.id;
         const props = entityModel.properties;
+        const pgNamesHandled = {};
         for (let pgName in props) {
             let prop = props[pgName];
             let jsonName = pgName;
@@ -686,6 +735,17 @@ function normalizeResult(entity, resultList) {
             normRow[jsonName] = row[pgName];
             if (!prop.optional && !row[pgName])
                 throw utils.makeError(500, `PG Utils: Row with id ${row.id} of entity ${entity} is empty but is not optional.`);
+            pgNamesHandled[pgName] = true;
+        }
+        // Additional fields from JOINs?
+        for (let pgName in row) {
+            // Don't take "data" again, it's already mapped
+            if (pgName === 'data')
+                continue;
+            if (pgNamesHandled[pgName])
+                continue;
+            // Don't map property names, we wouldn't know how
+            normRow[pgName] = row[pgName];
         }
         normalizedResult.push(normRow);
     }

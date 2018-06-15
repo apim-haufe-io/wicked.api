@@ -79,7 +79,7 @@ function getByIdImpl(userId, callback) {
             return callback(err);
         if (!userInfo)
             return callback(null, null);
-        pgUtils.getBy('owners', 'users_id', userId, {}, (err, ownerList) => {
+        pgUtils.getBy('owners', 'userId', userId, {}, (err, ownerList) => {
             if (err)
                 return callback(err);
             userInfo.applications = ownerList.map(o => { return { id: o.appId }; });

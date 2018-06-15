@@ -105,7 +105,9 @@ registrations.getByPoolAndNamespace = (app, res, loggedInUserId, poolId, namespa
             return res.json({
                 items: regList,
                 count: countResult.count,
-                count_cached: countResult.cached
+                count_cached: countResult.cached,
+                offset: offset,
+                limit: limit
             });
         });
     });

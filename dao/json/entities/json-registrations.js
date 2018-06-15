@@ -114,106 +114,34 @@ jsonRegistrations.getByUserSync = (userId) => {
     }
     return { rows: tmp, count: userIndex.length };
 };
-/**
- * Filters, sorts and pages an array of objects. Returns an object containing two
- * properties: `list` and `filterCount`. The list is the filtered, sorted and paged
- * list (taking limit and offset into account), and filterCount is the total count
- * before the paging was applied.
- * 
- * @param {array} rows 
- * @param {object} filter object containing {"name": "value"} pairs to filter for
- * @param {*} orderBy "<field> ASC|DESC"
- * @param {*} offset 
- * @param {*} limit 
- */
-function filterAndPage(rows, filter, orderBy, offset, limit) {
-    let filteredRows = rows;
 
-    if (filter) {
-        const tempList = [];
-        for (let i = 0; i < rows.length; ++i) {
-            const row = rows[i];
-            let matches = true;
-            for (let prop in filter) {
-                const filterValue = filter[prop].toLowerCase();
-                if (!filterValue)
-                    continue;
-                if (!row.hasOwnProperty(prop)) {
-                    matches = false;
-                    break;
-                }
-                const thisValue = row[prop].toLowerCase();
-                if (thisValue.indexOf(filterValue) < 0) {
-                    matches = false;
-                    break;
-                }
-            }
-            if (matches) {
-                tempList.push(row);
-            }
-        }
-        filteredRows = tempList;
-    }
-
-    if (orderBy) {
-        const o = orderBy.split(' ');
-        const sortField = o[0];
-        const dir = o[1];
-        const firstOrder = dir === 'ASC' ? -1 : 1;
-        const lastOrder = dir === 'ASC' ? 1 : -1;
-        filteredRows.sort((a, b) => {
-            if (!a.hasOwnProperty(sortField) && !b.hasOwnProperty(sortField))
-                return 0;
-            if (a.hasOwnProperty(sortField) && !b.hasOwnProperty(sortField))
-                return firstOrder;
-            if (!a.hasOwnProperty(sortField) && b.hasOwnProperty(sortField))
-                return firstOrder;
-            const aVal = a[sortField];
-            const bVal = b[sortField];
-            if (aVal < bVal)
-                return firstOrder;
-            if (aVal > bVal)
-                return lastOrder;
-            return 0;
-        });
-    }
-
-    return {
-        list: jsonUtils.pageArray(filteredRows, offset, limit),
-        filterCount: filteredRows.length
-    };
-}
 
 jsonRegistrations.getByPoolAndNamespaceSync = (poolId, namespace, filter, orderBy, offset, limit) => {
     debug(`getByPoolAndNamespaceSync(${poolId}, ${namespace}, ${filter}, ${orderBy})`);
     // Note: All indexes are always sorted by name internally anyway,
     // so we don't have to do that here.
-    let filteredList;
-    let count = -1;
+    let indexList;
     if (!namespace) {
         // Use the "big" pool index
-        const poolIndex = readPoolIndex(poolId);
-        //count = poolIndex.length;
-        const { list, filterCount } = filterAndPage(poolIndex, filter, orderBy, offset, limit);
-        filteredList = list;
-        count = filterCount;
+        indexList = readPoolIndex(poolId);
     } else {
         // We need to use the namespace index
-        const namespaceIndex = readNamespaceIndex(poolId, namespace);
-        //count = namespaceIndex.length;
-        const { list, filterCount } = filterAndPage(namespaceIndex, filter, orderBy, offset, limit);
-        filteredList = list;
-        count = filterCount;
+        indexList = readNamespaceIndex(poolId, namespace);
     }
 
     const tmpArray = [];
-    for (let i = 0; i < filteredList.length; ++i) {
-        const entry = filteredList[i]; // contains id and name
+    for (let i = 0; i < indexList.length; ++i) {
+        const entry = indexList[i]; // contains id and name
         const thisReg = jsonRegistrations.getByPoolAndUserSync(poolId, entry.id);
         tmpArray.push(thisReg);
     }
+
+    if (!orderBy)
+        orderBy = 'name ASC';
+
+    const { list, filterCount } = jsonUtils.filterAndPage(tmpArray, filter, orderBy, offset, limit);
     // Now return the list
-    return { rows: tmpArray, count: count };
+    return { rows: list, count: filterCount };
 };
 
 jsonRegistrations.upsertSync = (poolId, userId, userData) => {
