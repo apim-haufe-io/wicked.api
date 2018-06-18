@@ -128,15 +128,15 @@ jsonSubscriptions.legacySaveSubscriptionApiIndex = (apiId, subs) => {
 // =================================================
 
 jsonSubscriptions.getSubsDir = function () {
-    return path.join(utils.getDynamicDir(), 'subscriptions');
+    return path.join(jsonUtils.getDynamicDir(), 'subscriptions');
 };
 
 jsonSubscriptions.getSubsIndexDir = function () {
-    return path.join(utils.getDynamicDir(), 'subscription_index');
+    return path.join(jsonUtils.getDynamicDir(), 'subscription_index');
 };
 
 jsonSubscriptions.getSubsApiIndexDir = function () {
-    return path.join(utils.getDynamicDir(), 'subscription_api_index');
+    return path.join(jsonUtils.getDynamicDir(), 'subscription_api_index');
 };
 
 jsonSubscriptions.loadSubscriptions = function (appId) {

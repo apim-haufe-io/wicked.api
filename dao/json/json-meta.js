@@ -59,7 +59,7 @@ function cleanupLockFiles(glob, callback) {
     debug('cleanupLockFiles()');
     let error = null;
     try {
-        const dynDir = utils.getDynamicDir();
+        const dynDir = jsonUtils.getDynamicDir();
         cleanupDir(dynDir);
         if (jsonUtils.hasGlobalLock())
             jsonUtils.globalUnlock();
@@ -87,14 +87,14 @@ function isExistingDir(dirPath) {
 }
 
 function getSubscriptionIndexDir() {
-    const dynamicDir = utils.getDynamicDir();
+    const dynamicDir = jsonUtils.getDynamicDir();
     return path.join(dynamicDir, 'subscription_index');
 }
 
 function cleanupDirectory(dirName, callback) {
     debug('cleanupDirectory(): ' + dirName);
     try {
-        let dynamicDir = utils.getDynamicDir();
+        let dynamicDir = jsonUtils.getDynamicDir();
         if (!isExistingDir(dynamicDir))
             return callback(null); // We don't even have a dynamic dir yet; fine.
         let subIndexDir = path.join(dynamicDir, dirName);
@@ -167,10 +167,15 @@ function checkDynamicConfigDir(glob, callback) {
         {
             dir: 'grants',
             file: 'dummy'
+        },
+        {
+            dir: 'meta',
+            file: 'meta.json',
+            content: { dynamicVersion: 0 }
         }
     ];
     try {
-        let dynamicDir = utils.getDynamicDir();
+        let dynamicDir = jsonUtils.getDynamicDir();
         if (!isExistingDir(dynamicDir)) {
             debug('Creating dynamic base directory ' + dynamicDir);
             fs.mkdirSync(dynamicDir);
@@ -185,8 +190,13 @@ function checkDynamicConfigDir(glob, callback) {
             }
             let fileName = path.join(subDir, fileDesc.file);
             if (!fs.existsSync(fileName)) {
-                debug('Creating file ' + fileName + ' with empty array.');
-                fs.writeFileSync(fileName, JSON.stringify([], null, 2), 'utf8');
+                if (!fileDesc.content) {
+                    debug('Creating file ' + fileName + ' with empty array.');
+                    fs.writeFileSync(fileName, JSON.stringify([], null, 2), 'utf8');
+                } else {
+                    debug('Creating file ' + fileName + ' with predefined content.');
+                    fs.writeFileSync(fileName, JSON.stringify(fileDesc.content, null, 2), 'utf8');
+                }
             }
         }
 
@@ -196,15 +206,125 @@ function checkDynamicConfigDir(glob, callback) {
     }
 }
 
+function getMetaFileName() {
+    debug(`getMetaFileName()`);
+    const dynamicDir = jsonUtils.getDynamicDir();
+    const metaDir = path.join(dynamicDir, 'meta');
+    const metaFile = path.join(metaDir, 'meta.json');
+    if (!fs.existsSync(metaDir)) {
+        throw new Error(`JSON DAO: Directory "meta" does not exist, expected ${metaDir}`);
+    }
+    if (!fs.existsSync(metaFile)) {
+        throw new Error(`JSON DAO: File "meta.json" does not exist, expected ${metaFile}`);
+    }
+
+    return metaFile;
+}
+
+function loadMetaJson() {
+    debug(`loadMetaJson()`);
+    const metaFile = getMetaFileName();
+    try {
+        const metaJson = JSON.parse(fs.readFileSync(metaFile, 'utf8'));
+        return metaJson;
+    } catch (err) {
+        error(`loadMetaJson(): File ${metaFile} could either not be loaded or not be parsed as JSON.`);
+        throw err;
+    }
+}
+
+function saveMetaJson(metaJson) {
+    debug(`saveMetaJson()`);
+    debug(metaJson);
+    const metaFile = getMetaFileName();
+    fs.writeFileSync(metaFile, JSON.stringify(metaJson, null, 2), 'utf8');
+}
+
+function getDynamicVersion() {
+    debug(`getDynamicVersion()`);
+
+    const metaJson = loadMetaJson();
+    if (metaJson.hasOwnProperty('dynamicVersion')) {
+        const dynamicVersion = metaJson.dynamicVersion;
+        debug(`getDynamicVersion(): Returns ${dynamicVersion}`);
+        return dynamicVersion;
+    }
+    warn(`getDynamicVersion(): File meta/meta.json did not contain a "dynamicVersion" property.`);
+    return 0;
+}
+
+function setDynamicVersion(newDynamicVersion) {
+    debug(`setDynamicVersion(${newDynamicVersion})`);
+    const metaJson = loadMetaJson();
+    metaJson.dynamicVersion = newDynamicVersion;
+    saveMetaJson(metaJson);
+    return;
+}
+
+function findMaxIndex(o) {
+    let maxIndex = -1;
+    for (let key in o) {
+        let thisIndex = -1;
+        try {
+            thisIndex = Number.parseInt(key);
+        } catch (err) {
+            error(`findMaxIndex(): Key ${key} could not be parsed as an int (Number.parseInt())`);
+            throw err;
+        }
+        if (thisIndex === 0)
+            throw new Error(`findMaxIndex(): Key ${key} was parsed to int value 0; this must not be correct.`);
+        if (thisIndex > maxIndex)
+            maxIndex = thisIndex;
+    }
+    if (maxIndex === -1)
+        throw new Error('findMaxIndex: Given object does not contain any valid indexes');
+    return maxIndex;
+}
+
+// ==============================================
+
 function runMigrations(glob, callback) {
     debug('runMigrations()');
+
+    const migrations = {
+        1: nullMigration,
+        // 2: migrateUsersToRegistrations_wicked1_0_0
+    };
+
+    const targetDynamicVersion = findMaxIndex(migrations);
+
+    const currentVersion = getDynamicVersion();
+    if (currentVersion < targetDynamicVersion) {
+        info(`Current dynamic data version is ${currentVersion}, target is ${targetDynamicVersion}. Attempting to run migrations.`);
+
+        for (let v = currentVersion + 1; v <= targetDynamicVersion; ++v) {
+            info(`Running dynamic migration to version ${v}`);
+
+            if (!migrations[v]) 
+                throw new Error(`Dynamic version migration step ${v} was not found.`);
+
+            const err = migrations[v]();
+            if (!err) {
+                info(`Dynamic migration to version ${v} succeeded.`);
+            } else {
+                error(`Dynamic migration to version ${v} FAILED.`);
+                error(err);
+                throw err;
+            }
+        }
+    }
+
     return callback(null);
 }
 
-function getDynamicVersion(glob) {
-    debug('getDynamicVersion()');
+function nullMigration() {
+    debug(`nullMigration()`);
+    return null;
+}
 
-    // TODO: Update users -> users + registrations
+function migrateUsersToRegistrations_wicked1_0_0() {
+    debug(`migrateUsersToRegistrations_wicked1_0_0()`);
+    return new Error('Not implemented');
 }
 
 module.exports = jsonMeta;

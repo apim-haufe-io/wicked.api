@@ -76,7 +76,7 @@ jsonRegistrations.delete = (poolId, userId, deletingUserId, callback) => {
 // =================================================
 
 function makeRegsFileName(poolId, userId) {
-    const regsDir = path.join(utils.getDynamicDir(), 'registrations');
+    const regsDir = path.join(jsonUtils.getDynamicDir(), 'registrations');
     const regsFile = path.join(regsDir, `${poolId}_${userId}.json`);
     return regsFile;
 }
@@ -200,7 +200,7 @@ jsonRegistrations.deleteSync = (poolId, userId) => {
 function getUserIndexFile(userId) {
     if (!userId)
         throw new Error(`getUserIndexFile: userId is empty`);
-    const regsDir = path.join(utils.getDynamicDir(), 'registrations');
+    const regsDir = path.join(jsonUtils.getDynamicDir(), 'registrations');
     const userIndex = path.join(regsDir, `${userId}.json`);
     return userIndex;
 }
@@ -260,7 +260,7 @@ function sortIndex(index) {
 function getPoolIndexFile(poolId) {
     if (!poolId)
         throw new Error(`getPoolIndexFile: poolId is empty`);
-    const regsDir = path.join(utils.getDynamicDir(), 'registrations');
+    const regsDir = path.join(jsonUtils.getDynamicDir(), 'registrations');
     const poolIndex = path.join(regsDir, `${poolId}.json`);
     return poolIndex;
 }
@@ -351,7 +351,7 @@ exactly one pool.
 function getNamespaceIndexFile(poolId, namespace) {
     if (!namespace)
         throw new Error("It doesn't make sense to get a namespace file for an empty namespace");
-    const regsDir = path.join(utils.getDynamicDir(), 'registrations');
+    const regsDir = path.join(jsonUtils.getDynamicDir(), 'registrations');
     const namespaceIndex = path.join(regsDir, `${poolId}_NS_${namespace}.json`);
     return namespaceIndex;
 }

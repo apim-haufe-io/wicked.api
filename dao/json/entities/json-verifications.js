@@ -78,7 +78,7 @@ jsonVerifications.reconcile = (expirySeconds, callback) => {
 
 jsonVerifications.loadVerifications = function () {
     debug('loadVerifications()');
-    const verificationsDir = path.join(utils.getDynamicDir(), 'verifications');
+    const verificationsDir = path.join(jsonUtils.getDynamicDir(), 'verifications');
     const verificationsFile = path.join(verificationsDir, '_index.json');
     if (!fs.existsSync(verificationsFile))
         return [];
@@ -88,7 +88,7 @@ jsonVerifications.loadVerifications = function () {
 jsonVerifications.saveVerifications = function (verificationInfos) {
     debug('saveVerifications()');
     debug(verificationInfos);
-    const verificationsDir = path.join(utils.getDynamicDir(), 'verifications');
+    const verificationsDir = path.join(jsonUtils.getDynamicDir(), 'verifications');
     const verificationsFile = path.join(verificationsDir, '_index.json');
     fs.writeFileSync(verificationsFile, JSON.stringify(verificationInfos, null, 2), 'utf8');
 };

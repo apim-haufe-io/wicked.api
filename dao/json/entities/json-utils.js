@@ -101,6 +101,10 @@ jsonUtils.checkCallback = (callback) => {
     }
 };
 
+jsonUtils.getDynamicDir = function () {
+    return utils.getApp().get('dynamic_config');
+};
+
 // LOCKING UTILITY FUNCTIONS
 
 jsonUtils.withLockedUserList = function (userIdList, actionHook) {
@@ -293,7 +297,7 @@ jsonUtils.withLockedVerifications = function (actionHook) {
 };
 
 jsonUtils.globalLock = function () {
-    const globalLockFileName = path.join(utils.getDynamicDir(), 'global.lock');
+    const globalLockFileName = path.join(jsonUtils.getDynamicDir(), 'global.lock');
     if (fs.existsSync(globalLockFileName))
         throw utils.makeError(423, "utils.globalLock - System already is globally locked!");
     fs.writeFileSync(globalLockFileName, '');
@@ -301,7 +305,7 @@ jsonUtils.globalLock = function () {
 };
 
 jsonUtils.globalUnlock = function () {
-    const globalLockFileName = path.join(utils.getDynamicDir(), 'global.lock');
+    const globalLockFileName = path.join(jsonUtils.getDynamicDir(), 'global.lock');
     if (!fs.existsSync(globalLockFileName))
         throw utils.makeError(423, "utils.globalUnlock - System isn't locked, cannot unlock!");
     fs.unlinkSync(globalLockFileName);
@@ -309,7 +313,7 @@ jsonUtils.globalUnlock = function () {
 };
 
 jsonUtils.hasGlobalLock = function () {
-    const globalLockFileName = path.join(utils.getDynamicDir(), 'global.lock');
+    const globalLockFileName = path.join(jsonUtils.getDynamicDir(), 'global.lock');
     return fs.existsSync(globalLockFileName);
 };
 
@@ -317,7 +321,7 @@ jsonUtils.lockFile = function (subDir, fileName) {
     debug('lockFile(): ' + subDir + '/' + fileName);
     if (jsonUtils.hasGlobalLock())
         return false;
-    const baseDir = path.join(utils.getDynamicDir(), subDir);
+    const baseDir = path.join(jsonUtils.getDynamicDir(), subDir);
     const fullFileName = path.join(baseDir, fileName);
     const lockFileName = fullFileName + '.lock';
 
@@ -333,7 +337,7 @@ jsonUtils.lockFile = function (subDir, fileName) {
 
 jsonUtils.unlockFile = function (subDir, fileName) {
     debug('unlockFile(): ' + subDir + '/' + fileName);
-    const baseDir = path.join(utils.getDynamicDir(), subDir);
+    const baseDir = path.join(jsonUtils.getDynamicDir(), subDir);
     const lockFileName = path.join(baseDir, fileName + '.lock');
 
     if (fs.existsSync(lockFileName))
@@ -379,7 +383,7 @@ jsonUtils.unlockApplication = function (appId) {
 };
 
 jsonUtils.getAppsDir = function () {
-    return path.join(utils.getDynamicDir(), 'applications');
+    return path.join(jsonUtils.getDynamicDir(), 'applications');
 };
 
 // SUBSCRIPTIONS

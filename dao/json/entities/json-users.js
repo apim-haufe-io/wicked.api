@@ -140,7 +140,7 @@ jsonUsers.loadUser = (userId) => {
     debug('loadUser(): ' + userId);
     if (!userId)
         return null;
-    const userDir = path.join(utils.getDynamicDir(), 'users');
+    const userDir = path.join(jsonUtils.getDynamicDir(), 'users');
     const userFileName = path.join(userDir, userId + '.json');
     if (!fs.existsSync(userFileName))
         return null;
@@ -171,7 +171,7 @@ jsonUsers.loadUserByEmail = function (userEmail) {
 jsonUsers.saveUser = (userInfo, savingUserId) => {
     debug('saveUser()');
 
-    const userDir = path.join(utils.getDynamicDir(), 'users');
+    const userDir = path.join(jsonUtils.getDynamicDir(), 'users');
     const userFileName = path.join(userDir, userInfo.id + '.json');
 
     // Need to add developer group if validated?
@@ -328,7 +328,7 @@ jsonUsers.deleteUser = (userId, deletingUserId) => {
         // Write index (before deleting file, please, otherway around can create inconsistencies)
         jsonUsers.saveUserIndex(userIndex);
 
-        const userDir = path.join(utils.getDynamicDir(), 'users');
+        const userDir = path.join(jsonUtils.getDynamicDir(), 'users');
         const userFileName = path.join(userDir, userId + '.json');
         // Delete user JSON
         if (fs.existsSync(userFileName))
@@ -373,7 +373,7 @@ jsonUsers.getShortInfoByEmailSync = (email) => {
 
 jsonUsers.loadUserIndex = function () {
     debug('loadUserIndex()');
-    const userDir = path.join(utils.getDynamicDir(), 'users');
+    const userDir = path.join(jsonUtils.getDynamicDir(), 'users');
     const userIndexFileName = path.join(userDir, '_index.json');
     return JSON.parse(fs.readFileSync(userIndexFileName, 'utf8'));
 };
@@ -390,7 +390,7 @@ jsonUsers.getIndexSync = (offset, limit) => {
 jsonUsers.saveUserIndex = function (userIndex) {
     debug('saveUserIndex()');
     debug(userIndex);
-    const userDir = path.join(utils.getDynamicDir(), 'users');
+    const userDir = path.join(jsonUtils.getDynamicDir(), 'users');
     const userIndexFileName = path.join(userDir, '_index.json');
     fs.writeFileSync(userIndexFileName,
         JSON.stringify(userIndex, null, 2),

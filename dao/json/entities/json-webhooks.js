@@ -138,7 +138,7 @@ jsonWebhooks._listeners = null;
 jsonWebhooks.loadListeners = function () {
     debug('loadListeners()');
     if (!jsonWebhooks._listeners) {
-        const webhooksDir = path.join(utils.getDynamicDir(), 'webhooks');
+        const webhooksDir = path.join(jsonUtils.getDynamicDir(), 'webhooks');
         const listenersFile = path.join(webhooksDir, jsonUtils.LISTENER_FILE);
         if (!fs.existsSync(listenersFile))
             jsonWebhooks._listeners = [];
@@ -160,7 +160,7 @@ jsonWebhooks.getListener = (listenerId) => {
 jsonWebhooks.saveListeners = function (listenerInfos) {
     debug('saveListeners()');
     debug(listenerInfos);
-    const webhooksDir = path.join(utils.getDynamicDir(), 'webhooks');
+    const webhooksDir = path.join(jsonUtils.getDynamicDir(), 'webhooks');
     const listenersFile = path.join(webhooksDir, jsonUtils.LISTENER_FILE);
     fs.writeFileSync(listenersFile, JSON.stringify(listenerInfos, null, 2), 'utf8');
     // Invalidate listeners.
@@ -169,7 +169,7 @@ jsonWebhooks.saveListeners = function (listenerInfos) {
 
 jsonWebhooks.loadEvents = function (listenerId) {
     debug('loadEvents(): ' + listenerId);
-    const webhooksDir = path.join(utils.getDynamicDir(), 'webhooks');
+    const webhooksDir = path.join(jsonUtils.getDynamicDir(), 'webhooks');
     const eventsFile = path.join(webhooksDir, listenerId + '.json');
     if (!fs.existsSync(eventsFile))
         return [];
@@ -178,7 +178,7 @@ jsonWebhooks.loadEvents = function (listenerId) {
 
 jsonWebhooks.saveEvents = function (listenerId, eventList) {
     debug('saveEvents(): ' + listenerId);
-    const webhooksDir = path.join(utils.getDynamicDir(), 'webhooks');
+    const webhooksDir = path.join(jsonUtils.getDynamicDir(), 'webhooks');
     const eventsFile = path.join(webhooksDir, listenerId + '.json');
     fs.writeFileSync(eventsFile, JSON.stringify(eventList, null, 2), 'utf8');
 };

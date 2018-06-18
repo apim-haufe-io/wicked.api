@@ -130,7 +130,7 @@ jsonApprovals.deleteByAppAndApiSync = (appId, apiId) => {
 
 jsonApprovals.loadApprovals = () => {
     debug('loadApprovals()');
-    const approvalsDir = path.join(utils.getDynamicDir(), 'approvals');
+    const approvalsDir = path.join(jsonUtils.getDynamicDir(), 'approvals');
     const approvalsFile = path.join(approvalsDir, '_index.json');
     if (!fs.existsSync(approvalsFile))
         throw new Error('Internal Server Error - Approvals index not found.');
@@ -140,7 +140,7 @@ jsonApprovals.loadApprovals = () => {
 jsonApprovals.saveApprovals = (approvalInfos) => {
     debug('saveApprovals()');
     debug(approvalInfos);
-    const approvalsDir = path.join(utils.getDynamicDir(), 'approvals');
+    const approvalsDir = path.join(jsonUtils.getDynamicDir(), 'approvals');
     const approvalsFile = path.join(approvalsDir, '_index.json');
     fs.writeFileSync(approvalsFile, JSON.stringify(approvalInfos, null, 2), 'utf8');
 };

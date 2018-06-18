@@ -15,6 +15,8 @@ utils.init = (app) => {
 
 function getApp() { return utils._app; }
 
+utils.getApp = function() { return getApp(); };
+
 utils.getStaticDir = function () {
     return getApp().get('static_config');
 };
@@ -24,10 +26,6 @@ utils.getInitialConfigDir = function () {
     const rootDir = path.join(appDir, 'node_modules');
     const envDir = path.join(rootDir, 'portal-env');
     return path.join(envDir, 'initial-config');
-};
-
-utils.getDynamicDir = function () {
-    return getApp().get('dynamic_config');
 };
 
 utils.createRandomId = function () {
@@ -501,7 +499,7 @@ utils.getFilter = (req) => {
             const filter = JSON.parse(filterString);
             let invalidObject = false;
             for (let p in filter) {
-                if (typeof(filter[p]) !== 'string')
+                if (typeof (filter[p]) !== 'string')
                     invalidObject = true;
             }
             if (invalidObject) {

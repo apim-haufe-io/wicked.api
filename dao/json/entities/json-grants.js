@@ -151,7 +151,7 @@ Grants files look like this:
  */
 
 function getGrantsFile(userId) {
-    const grantsDir = path.join(utils.getDynamicDir(), 'grants');
+    const grantsDir = path.join(jsonUtils.getDynamicDir(), 'grants');
     const grantsFile = path.join(grantsDir, `${userId}.json`);
     return grantsFile;
 }
