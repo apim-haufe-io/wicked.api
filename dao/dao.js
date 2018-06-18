@@ -1,7 +1,7 @@
 'use strict';
 
 const { debug, info, warn, error } = require('portal-env').Logger('portal-api:dao');
-const pgDao = require('./postgres/pg-dao');
+const PgDao = require('./postgres/pg-dao');
 const JsonDao = require('./json/json-dao');
 const utils = require('../routes/utils');
 const daoUtils = require('./dao-utils');
@@ -18,6 +18,7 @@ dao.init = (app) => {
     const functionList = daoUtils.listParameters(dao);
     const jsonDao = new JsonDao();
     daoUtils.checkParameters('JSON DAO', jsonDao, functionList);
+    const pgDao = new PgDao();
     daoUtils.checkParameters('Postgres DAO', pgDao, functionList);
 
     // This is defined in the globals.json storage property

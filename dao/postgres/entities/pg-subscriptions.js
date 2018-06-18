@@ -4,137 +4,141 @@ const { debug, info, warn, error } = require('portal-env').Logger('portal-api:da
 
 const utils = require('../../../routes/utils');
 const daoUtils = require('../../dao-utils');
-const pgUtils = require('../pg-utils');
 
-const pgSubscriptions = () => { };
+class PgSubscriptions {
 
-// =================================================
-// DAO contract
-// =================================================
+    constructor(pgUtils) {
+        this.pgUtils = pgUtils;
+    }
 
-pgSubscriptions.getByAppId = (appId, callback) => {
-    debug(`getByAppId(${appId})`);
-    pgUtils.checkCallback(callback);
-    return getByAppIdImpl(appId, callback);
-};
+    // =================================================
+    // DAO contract
+    // =================================================
 
-pgSubscriptions.getByClientId = (clientId, callback) => {
-    debug(`getByClientId(${clientId})`);
-    pgUtils.checkCallback(callback);
-    return getByClientIdImpl(clientId, callback);
-};
+    getByAppId(appId, callback) {
+        debug(`getByAppId(${appId})`);
+        this.pgUtils.checkCallback(callback);
+        return this.getByAppIdImpl(appId, callback);
+    }
 
-pgSubscriptions.getByAppAndApi = (appId, apiId, callback) => {
-    debug(`getByAppAndApi(${appId}, ${apiId})`);
-    pgUtils.checkCallback(callback);
-    return getByAppAndApiImpl(appId, apiId, callback);
-};
+    getByClientId(clientId, callback) {
+        debug(`getByClientId(${clientId})`);
+        this.pgUtils.checkCallback(callback);
+        return this.getByClientIdImpl(clientId, callback);
+    }
 
-pgSubscriptions.getByApi = (apiId, offset, limit, callback) => {
-    debug(`getByApi(${apiId}, offset: ${offset}, limit: ${limit})`);
-    pgUtils.checkCallback(callback);
-    return getByApiImpl(apiId, offset, limit, callback);
-};
+    getByAppAndApi(appId, apiId, callback) {
+        debug(`getByAppAndApi(${appId}, ${apiId})`);
+        this.pgUtils.checkCallback(callback);
+        return this.getByAppAndApiImpl(appId, apiId, callback);
+    }
 
-pgSubscriptions.create = (newSubscription, creatingUserId, callback) => {
-    debug(`create(${newSubscription.id})`);
-    pgUtils.checkCallback(callback);
-    return createImpl(newSubscription, creatingUserId, callback);
-};
+    getByApi(apiId, offset, limit, callback) {
+        debug(`getByApi(${apiId}, offset: ${offset}, limit: ${limit})`);
+        this.pgUtils.checkCallback(callback);
+        return this.getByApiImpl(apiId, offset, limit, callback);
+    }
 
-pgSubscriptions.delete = (appId, apiId, subscriptionId, callback) => {
-    debug(`delete(${appId}, ${apiId}, ${subscriptionId})`);
-    // Note: appId and apiId aren't used for this DAO, as the subscription ID
-    // is already unique.
-    pgUtils.checkCallback(callback);
-    return pgUtils.deleteById('subscriptions', subscriptionId, callback);
-};
+    create(newSubscription, creatingUserId, callback) {
+        debug(`create(${newSubscription.id})`);
+        this.pgUtils.checkCallback(callback);
+        return this.createImpl(newSubscription, creatingUserId, callback);
+    }
 
-pgSubscriptions.patch = (appId, subsInfo, patchingUserId, callback) => {
-    debug(`patch(${appId}, ${subsInfo.id})`);
-    pgUtils.checkCallback(callback);
-    return patchImpl(appId, subsInfo, patchingUserId, callback);
-};
+    delete(appId, apiId, subscriptionId, callback) {
+        debug(`delete(${appId}, ${apiId}, ${subscriptionId})`);
+        // Note: appId and apiId aren't used for this DAO, as the subscription ID
+        // is already unique.
+        this.pgUtils.checkCallback(callback);
+        return this.pgUtils.deleteById('subscriptions', subscriptionId, callback);
+    }
 
-// Legacy functionality which is used in the initializer; it's not possible
-// to take this out, but this does not have to be re-implemented for future
-// DAOs (actually, MUST not)
+    patch(appId, subsInfo, patchingUserId, callback) {
+        debug(`patch(${appId}, ${subsInfo.id})`);
+        this.pgUtils.checkCallback(callback);
+        return this.patchImpl(appId, subsInfo, patchingUserId, callback);
+    }
 
-pgSubscriptions.legacyWriteSubsIndex = (app, subs) => { };
-pgSubscriptions.legacySaveSubscriptionApiIndex = (apiId, subs) => { };
+    // Legacy functionality which is used in the initializer; it's not possible
+    // to take this out, but this does not have to be re-implemented for future
+    // DAOs (actually, MUST not)
 
-// =================================================
-// DAO implementation/internal methods
-// =================================================
+    legacyWriteSubsIndex(app, subs) { }
+    legacySaveSubscriptionApiIndex(apiId, subs) { }
 
-function getByAppIdImpl(appId, callback) {
-    debug('getByAppIdImpl()');
-    pgUtils.getBy('subscriptions', ['applications_id'], [appId], {}, (err, subsList) => {
-        if (err)
-            return callback(err);
-        daoUtils.decryptApiCredentials(subsList);
-        return callback(null, subsList);
-    });
+    // =================================================
+    // DAO implementation/internal methods
+    // =================================================
+
+    getByAppIdImpl(appId, callback) {
+        debug('getByAppIdImpl()');
+        this.pgUtils.getBy('subscriptions', ['applications_id'], [appId], {}, (err, subsList) => {
+            if (err)
+                return callback(err);
+            daoUtils.decryptApiCredentials(subsList);
+            return callback(null, subsList);
+        });
+    }
+
+    getByApiImpl(apiId, offset, limit, callback) {
+        debug('getByApiImpl()');
+        this.pgUtils.getBy('subscriptions', ['api_id'], [apiId], { offset: offset, limit: limit }, (err, subsList, countResult) => {
+            if (err)
+                return callback(err);
+            daoUtils.decryptApiCredentials(subsList);
+            return callback(null, subsList, countResult);
+        });
+    }
+
+    returnSingleSubs(callback) {
+        return function (err, subsInfo) {
+            if (err)
+                return callback(err);
+            if (!subsInfo)
+                return callback(null, null);
+            daoUtils.decryptApiCredentials([subsInfo]);
+            return callback(null, subsInfo);
+        };
+    }
+
+    getByClientIdImpl(clientId, callback) {
+        debug('getByClientIdImpl()');
+        this.pgUtils.getSingleBy(
+            'subscriptions',
+            'client_id',
+            clientId,
+            this.returnSingleSubs(callback));
+    }
+
+    getByAppAndApiImpl(appId, apiId, callback) {
+        debug('getByAppAndApiImpl()');
+        this.pgUtils.getSingleBy(
+            'subscriptions',
+            ['applications_id', 'api_id'],
+            [appId, apiId],
+            this.returnSingleSubs(callback));
+    }
+
+    createImpl(newSubscription, creatingUserId, callback) {
+        debug('createImpl()');
+        daoUtils.encryptApiCredentials([newSubscription]);
+        this.pgUtils.upsert('subscriptions', newSubscription, creatingUserId, (err) => {
+            if (err)
+                return callback(err);
+            return callback(null, newSubscription);
+        });
+    }
+
+    patchImpl(appId, subsInfo, patchingUserId, callback) {
+        debug('patchSync()');
+        // This is actually just save...
+        daoUtils.encryptApiCredentials([subsInfo]);
+        this.pgUtils.upsert('subscriptions', subsInfo, patchingUserId, (err) => {
+            if (err)
+                return callback(err);
+            return callback(null, subsInfo);
+        });
+    }
 }
 
-function getByApiImpl(apiId, offset, limit, callback) {
-    debug('getByApiImpl()');
-    pgUtils.getBy('subscriptions', ['api_id'], [apiId], { offset: offset, limit: limit }, (err, subsList, countResult) => {
-        if (err)
-            return callback(err);
-        daoUtils.decryptApiCredentials(subsList);
-        return callback(null, subsList, countResult);
-    });
-}
-
-function returnSingleSubs(callback) {
-    return function (err, subsInfo) {
-        if (err)
-            return callback(err);
-        if (!subsInfo)
-            return callback(null, null);
-        daoUtils.decryptApiCredentials([subsInfo]);
-        return callback(null, subsInfo);
-    };
-}
-
-function getByClientIdImpl(clientId, callback) {
-    debug('getByClientIdImpl()');
-    pgUtils.getSingleBy(
-        'subscriptions',
-        'client_id',
-        clientId, 
-        returnSingleSubs(callback));
-}
-
-function getByAppAndApiImpl(appId, apiId, callback) {
-    debug('getByAppAndApiImpl()');
-    pgUtils.getSingleBy(
-        'subscriptions',
-        ['applications_id', 'api_id'],
-        [appId, apiId],
-        returnSingleSubs(callback));
-}
-
-function createImpl(newSubscription, creatingUserId, callback) {
-    debug('createImpl()');
-    daoUtils.encryptApiCredentials([newSubscription]);
-    pgUtils.upsert('subscriptions', newSubscription, creatingUserId, (err) => {
-        if (err)
-            return callback(err);
-        return callback(null, newSubscription);
-    });
-}
-
-function patchImpl(appId, subsInfo, patchingUserId, callback) {
-    debug('patchSync()');
-    // This is actually just save...
-    daoUtils.encryptApiCredentials([subsInfo]);
-    pgUtils.upsert('subscriptions', subsInfo, patchingUserId, (err) => {
-        if (err)
-            return callback(err);
-        return callback(null, subsInfo);
-    });
-}
-
-module.exports = pgSubscriptions;
+module.exports = PgSubscriptions;
