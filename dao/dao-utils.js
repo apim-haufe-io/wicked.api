@@ -174,8 +174,19 @@ const listParametersImpl = (prefixArray, functionArray, o) => {
     }
 };
 
+function dumpSignatures(p1, p2) {
+    debug('First function');
+    for (let p in p1) {
+        debug(p1[p]);
+    }
+    debug('Second function');
+    for (let p in p2) {
+        debug(p2[p]);
+    }
+}
+
 daoUtils.checkParameters = (desc, daoToCheck, functionList) => {
-    debug(`checkParameters(${desc}`);
+    debug(`checkParameters(${desc})`);
     let success = true;
     for (let i = 0; i < functionList.length; ++i) {
         const funcToCheck = functionList[i];
@@ -192,15 +203,19 @@ daoUtils.checkParameters = (desc, daoToCheck, functionList) => {
                 throw new Error(`Function ${funcDesc} was not found.`);
             const paramList = utils.getFunctionParams(tmpFunc);
 
-            if (paramList.length !== funcToCheck.params.length)
+            if (paramList.length !== funcToCheck.params.length) {
+                dumpSignatures(paramList, funcToCheck.params);
                 throw new Error(`Parameter list length mismatch: ${paramList.length} !== ${funcToCheck.params.length}`);
+            }
 
             for (let j = 0; j < paramList.length; ++j) {
                 // Each param entry has a name and default value as an array, we'll only check name
                 const paramNameToCheck = paramList[j][0];
                 const paramName = funcToCheck.params[j][0];
-                if (paramName !== paramNameToCheck)
+                if (paramName !== paramNameToCheck) {
+                    dumpSignatures(paramList, funcToCheck.params);
                     throw new Error(`Parameter naming mismatch: ${paramNameToCheck} != ${paramName}`);
+                }
             }
 
             debug(`checkParameters ${desc}: ${funcDesc} - ok`);
