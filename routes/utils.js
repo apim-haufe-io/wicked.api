@@ -574,7 +574,15 @@ utils.getFunctionParams = (func) => {
     let match;
     functionAsString = functionAsString.replace(REGEX_COMMENTS, '');
     functionAsString = functionAsString.match(REGEX_FUNCTION_PARAMS)[1];
-    if (functionAsString.charAt(0) === '(') functionAsString = functionAsString.slice(1, -1);
+    // Strip method name?
+    if (functionAsString.charAt(0) !== '(')
+        functionAsString = functionAsString.substring(functionAsString.indexOf('('));
+    if (functionAsString.charAt(0) === '(') {
+        functionAsString = functionAsString.slice(1, -1);
+    } else {
+        debug(`Does not start with "(", look at me: ${functionAsString}`);
+    }
+
     while (match = REGEX_PARAMETERS_VALUES.exec(functionAsString)) params.push([match[1], match[2]]); // jshint ignore:line
     return params;
 };

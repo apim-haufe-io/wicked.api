@@ -1,30 +1,44 @@
 'use strict';
 
-const jsonUsers = require('./entities/json-users');
-const jsonApplications = require('./entities/json-applications');
-const jsonApprovals = require('./entities/json-approvals');
-const jsonSubscriptions = require('./entities/json-subscriptions');
-const jsonVerifications = require('./entities/json-verifications');
-const jsonWebhooks = require('./entities/json-webhooks');
-const jsonRegistrations = require('./entities/json-registrations');
-const jsonGrants = require('./entities/json-grants');
-const jsonMeta = require('./json-meta');
+const JsonUsers = require('./entities/json-users');
+const JsonApplications = require('./entities/json-applications');
+const JsonApprovals = require('./entities/json-approvals');
+const JsonSubscriptions = require('./entities/json-subscriptions');
+const JsonVerifications = require('./entities/json-verifications');
+const JsonWebhooks = require('./entities/json-webhooks');
+const JsonRegistrations = require('./entities/json-registrations');
+const JsonGrants = require('./entities/json-grants');
+const JsonMeta = require('./json-meta');
+const JsonUtils = require('./entities/json-utils');
 
 // ================================================
 
-const jsonDao = {
-    init:          (app) => {},
-    meta:          jsonMeta,
-    users:         jsonUsers,
-    applications:  jsonApplications,
-    subscriptions: jsonSubscriptions,
-    verifications: jsonVerifications,
-    approvals:     jsonApprovals,
-    registrations: jsonRegistrations,
-    grants:        jsonGrants,
-    webhooks:      jsonWebhooks
-};
+class JsonDao {
+    constructor(dynamicBasePath) {
+        this.jsonUtils = new JsonUtils(dynamicBasePath);
+        this.jsonMeta = new JsonMeta(this.jsonUtils);
+        this.jsonUsers = new JsonUsers(this.jsonUtils);
+        this.jsonApprovals = new JsonApprovals(this.jsonUtils);
+        this.jsonSubscriptions = new JsonSubscriptions(this.jsonUtils, this.jsonApprovals);
+        this.jsonApplications = new JsonApplications(this.jsonUtils, this.jsonUsers, this.jsonSubscriptions, this.jsonApprovals);
+        this.jsonGrants = new JsonGrants(this.jsonUtils);
+        this.jsonVerifications = new JsonVerifications(this.jsonUtils);
+        this.jsonRegistrations = new JsonRegistrations(this.jsonUtils);
+        this.jsonWebhooks = new JsonWebhooks(this.jsonUtils);
+    }
 
-// ================================================
+    init(app) {
+    }
 
-module.exports = jsonDao;
+    get meta() { return this.jsonMeta; }
+    get users() { return this.jsonUsers; }
+    get applications() { return this.jsonApplications; }
+    get subscriptions() { return this.jsonSubscriptions; }
+    get verifications() { return this.jsonVerifications; }
+    get approvals() { return this.jsonApprovals; }
+    get registrations() { return this.jsonRegistrations; }
+    get grants() { return this.jsonGrants; }
+    get webhooks() { return this.jsonWebhooks; }
+}
+
+module.exports = JsonDao;

@@ -6,435 +6,441 @@ const path = require('path');
 
 const utils = require('../../../routes/utils');
 
-const jsonUtils = () => { };
+class JsonUtils {
 
-// USEFUL THINGS
+    constructor(dynamicBasePath) {
+        // This may be empty, then the data is retrieved from app.get('dynamic_config')
+        this.dynamicBasePath = dynamicBasePath;
 
-jsonUtils.pageArray = (array, offset, limit) => {
-    debug(`pageArray(..., ${offset}, ${limit})`);
-    if (offset === 0 && limit === 0)
-        return array;
-    return array.slice(offset, offset + limit);
-};
-
-/**
- * Filters, sorts and pages an array of objects. Returns an object containing two
- * properties: `list` and `filterCount`. The list is the filtered, sorted and paged
- * list (taking limit and offset into account), and filterCount is the total count
- * before the paging was applied.
- * 
- * @param {array} rows 
- * @param {object} filter object containing {"name": "value"} pairs to filter for
- * @param {*} orderBy "<field> ASC|DESC"
- * @param {*} offset 
- * @param {*} limit 
- */
-jsonUtils.filterAndPage = (rows, filter, orderBy, offset, limit) => {
-    debug(`filterAndPage()`);
-    let filteredRows = rows;
-
-    if (filter) {
-        const tempList = [];
-        for (let i = 0; i < rows.length; ++i) {
-            const row = rows[i];
-            let matches = true;
-            for (let prop in filter) {
-                if (!filter[prop])
-                    continue;
-                const filterValue = filter[prop].toLowerCase();
-                if (!filterValue)
-                    continue;
-                if (!row.hasOwnProperty(prop)) {
-                    matches = false;
-                    break;
-                }
-                if (!row[prop]) {
-                    matches = false;
-                    break;
-                }
-                const thisValue = row[prop].toLowerCase();
-                if (thisValue.indexOf(filterValue) < 0) {
-                    matches = false;
-                    break;
-                }
-            }
-            if (matches) {
-                tempList.push(row);
-            }
-        }
-        filteredRows = tempList;
+        this.LISTENER_FILE = '_listeners.json';
     }
 
-    if (orderBy) {
-        const o = orderBy.split(' ');
-        const sortField = o[0];
-        const dir = o[1];
-        const firstOrder = dir === 'ASC' ? -1 : 1;
-        const lastOrder = dir === 'ASC' ? 1 : -1;
-        filteredRows.sort((a, b) => {
-            if (!a.hasOwnProperty(sortField) && !b.hasOwnProperty(sortField))
+    // USEFUL THINGS
+    pageArray(array, offset, limit) {
+        debug(`pageArray(..., ${offset}, ${limit})`);
+        if (offset === 0 && limit === 0)
+            return array;
+        return array.slice(offset, offset + limit);
+    }
+
+    /**
+     * Filters, sorts and pages an array of objects. Returns an object containing two
+     * properties: `list` and `filterCount`. The list is the filtered, sorted and paged
+     * list (taking limit and offset into account), and filterCount is the total count
+     * before the paging was applied.
+     * 
+     * @param {array} rows 
+     * @param {object} filter object containing {"name": "value"} pairs to filter for
+     * @param {*} orderBy "<field> ASC|DESC"
+     * @param {*} offset 
+     * @param {*} limit 
+     */
+    filterAndPage(rows, filter, orderBy, offset, limit) {
+        debug(`filterAndPage()`);
+        let filteredRows = rows;
+
+        if (filter) {
+            const tempList = [];
+            for (let i = 0; i < rows.length; ++i) {
+                const row = rows[i];
+                let matches = true;
+                for (let prop in filter) {
+                    if (!filter[prop])
+                        continue;
+                    const filterValue = filter[prop].toLowerCase();
+                    if (!filterValue)
+                        continue;
+                    if (!row.hasOwnProperty(prop)) {
+                        matches = false;
+                        break;
+                    }
+                    if (!row[prop]) {
+                        matches = false;
+                        break;
+                    }
+                    const thisValue = row[prop].toLowerCase();
+                    if (thisValue.indexOf(filterValue) < 0) {
+                        matches = false;
+                        break;
+                    }
+                }
+                if (matches) {
+                    tempList.push(row);
+                }
+            }
+            filteredRows = tempList;
+        }
+
+        if (orderBy) {
+            const o = orderBy.split(' ');
+            const sortField = o[0];
+            const dir = o[1];
+            const firstOrder = dir === 'ASC' ? -1 : 1;
+            const lastOrder = dir === 'ASC' ? 1 : -1;
+            filteredRows.sort((a, b) => {
+                if (!a.hasOwnProperty(sortField) && !b.hasOwnProperty(sortField))
+                    return 0;
+                if (a.hasOwnProperty(sortField) && !b.hasOwnProperty(sortField))
+                    return firstOrder;
+                if (!a.hasOwnProperty(sortField) && b.hasOwnProperty(sortField))
+                    return firstOrder;
+                const aVal = a[sortField];
+                const bVal = b[sortField];
+                if (aVal < bVal)
+                    return firstOrder;
+                if (aVal > bVal)
+                    return lastOrder;
                 return 0;
-            if (a.hasOwnProperty(sortField) && !b.hasOwnProperty(sortField))
-                return firstOrder;
-            if (!a.hasOwnProperty(sortField) && b.hasOwnProperty(sortField))
-                return firstOrder;
-            const aVal = a[sortField];
-            const bVal = b[sortField];
-            if (aVal < bVal)
-                return firstOrder;
-            if (aVal > bVal)
-                return lastOrder;
-            return 0;
-        });
-    }
-
-    return {
-        list: jsonUtils.pageArray(filteredRows, offset, limit),
-        filterCount: filteredRows.length
-    };
-};
-
-jsonUtils.checkCallback = (callback) => {
-    if (!callback || typeof(callback) !== 'function') {
-        error('Value of callback: ' + callback);
-        throw new Error('Parameter "callback" is null or not a function');
-    }
-};
-
-jsonUtils.getDynamicDir = function () {
-    return utils.getApp().get('dynamic_config');
-};
-
-// LOCKING UTILITY FUNCTIONS
-
-jsonUtils.withLockedUserList = function (userIdList, actionHook) {
-    debug('withLockedUserList()');
-    debug(userIdList);
-    const lockedUsers = [];
-    try {
-        for (let i = 0; i < userIdList.length; ++i) {
-            if (!jsonUtils.lockUser(userIdList[i]))
-                throw utils.makeError(423, 'User with id ' + userIdList[i] + ' is locked. Try again later.');
-            lockedUsers.push(userIdList[i]);
+            });
         }
 
-        const retVal = actionHook();
+        return {
+            list: this.pageArray(filteredRows, offset, limit),
+            filterCount: filteredRows.length
+        };
+    }
 
-        debug('withLockedUserList() finished');
-
-        return retVal;
-    } finally {
-        for (let i = 0; i < lockedUsers.length; ++i) {
-            try { jsonUtils.unlockUser(lockedUsers[i]); } catch (err) { debug(err); error(err); }
+    checkCallback(callback) {
+        if (!callback || typeof (callback) !== 'function') {
+            error('Value of callback: ' + callback);
+            throw new Error('Parameter "callback" is null or not a function');
         }
-        debug('withLockedUserList() cleaned up');
     }
-};
 
-jsonUtils.withLockedUser = function (userId, actionHook) {
-    debug('withLockedUser(): ' + userId);
-    return jsonUtils.withLockedUserList([userId], actionHook);
-};
-
-jsonUtils.withLockedUserIndex = function (actionHook) {
-    debug('withLockedUserIndex()');
-    let lockedIndex = false;
-    try {
-        if (!jsonUtils.lockUserIndex())
-            throw utils.makeError(423, 'User index is currently locked. Try again later.');
-        lockedIndex = true;
-
-        const retVal = actionHook();
-
-        debug('withLockedUserIndex() finished');
-
-        return retVal;
-    } finally {
-        if (lockedIndex)
-            try { jsonUtils.unlockUserIndex(); } catch (err) { debug(err); error(err); }
-        debug('withLockedUserIndex() cleaned up');
+    getDynamicDir() {
+        if (this.dynamicBasePath)
+            return this.dynamicBasePath;
+        return utils.getApp().get('dynamic_config');
     }
-};
 
-jsonUtils.withLockedAppsIndex = function (actionHook) {
-    debug('withLockedAppsIndex()');
-    let lockedIndex = false;
-    try {
-        if (!jsonUtils.lockAppsIndex())
-            throw utils.makeError(423, 'Application index is currently locked. Try again later.');
-        lockedIndex = true;
+    // LOCKING UTILITY FUNCTIONS
 
-        const retVal = actionHook();
+    withLockedUserList(userIdList, actionHook) {
+        debug('withLockedUserList()');
+        debug(userIdList);
+        const lockedUsers = [];
+        try {
+            for (let i = 0; i < userIdList.length; ++i) {
+                if (!this.lockUser(userIdList[i]))
+                    throw utils.makeError(423, 'User with id ' + userIdList[i] + ' is locked. Try again later.');
+                lockedUsers.push(userIdList[i]);
+            }
 
-        debug('withLockedAppsIndex() finished');
+            const retVal = actionHook();
 
-        return retVal;
-    } finally {
-        if (lockedIndex)
-            try { jsonUtils.unlockAppsIndex(); } catch (err) { debug(err); error(err); }
-        debug('withLockedAppsIndex() cleaned up');
+            debug('withLockedUserList() finished');
+
+            return retVal;
+        } finally {
+            for (let i = 0; i < lockedUsers.length; ++i) {
+                try { this.unlockUser(lockedUsers[i]); } catch (err) { debug(err); error(err); }
+            }
+            debug('withLockedUserList() cleaned up');
+        }
     }
-};
 
-jsonUtils.withLockedApp = function (appId, actionHook) {
-    debug('withLockedApp(): ' + appId);
-    let lockedApp = false;
-    try {
-        if (!jsonUtils.lockApplication(appId))
-            throw utils.makeError(423, 'Application is locked. Please try again later.');
-        lockedApp = true;
-
-        const retVal = actionHook();
-
-        debug('withLockedApp(): ' + appId + ' finished');
-
-        return retVal;
-    } finally {
-        if (lockedApp)
-            try { jsonUtils.unlockApplication(appId); } catch (err) { debug(err); error(err); }
-        debug('withLockedApp(): ' + appId + ' cleaned up');
+    withLockedUser(userId, actionHook) {
+        debug('withLockedUser(): ' + userId);
+        return this.withLockedUserList([userId], actionHook);
     }
-};
 
-jsonUtils.withLockedSubscriptions = function (appId, actionHook) {
-    debug('withLockedSubscriptions(): ' + appId);
-    let lockedSubscriptions = false;
-    try {
-        if (!jsonUtils.lockSubscriptions(appId))
-            throw utils.makeError(423, 'Application subscriptions are locked. Try again later.');
-        lockedSubscriptions = true;
+    withLockedUserIndex(actionHook) {
+        debug('withLockedUserIndex()');
+        let lockedIndex = false;
+        try {
+            if (!this.lockUserIndex())
+                throw utils.makeError(423, 'User index is currently locked. Try again later.');
+            lockedIndex = true;
 
-        const retVal = actionHook();
+            const retVal = actionHook();
 
-        debug('withLockedSubscriptions(): ' + appId + ' finished');
+            debug('withLockedUserIndex() finished');
 
-        return retVal;
-    } finally {
-        if (lockedSubscriptions)
-            try { jsonUtils.unlockSubscriptions(appId); } catch (err) { debug(err); error(err); }
-        debug('withLockedSubscriptions(): ' + appId + ' cleaned up');
+            return retVal;
+        } finally {
+            if (lockedIndex)
+                try { this.unlockUserIndex(); } catch (err) { debug(err); error(err); }
+            debug('withLockedUserIndex() cleaned up');
+        }
     }
-};
 
-jsonUtils.withLockedApprovals = function (actionHook) {
-    debug('withLockedApprovals()');
-    let lockedApprovals = false;
-    try {
-        if (!jsonUtils.lockApprovals())
-            throw utils.makeError(423, 'Approvals index is locked. Try again later.');
-        lockedApprovals = true;
+    withLockedAppsIndex(actionHook) {
+        debug('withLockedAppsIndex()');
+        let lockedIndex = false;
+        try {
+            if (!this.lockAppsIndex())
+                throw utils.makeError(423, 'Application index is currently locked. Try again later.');
+            lockedIndex = true;
 
-        const retVal = actionHook();
+            const retVal = actionHook();
 
-        debug('withLockedApprovals() finished');
+            debug('withLockedAppsIndex() finished');
 
-        return retVal;
-    } finally {
-        if (lockedApprovals)
-            try { jsonUtils.unlockApprovals(); } catch (err) { debug(err); error(err); }
-        debug('withLockedApprovals() cleaned up');
+            return retVal;
+        } finally {
+            if (lockedIndex)
+                try { this.unlockAppsIndex(); } catch (err) { error(err); }
+            debug('withLockedAppsIndex() cleaned up');
+        }
     }
-};
 
-jsonUtils.withLockedEvents = function (listenerId, actionHook) {
-    debug('withLockedEvents(): ' + listenerId);
-    let lockedEvents = false;
-    try {
-        if (!jsonUtils.lockEvents(listenerId))
-            throw utils.makeError(423, 'Events for listener are locked. Try again later.');
-        lockedEvents = true;
+    withLockedApp(appId, actionHook) {
+        debug('withLockedApp(): ' + appId);
+        let lockedApp = false;
+        try {
+            if (!this.lockApplication(appId))
+                throw utils.makeError(423, 'Application is locked. Please try again later.');
+            lockedApp = true;
 
-        const retVal = actionHook();
+            const retVal = actionHook();
 
-        debug('withLockedEvents(): ' + listenerId + ' finished');
+            debug('withLockedApp(): ' + appId + ' finished');
 
-        return retVal;
-    } finally {
-        if (lockedEvents)
-            try { jsonUtils.unlockEvents(listenerId); } catch (err) { }
-        debug('withLockedEvents(): ' + listenerId + ' cleaned up');
+            return retVal;
+        } finally {
+            if (lockedApp)
+                try { this.unlockApplication(appId); } catch (err) { error(err); }
+            debug('withLockedApp(): ' + appId + ' cleaned up');
+        }
     }
-};
 
-jsonUtils.withLockedListeners = function (listenerId, actionHook) {
-    debug('withLockedListeners()');
-    let lockedListeners = false;
-    try {
-        if (!jsonUtils.lockListeners())
-            throw utils.makeError(423, 'Listener index locked. Try again later.');
-        lockedListeners = true;
+    withLockedSubscriptions(appId, actionHook) {
+        debug('withLockedSubscriptions(): ' + appId);
+        let lockedSubscriptions = false;
+        try {
+            if (!this.lockSubscriptions(appId))
+                throw utils.makeError(423, 'Application subscriptions are locked. Try again later.');
+            lockedSubscriptions = true;
 
-        const retVal = actionHook();
+            const retVal = actionHook();
 
-        debug('withLockedListeners() finished');
+            debug('withLockedSubscriptions(): ' + appId + ' finished');
 
-        return retVal;
-    } finally {
-        if (lockedListeners)
-            try { jsonUtils.unlockListeners(); } catch (err) { debug(err); error(err); }
-        debug('withLockedListeners() cleaned up');
+            return retVal;
+        } finally {
+            if (lockedSubscriptions)
+                try { this.unlockSubscriptions(appId); } catch (err) { error(err); }
+            debug('withLockedSubscriptions(): ' + appId + ' cleaned up');
+        }
     }
-};
 
-jsonUtils.withLockedVerifications = function (actionHook) {
-    debug('withLockedVerifications()');
-    let lockedVerifications = false;
-    try {
-        if (!jsonUtils.lockVerifications())
-            throw utils.makeError(423, 'Verification index locked. Try again later.');
-        lockedVerifications = true;
+    withLockedApprovals(actionHook) {
+        debug('withLockedApprovals()');
+        let lockedApprovals = false;
+        try {
+            if (!this.lockApprovals())
+                throw utils.makeError(423, 'Approvals index is locked. Try again later.');
+            lockedApprovals = true;
 
-        const retVal = actionHook();
+            const retVal = actionHook();
 
-        debug('withLockedVerifications() finished');
+            debug('withLockedApprovals() finished');
 
-        return retVal;
-    } finally {
-        if (lockedVerifications)
-            try { jsonUtils.unlockVerifications(); } catch (err) { debug(err); error(err); }
-        debug('withLockedVerifications() cleaned up');
+            return retVal;
+        } finally {
+            if (lockedApprovals)
+                try { this.unlockApprovals(); } catch (err) { error(err); }
+            debug('withLockedApprovals() cleaned up');
+        }
     }
-};
 
-jsonUtils.globalLock = function () {
-    const globalLockFileName = path.join(jsonUtils.getDynamicDir(), 'global.lock');
-    if (fs.existsSync(globalLockFileName))
-        throw utils.makeError(423, "utils.globalLock - System already is globally locked!");
-    fs.writeFileSync(globalLockFileName, '');
-    return true;
-};
+    withLockedEvents(listenerId, actionHook) {
+        debug('withLockedEvents(): ' + listenerId);
+        let lockedEvents = false;
+        try {
+            if (!this.lockEvents(listenerId))
+                throw utils.makeError(423, 'Events for listener are locked. Try again later.');
+            lockedEvents = true;
 
-jsonUtils.globalUnlock = function () {
-    const globalLockFileName = path.join(jsonUtils.getDynamicDir(), 'global.lock');
-    if (!fs.existsSync(globalLockFileName))
-        throw utils.makeError(423, "utils.globalUnlock - System isn't locked, cannot unlock!");
-    fs.unlinkSync(globalLockFileName);
-    return true;
-};
+            const retVal = actionHook();
 
-jsonUtils.hasGlobalLock = function () {
-    const globalLockFileName = path.join(jsonUtils.getDynamicDir(), 'global.lock');
-    return fs.existsSync(globalLockFileName);
-};
+            debug('withLockedEvents(): ' + listenerId + ' finished');
 
-jsonUtils.lockFile = function (subDir, fileName) {
-    debug('lockFile(): ' + subDir + '/' + fileName);
-    if (jsonUtils.hasGlobalLock())
-        return false;
-    const baseDir = path.join(jsonUtils.getDynamicDir(), subDir);
-    const fullFileName = path.join(baseDir, fileName);
-    const lockFileName = fullFileName + '.lock';
+            return retVal;
+        } finally {
+            if (lockedEvents)
+                try { this.unlockEvents(listenerId); } catch (err) { }
+            debug('withLockedEvents(): ' + listenerId + ' cleaned up');
+        }
+    }
 
-    if (!fs.existsSync(fullFileName))
-        throw utils.makeError(500, "utils.lockFile - File not found: " + fileName);
+    withLockedListeners(listenerId, actionHook) {
+        debug('withLockedListeners()');
+        let lockedListeners = false;
+        try {
+            if (!this.lockListeners())
+                throw utils.makeError(423, 'Listener index locked. Try again later.');
+            lockedListeners = true;
 
-    if (fs.existsSync(lockFileName))
-        return false;
+            const retVal = actionHook();
 
-    fs.writeFileSync(lockFileName, '');
-    return true;
-};
+            debug('withLockedListeners() finished');
 
-jsonUtils.unlockFile = function (subDir, fileName) {
-    debug('unlockFile(): ' + subDir + '/' + fileName);
-    const baseDir = path.join(jsonUtils.getDynamicDir(), subDir);
-    const lockFileName = path.join(baseDir, fileName + '.lock');
+            return retVal;
+        } finally {
+            if (lockedListeners)
+                try { this.unlockListeners(); } catch (err) { debug(err); error(err); }
+            debug('withLockedListeners() cleaned up');
+        }
+    }
 
-    if (fs.existsSync(lockFileName))
-        fs.unlinkSync(lockFileName);
-};
+    withLockedVerifications(actionHook) {
+        debug('withLockedVerifications()');
+        let lockedVerifications = false;
+        try {
+            if (!this.lockVerifications())
+                throw utils.makeError(423, 'Verification index locked. Try again later.');
+            lockedVerifications = true;
 
-// SPECIFIC LOCKS
+            const retVal = actionHook();
 
-// USERS
+            debug('withLockedVerifications() finished');
 
-jsonUtils.lockUserIndex = function () {
-    return jsonUtils.lockFile('users', '_index.json');
-};
+            return retVal;
+        } finally {
+            if (lockedVerifications)
+                try { this.unlockVerifications(); } catch (err) { debug(err); error(err); }
+            debug('withLockedVerifications() cleaned up');
+        }
+    }
 
-jsonUtils.unlockUserIndex = function () {
-    jsonUtils.unlockFile('users', '_index.json');
-};
+    globalLock() {
+        const globalLockFileName = path.join(this.getDynamicDir(), 'global.lock');
+        if (fs.existsSync(globalLockFileName))
+            throw utils.makeError(423, "utils.globalLock - System already is globally locked!");
+        fs.writeFileSync(globalLockFileName, '');
+        return true;
+    }
 
-jsonUtils.lockUser = function (userId) {
-    return jsonUtils.lockFile('users', userId + '.json');
-};
+    globalUnlock() {
+        const globalLockFileName = path.join(this.getDynamicDir(), 'global.lock');
+        if (!fs.existsSync(globalLockFileName))
+            throw utils.makeError(423, "utils.globalUnlock - System isn't locked, cannot unlock!");
+        fs.unlinkSync(globalLockFileName);
+        return true;
+    }
 
-jsonUtils.unlockUser = function (userId) {
-    jsonUtils.unlockFile('users', userId + '.json');
-};
+    hasGlobalLock() {
+        const globalLockFileName = path.join(this.getDynamicDir(), 'global.lock');
+        return fs.existsSync(globalLockFileName);
+    }
 
-// APPLICATIONS
+    lockFile(subDir, fileName) {
+        debug('lockFile(): ' + subDir + '/' + fileName);
+        if (this.hasGlobalLock())
+            return false;
+        const baseDir = path.join(this.getDynamicDir(), subDir);
+        const fullFileName = path.join(baseDir, fileName);
+        const lockFileName = fullFileName + '.lock';
 
-jsonUtils.lockAppsIndex = function () {
-    return jsonUtils.lockFile('applications', '_index.json');
-};
+        if (!fs.existsSync(fullFileName))
+            throw utils.makeError(500, "utils.lockFile - File not found: " + fileName);
 
-jsonUtils.unlockAppsIndex = function () {
-    jsonUtils.unlockFile('applications', '_index.json');
-};
+        if (fs.existsSync(lockFileName))
+            return false;
 
-jsonUtils.lockApplication = function (appId) {
-    return jsonUtils.lockFile('applications', appId + '.json');
-};
+        fs.writeFileSync(lockFileName, '');
+        return true;
+    }
 
-jsonUtils.unlockApplication = function (appId) {
-    jsonUtils.unlockFile('applications', appId + '.json');
-};
+    unlockFile(subDir, fileName) {
+        debug('unlockFile(): ' + subDir + '/' + fileName);
+        const baseDir = path.join(this.getDynamicDir(), subDir);
+        const lockFileName = path.join(baseDir, fileName + '.lock');
 
-jsonUtils.getAppsDir = function () {
-    return path.join(jsonUtils.getDynamicDir(), 'applications');
-};
+        if (fs.existsSync(lockFileName))
+            fs.unlinkSync(lockFileName);
+    }
 
-// SUBSCRIPTIONS
+    // SPECIFIC LOCKS
 
-jsonUtils.lockSubscriptions = function (appId) {
-    return jsonUtils.lockFile('subscriptions', appId + '.subs.json');
-};
+    // USERS
 
-jsonUtils.unlockSubscriptions = function (appId) {
-    jsonUtils.unlockFile('subscriptions', appId + '.subs.json');
-};
+    lockUserIndex() {
+        return this.lockFile('users', '_index.json');
+    }
 
-// APPROVALS
+    unlockUserIndex() {
+        this.unlockFile('users', '_index.json');
+    }
 
-jsonUtils.lockApprovals = function () {
-    return jsonUtils.lockFile('approvals', '_index.json');
-};
+    lockUser(userId) {
+        return this.lockFile('users', userId + '.json');
+    }
 
-jsonUtils.unlockApprovals = function () {
-    return jsonUtils.unlockFile('approvals', '_index.json');
-};
+    unlockUser(userId) {
+        this.unlockFile('users', userId + '.json');
+    }
 
-// WEBHOOKS
+    // APPLICATIONS
 
-jsonUtils.LISTENER_FILE = '_listeners.json';
+    lockAppsIndex() {
+        return this.lockFile('applications', '_index.json');
+    }
 
-jsonUtils.lockListeners = function () {
-    return jsonUtils.lockFile('webhooks', jsonUtils.LISTENER_FILE);
-};
+    unlockAppsIndex() {
+        this.unlockFile('applications', '_index.json');
+    }
 
-jsonUtils.unlockListeners = function () {
-    return jsonUtils.unlockFile('webhooks', jsonUtils.LISTENER_FILE);
-};
+    lockApplication(appId) {
+        return this.lockFile('applications', appId + '.json');
+    }
 
-jsonUtils.lockEvents = function (listenerId) {
-    return jsonUtils.lockFile('webhooks', listenerId + '.json');
-};
+    unlockApplication(appId) {
+        this.unlockFile('applications', appId + '.json');
+    }
 
-jsonUtils.unlockEvents = function (listenerId) {
-    jsonUtils.unlockFile('webhooks', listenerId + '.json');
-};
+    getAppsDir() {
+        return path.join(this.getDynamicDir(), 'applications');
+    }
 
-// VERIFICATIONS
+    // SUBSCRIPTIONS
 
-jsonUtils.lockVerifications = function () {
-    return jsonUtils.lockFile('verifications', '_index.json');
-};
+    lockSubscriptions(appId) {
+        return this.lockFile('subscriptions', appId + '.subs.json');
+    }
 
-jsonUtils.unlockVerifications = function () {
-    return jsonUtils.unlockFile('verifications', '_index.json');
-};
+    unlockSubscriptions(appId) {
+        this.unlockFile('subscriptions', appId + '.subs.json');
+    }
 
+    // APPROVALS
 
-module.exports = jsonUtils;
+    lockApprovals() {
+        return this.lockFile('approvals', '_index.json');
+    }
+
+    unlockApprovals() {
+        return this.unlockFile('approvals', '_index.json');
+    }
+
+    // WEBHOOKS
+
+    lockListeners() {
+        return this.lockFile('webhooks', this.LISTENER_FILE);
+    }
+
+    unlockListeners() {
+        return this.unlockFile('webhooks', this.LISTENER_FILE);
+    }
+
+    lockEvents(listenerId) {
+        return this.lockFile('webhooks', listenerId + '.json');
+    }
+
+    unlockEvents(listenerId) {
+        this.unlockFile('webhooks', listenerId + '.json');
+    }
+
+    // VERIFICATIONS
+
+    lockVerifications() {
+        return this.lockFile('verifications', '_index.json');
+    }
+
+    unlockVerifications() {
+        return this.unlockFile('verifications', '_index.json');
+    }
+}
+
+module.exports = JsonUtils;

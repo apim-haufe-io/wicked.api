@@ -4,145 +4,146 @@ const { debug, info, warn, error } = require('portal-env').Logger('portal-api:da
 const fs = require('fs');
 const path = require('path');
 
-const utils = require('../../../routes/utils');
-const jsonUtils = require('./json-utils');
+class JsonApprovals {
 
-const jsonApprovals = function () { };
-
-// =================================================
-// DAO contract
-// =================================================
-
-jsonApprovals.getAll = (callback) => {
-    debug('getAll()');
-    jsonUtils.checkCallback(callback);
-    let approvalList;
-    try {
-        approvalList = jsonApprovals.loadApprovals();
-    } catch (err) {
-        return callback(err);
+    constructor(jsonUtils) {
+        this.jsonUtils = jsonUtils;
     }
-    return callback(null, approvalList);
-};
 
-jsonApprovals.create = (approvalInfo, callback) => {
-    debug('create()');
-    jsonUtils.checkCallback(callback);
-    let newApproval;
-    try {
-        newApproval = jsonApprovals.createSync(approvalInfo);
-    } catch (err) {
-        return callback(err);
+    // =================================================
+    // DAO contract
+    // =================================================
+
+    getAll(callback) {
+        debug('getAll()');
+        this.jsonUtils.checkCallback(callback);
+        let approvalList;
+        try {
+            approvalList = this.loadApprovals();
+        } catch (err) {
+            return callback(err);
+        }
+        return callback(null, approvalList);
     }
-    return callback(null, newApproval);
-};
 
-jsonApprovals.deleteByApp = (appId, callback) => {
-    debug('deleteByApp()');
-    jsonUtils.checkCallback(callback);
-    try {
-        jsonApprovals.deleteByAppSync(appId);
-    } catch (err) {
-        return callback(err);
+    create(approvalInfo, callback) {
+        debug('create()');
+        this.jsonUtils.checkCallback(callback);
+        let newApproval;
+        try {
+            newApproval = this.createSync(approvalInfo);
+        } catch (err) {
+            return callback(err);
+        }
+        return callback(null, newApproval);
     }
-    return callback(null);
-};
 
-jsonApprovals.deleteByAppAndApi = (appId, apiId, callback) => {
-    debug('deleteByAppAndApi()');
-    jsonUtils.checkCallback(callback);
-    try {
-        jsonApprovals.deleteByAppAndApiSync(appId, apiId);
-    } catch (err) {
-        return callback(err);
+    deleteByApp(appId, callback) {
+        debug('deleteByApp()');
+        this.jsonUtils.checkCallback(callback);
+        try {
+            this.deleteByAppSync(appId);
+        } catch (err) {
+            return callback(err);
+        }
+        return callback(null);
     }
-    return callback(null);
-};
 
+    deleteByAppAndApi(appId, apiId, callback) {
+        debug('deleteByAppAndApi()');
+        this.jsonUtils.checkCallback(callback);
+        try {
+            this.deleteByAppAndApiSync(appId, apiId);
+        } catch (err) {
+            return callback(err);
+        }
+        return callback(null);
+    }
 
-// =================================================
-// DAO implementation/internal methods
-// =================================================
+    // =================================================
+    // DAO implementation/internal methods
+    // =================================================
 
-jsonApprovals.createSync = (approvalInfo) => {
-    debug('createSync()');
-    return jsonUtils.withLockedApprovals(() => {
-        const approvals = jsonApprovals.loadApprovals();
-        approvals.push(approvalInfo);
-        jsonApprovals.saveApprovals(approvals);
-        return approvalInfo;
-    });
-};
+    createSync(approvalInfo) {
+        debug('createSync()');
+        return this.jsonUtils.withLockedApprovals(() => {
+            const approvals = this.loadApprovals();
+            approvals.push(approvalInfo);
+            this.saveApprovals(approvals);
+            return approvalInfo;
+        });
+    }
 
-jsonApprovals.deleteByAppSync = (appId) => {
-    debug('deleteByAppSync()');
+    deleteByAppSync(appId) {
+        debug('deleteByAppSync()');
 
-    const approvalInfos = jsonApprovals.loadApprovals();
+        const approvalInfos = this.loadApprovals();
 
-    let notReady = true;
-    let foundApproval = false;
-    while (notReady) {
-        notReady = false;
+        let notReady = true;
+        let foundApproval = false;
+        while (notReady) {
+            notReady = false;
+            let approvalIndex = -1;
+            for (let i = 0; i < approvalInfos.length; ++i) {
+                if (appId == approvalInfos[i].application.id) {
+                    approvalIndex = i;
+                    break;
+                }
+            }
+            if (approvalIndex >= 0) {
+                foundApproval = true;
+                notReady = true;
+                approvalInfos.splice(approvalIndex, 1);
+            }
+        }
+        if (foundApproval) {
+            // Persist the approvals again
+            this.saveApprovals(approvalInfos);
+        }
+    }
+
+    static findApprovalIndex(approvalInfos, appId, apiId) {
         let approvalIndex = -1;
         for (let i = 0; i < approvalInfos.length; ++i) {
-            if (appId == approvalInfos[i].application.id) {
+            const appr = approvalInfos[i];
+            if (appr.application.id == appId &&
+                appr.api.id == apiId) {
                 approvalIndex = i;
                 break;
             }
         }
-        if (approvalIndex >= 0) {
-            foundApproval = true;
-            notReady = true;
-            approvalInfos.splice(approvalIndex, 1);
-        }
+        return approvalIndex;
     }
-    if (foundApproval) {
-        // Persist the approvals again
-        jsonApprovals.saveApprovals(approvalInfos);
-    }
-};
 
-function findApprovalIndex(approvalInfos, appId, apiId) {
-    let approvalIndex = -1;
-    for (let i = 0; i < approvalInfos.length; ++i) {
-        const appr = approvalInfos[i];
-        if (appr.application.id == appId &&
-            appr.api.id == apiId) {
-            approvalIndex = i;
-            break;
-        }
+    deleteByAppAndApiSync(appId, apiId) {
+        debug('deleteByAppAndApiSync()');
+        const instance = this;
+        return this.jsonUtils.withLockedApprovals(() => {
+            const approvalInfos = instance.loadApprovals();
+            const approvalIndex = JsonApprovals.findApprovalIndex(approvalInfos, appId, apiId);
+            if (approvalIndex >= 0) {
+                approvalInfos.splice(approvalIndex, 1);
+                instance.saveApprovals(approvalInfos);
+            }
+        });
     }
-    return approvalIndex;
+
+    loadApprovals() {
+        debug('loadApprovals()');
+        const approvalsDir = path.join(this.jsonUtils.getDynamicDir(), 'approvals');
+        const approvalsFile = path.join(approvalsDir, '_index.json');
+        if (!fs.existsSync(approvalsFile))
+            throw new Error('Internal Server Error - Approvals index not found.');
+        return JSON.parse(fs.readFileSync(approvalsFile, 'utf8'));
+    }
+
+    saveApprovals(approvalInfos) {
+        debug('saveApprovals()');
+        debug(approvalInfos);
+        const approvalsDir = path.join(this.jsonUtils.getDynamicDir(), 'approvals');
+        const approvalsFile = path.join(approvalsDir, '_index.json');
+        fs.writeFileSync(approvalsFile, JSON.stringify(approvalInfos, null, 2), 'utf8');
+    }
 }
 
-jsonApprovals.deleteByAppAndApiSync = (appId, apiId) => {
-    debug('deleteByAppAndApiSync()');
-    return jsonUtils.withLockedApprovals(() => {
-        const approvalInfos = jsonApprovals.loadApprovals();
-        const approvalIndex = findApprovalIndex(approvalInfos, appId, apiId);
-        if (approvalIndex >= 0) {
-            approvalInfos.splice(approvalIndex, 1);
-            jsonApprovals.saveApprovals(approvalInfos);
-        }
-    });
-};
-
-
-jsonApprovals.loadApprovals = () => {
-    debug('loadApprovals()');
-    const approvalsDir = path.join(jsonUtils.getDynamicDir(), 'approvals');
-    const approvalsFile = path.join(approvalsDir, '_index.json');
-    if (!fs.existsSync(approvalsFile))
-        throw new Error('Internal Server Error - Approvals index not found.');
-    return JSON.parse(fs.readFileSync(approvalsFile, 'utf8'));
-};
-
-jsonApprovals.saveApprovals = (approvalInfos) => {
-    debug('saveApprovals()');
-    debug(approvalInfos);
-    const approvalsDir = path.join(jsonUtils.getDynamicDir(), 'approvals');
-    const approvalsFile = path.join(approvalsDir, '_index.json');
-    fs.writeFileSync(approvalsFile, JSON.stringify(approvalInfos, null, 2), 'utf8');
-};
-
-module.exports = jsonApprovals;
+module.exports = JsonApprovals;

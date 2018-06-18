@@ -2,7 +2,7 @@
 
 const { debug, info, warn, error } = require('portal-env').Logger('portal-api:dao');
 const pgDao = require('./postgres/pg-dao');
-const jsonDao = require('./json/json-dao');
+const JsonDao = require('./json/json-dao');
 const utils = require('../routes/utils');
 const daoUtils = require('./dao-utils');
 
@@ -16,6 +16,7 @@ dao.init = (app) => {
     // this has been a source of extremely subtle problems in the past.
     // TypeScript would presumably have helped tons here.
     const functionList = daoUtils.listParameters(dao);
+    const jsonDao = new JsonDao();
     daoUtils.checkParameters('JSON DAO', jsonDao, functionList);
     daoUtils.checkParameters('Postgres DAO', pgDao, functionList);
 
