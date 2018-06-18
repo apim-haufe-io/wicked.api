@@ -243,6 +243,9 @@ class JsonApplications {
                         self: { href: '/applications/' + appId }
                     }
                 };
+                
+                if(appCreateInfo.description) //since it's optional
+                    newApp.description = appCreateInfo.description.substring(0, 128);
 
                 // Push new application to user
                 userInfo.applications.push({
