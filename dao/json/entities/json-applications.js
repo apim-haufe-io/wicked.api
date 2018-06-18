@@ -226,7 +226,6 @@ jsonApplications.createSync = (appCreateInfo, userInfo) => {
             const newApp = {
                 id: appId,
                 name: appCreateInfo.name.substring(0, 128),
-                description: appCreateInfo.description.substring(0, 128),
                 redirectUri: appCreateInfo.redirectUri,
                 confidential: !!appCreateInfo.confidential,
                 mainUrl: appCreateInfo.mainUrl,
@@ -244,6 +243,9 @@ jsonApplications.createSync = (appCreateInfo, userInfo) => {
                     self: { href: '/applications/' + appId }
                 }
             };
+
+            if(appCreateInfo.description) //since it's optional
+              newApp.description = appCreateInfo.description.substring(0, 128);
 
             // Push new application to user
             userInfo.applications.push({

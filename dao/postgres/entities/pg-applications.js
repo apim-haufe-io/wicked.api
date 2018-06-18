@@ -113,11 +113,14 @@ function createImpl(appCreateInfo, userInfo, callback) {
         const newApp = {
             id: appId,
             name: appCreateInfo.name.substring(0, 128),
-            description: appCreateInfo.description.substring(0, 128),
             redirectUri: appCreateInfo.redirectUri,
             confidential: !!appCreateInfo.confidential,
             mainUrl: appCreateInfo.mainUrl
         };
+        
+        if(appCreateInfo.description) //since it's optional
+          newApp.description = appCreateInfo.description.substring(0, 128);
+
         const ownerInfo = makeOwnerInfo(appId, userInfo, ownerRoles.OWNER);
 
         let createdAppInfo = null;
