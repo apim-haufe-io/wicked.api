@@ -120,6 +120,11 @@ class PgApplications {
                 confidential: !!appCreateInfo.confidential,
                 mainUrl: appCreateInfo.mainUrl
             };
+
+            if(appCreateInfo.description){
+              newApp.description = appCreateInfo.description.substring(0, 128);
+            }
+            
             const ownerInfo = PgApplications.makeOwnerInfo(appId, userInfo, ownerRoles.OWNER);
 
             let createdAppInfo = null;
