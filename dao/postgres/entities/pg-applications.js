@@ -172,7 +172,19 @@ class PgApplications {
         const fields = [];
         const values = [];
         const operators = [];
-        this.pgUtils.addFilterOptions(filter, fields, values, operators);
+        const joinedFields = [
+            {
+                source: 'b.users_id',
+                as: 'owner_user_id',
+                alias: 'ownerUserId'
+            },
+            {
+                source: 'b.data->>\'email\'',
+                as: 'owner_email',
+                alias: 'ownerEmail'
+            }
+        ];
+        this.pgUtils.addFilterOptions(filter, fields, values, operators, joinedFields);
         // This may be one of the most complicated queries we have here...
         const options = {
             limit: limit,
@@ -180,7 +192,7 @@ class PgApplications {
             orderBy: orderBy ? orderBy : 'id ASC',
             operators: operators,
             noCountCache: noCountCache,
-            additionalFields: ', b.users_id AS owner_user_id, b.data->>\'email\' AS owner_email',
+            joinedFields: joinedFields,
             joinClause: 'LEFT JOIN wicked.owners b ON a.id = b.applications_id AND b.id = (SELECT id FROM wicked.owners c WHERE c.applications_id = a.id AND c.data->>\'role\' = \'owner\' LIMIT 1)'
         };
         return this.pgUtils.getBy('applications', fields, values, options, (err, rows, countResult) => {

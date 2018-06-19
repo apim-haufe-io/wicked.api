@@ -267,7 +267,7 @@ class PgUtils {
         let operators = [];
         let noCountCache = false;
         let joinClause = null;
-        let additionalFields = null;
+        let joinedFields = null;
         fieldNames.forEach(f => operators.push('='));
         if (options.client)
             client = options.client;
@@ -287,14 +287,14 @@ class PgUtils {
             noCountCache = options.noCountCache;
         if (options.joinClause)
             joinClause = options.joinClause;
-        if (options.additionalFields)
-            additionalFields = options.additionalFields;
+        if (options.joinedFields)
+            joinedFields = options.joinedFields;
 
         const instance = this;
         this.getPoolOrClient(client, (err, poolOrClient) => {
             if (err)
                 return callback(err);
-            const queries = instance.makeSqlQuery(entity, fieldNames, operators, orderBy, offset, limit, additionalFields, joinClause);
+            const queries = instance.makeSqlQuery(entity, fieldNames, operators, orderBy, offset, limit, joinedFields, joinClause);
             const query = queries.query;
 
             async.parallel({
@@ -384,10 +384,13 @@ class PgUtils {
         });
     }
 
-    resolveFieldName(entity, mainPrefix, fieldName) {
+    resolveFieldName(entity, mainPrefix, fieldName, joinedFields) {
         // The field 'id' is always present, just use it
-        if (fieldName === 'id')
+        if (fieldName === 'id') {
+            if (mainPrefix)
+                return `${mainPrefix}${fieldName}`;
             return fieldName;
+        }
         // JOIN extra field with given table prefix?
         if (mainPrefix && fieldName.indexOf('.') >= 0)
             return fieldName;
@@ -409,11 +412,18 @@ class PgUtils {
             if (dbPropName === fieldName)
                 return propName; // Yes, return the database name
         }
+        // Joined Fields are optional
+        if (joinedFields) {
+            const joinedFieldDef = joinedFields.find(fd => { return fd.source === fieldName || fd.as === fieldName || fd.alias === fieldName; });
+            if (joinedFieldDef) {
+                return joinedFieldDef.source;
+            }
+        }
         // Not known, we will assume it's part of the JSONB data property
         return `${mainPrefix}data->>'${fieldName}'`;
     }
 
-    makeSqlQuery(entity, fieldNames, operators, orderBy, offset, limit, additionalFields, joinClause) {
+    makeSqlQuery(entity, fieldNames, operators, orderBy, offset, limit, joinedFields, joinClause) {
         let mainPrefix = '';
         let tableName = '';
         if (joinClause) {
@@ -422,8 +432,15 @@ class PgUtils {
         } else {
             joinClause = '';
         }
-        if (!additionalFields)
-            additionalFields = '';
+        let additionalFields = '';
+        if (joinedFields && joinedFields.length > 0) {
+            for (let i = 0; i < joinedFields.length; ++i) {
+                const joinedFieldDef = joinedFields[i];
+                additionalFields += `, ${joinedFieldDef.source}`;
+                if (joinedFieldDef.as)
+                    additionalFields += ` AS ${joinedFieldDef.as}`;
+            }
+        }
         let query = `SELECT ${mainPrefix}*${additionalFields} FROM wicked.${entity} ${tableName}`;
         if (joinClause)
             query += ` ${joinClause}`;
@@ -433,7 +450,7 @@ class PgUtils {
         let queryWhere = '';
         const processedFieldNames = [];
         for (let i = 0; i < fieldNames.length; ++i) {
-            processedFieldNames.push(this.resolveFieldName(entity, mainPrefix, fieldNames[i]));
+            processedFieldNames.push(this.resolveFieldName(entity, mainPrefix, fieldNames[i], joinedFields));
         }
         if (fieldNames.length > 0)
             queryWhere += ` WHERE ${processedFieldNames[0]} ${operators[0]} $1`;
@@ -446,7 +463,7 @@ class PgUtils {
         if (orderBy) {
             const tmp = orderBy.split(' ');
             const direction = tmp[1];
-            let orderField = this.resolveFieldName(entity, mainPrefix, tmp[0]);
+            let orderField = this.resolveFieldName(entity, mainPrefix, tmp[0], joinedFields);
             queryWhere += ` ORDER BY ${orderField} ${direction}`;
         }
         if (offset >= 0 && limit > 0)
