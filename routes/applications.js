@@ -29,6 +29,8 @@ const WRITE_SUBSCRIPTIONS = 'write_subscriptions';
 const verifySubscriptionsReadScope = utils.verifyScope(READ_SUBSCRIPTIONS);
 const verifySubscriptionsWriteScope = utils.verifyScope(WRITE_SUBSCRIPTIONS);
 
+const APP_MAX_LENGTH_DESCRIPTION = 1024;
+
 // Temporarily use a null middleware
 // const verifySubscriptionsReadScope = function (req, res, next) { next(); };
 // const verifySubscriptionsWriteScope = function (req, res, next) { next(); };
@@ -274,7 +276,7 @@ applications.createApplication = function (app, res, loggedInUserId, appCreateIn
         };
 
         if(appCreateInfo.description)
-          newAppInfo.description = appCreateInfo.description.substring(0, 128);
+          newAppInfo.description = appCreateInfo.description.substring(0, APP_MAX_LENGTH_DESCRIPTION);
         
         dao.applications.create(newAppInfo, userInfo, (err, createdAppInfo) => {
             if (err)
