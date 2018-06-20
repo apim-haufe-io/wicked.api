@@ -6,6 +6,7 @@ const path = require('path');
 
 const utils = require('../../../routes/utils');
 const ownerRoles = require('../../../routes/ownerRoles');
+const APP_MAX_LENGTH_DESCRIPTION = 1024;
 
 class JsonApplications {
 
@@ -253,7 +254,10 @@ class JsonApplications {
                     self: { href: '/applications/' + appId }
                 }
             };
-
+            
+            if(appCreateInfo.description)
+                newApp.description = appCreateInfo.description.substring(0, APP_MAX_LENGTH_DESCRIPTION);
+           
             if (userInfo) {
                 // Push new application to user
                 userInfo.applications.push({

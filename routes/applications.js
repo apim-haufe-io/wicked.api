@@ -28,6 +28,7 @@ const WRITE_SUBSCRIPTIONS = 'write_subscriptions';
 
 const verifySubscriptionsReadScope = utils.verifyScope(READ_SUBSCRIPTIONS);
 const verifySubscriptionsWriteScope = utils.verifyScope(WRITE_SUBSCRIPTIONS);
+const APP_MAX_LENGTH_DESCRIPTION = 1024;
 
 // Temporarily use a null middleware
 // const verifySubscriptionsReadScope = function (req, res, next) { next(); };
@@ -272,7 +273,9 @@ applications.createApplication = function (app, res, loggedInUserId, appCreateIn
             confidential: !!appCreateInfo.confidential,
             mainUrl: appCreateInfo.mainUrl
         };
-
+        if(appCreateInfo.description)
+            newAppInfo.description = appCreateInfo.description.substring(0, APP_MAX_LENGTH_DESCRIPTION);
+       
         dao.applications.create(newAppInfo, userInfo.id, (err, createdAppInfo) => {
             if (err)
                 return utils.fail(res, 500, 'createApplication: DAO create failed', err);
@@ -319,6 +322,8 @@ applications.patchApplication = function (app, res, loggedInUserId, appId, appPa
             // Update app
             if (appPatchInfo.name)
                 appInfo.name = appPatchInfo.name.substring(0, 128);
+            if(appPatchInfo.description)
+                appInfo.description = appPatchInfo.description.substring(0, APP_MAX_LENGTH_DESCRIPTION);
             if (redirectUri)
                 appInfo.redirectUri = redirectUri;
             if (appPatchInfo.hasOwnProperty('confidential'))
