@@ -3,8 +3,7 @@
 const { debug, info, warn, error } = require('portal-env').Logger('portal-api:dao:json:meta');
 const fs = require('fs');
 const path = require('path');
-
-const utils = require('../../routes/utils');
+const rimraf = require('rimraf');
 
 class JsonMeta {
 
@@ -27,10 +26,20 @@ class JsonMeta {
         ];
     }
 
+    wipe(callback) {
+        debug('wipe()');
+        return this.wipeImpl(callback);
+    }
 
     // =================================================
     // DAO implementation/internal methods
     // =================================================
+
+    wipeImpl(callback) {
+        debug('wipeImpl()');
+        const basePath = this.jsonUtils.getDynamicDir();
+        rimraf(basePath, callback);
+    }
 
     cleanupDir(dir) {
         debug('cleanupDir(): ' + dir);
@@ -83,11 +92,6 @@ class JsonMeta {
         let dirStat = fs.statSync(dirPath);
         return dirStat.isDirectory();
     }
-
-    // function getSubscriptionIndexDir() {
-    //     const dynamicDir = this.jsonUtils.getDynamicDir();
-    //     return path.join(dynamicDir, 'subscription_index');
-    // }
 
     cleanupDirectory(dirName, callback) {
         debug('cleanupDirectory(): ' + dirName);

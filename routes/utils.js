@@ -28,6 +28,16 @@ utils.getInitialConfigDir = function () {
     return path.join(envDir, 'initial-config');
 };
 
+utils._migrationMode = false;
+utils.setMigrationMode = function (value) {
+    debug(`setMigrationMode(${value})`);
+    utils._migrationMode = value;
+};
+
+utils.isMigrationMode = function () {
+    return utils._migrationMode;
+};
+
 utils.createRandomId = function () {
     return crypto.randomBytes(20).toString('hex');
 };
@@ -79,6 +89,8 @@ utils.makeError = (statusCode, message) => {
 let _groups = null;
 utils.loadGroups = function () {
     debug('loadGroups()');
+    if (utils.isMigrationMode())
+        throw new Error('You must not call loadGroups() in migration mode.');
     if (!_groups) {
         const groupsDir = path.join(utils.getStaticDir(), 'groups');
         const groupsFile = path.join(groupsDir, 'groups.json');
@@ -91,6 +103,8 @@ utils.loadGroups = function () {
 let _apis = null;
 utils.loadApis = function () {
     debug('loadApis()');
+    if (utils.isMigrationMode())
+        throw new Error('You must not call loadApis() in migration mode.');
     if (!_apis) {
         const apisDir = path.join(utils.getStaticDir(), 'apis');
         const apisFile = path.join(apisDir, 'apis.json');
@@ -117,6 +131,8 @@ utils.getApi = function (apiId) {
 let _poolsMap = null;
 utils.getPools = function () {
     debug(`getPools()`);
+    if (utils.isMigrationMode())
+        throw new Error('You must not call getPools() in migration mode.');
     if (!_poolsMap) {
         _poolsMap = {};
         // Load all the pools
@@ -176,7 +192,7 @@ utils.validationErrorMessage = (entity) => {
     return `Registrations: ${entity} is invalid, must contain a-z, 0-9, _ and - only.`;
 };
 
-const applicationRegex = /^[a-zA-Z0-9\-_]+$/;
+const applicationRegex = /^[a-z0-9\-_]+$/;
 utils.isValidApplicationId = (appId) => {
     if (!applicationRegex.test(appId))
         return false;
@@ -184,7 +200,7 @@ utils.isValidApplicationId = (appId) => {
 };
 
 utils.invalidApplicationIdMessage = () => {
-    return 'Invalid application ID, allowed chars are: a-z, A-Z, -, _';
+    return 'Invalid application ID, allowed chars are: a-z, 0-9, - and _';
 };
 
 function injectGroupScopes(apis) {
@@ -240,6 +256,8 @@ utils.loadPlans = function () {
 let _globalSettings = null;
 utils.loadGlobals = function () {
     debug('loadGlobals()');
+    if (utils.isMigrationMode())
+        throw new Error('In migration mode, loadGlobals() must not be called.');
     //    const globalsFile = path.join(utils.getStaticDir(app), 'globals.json');
     //    return require(globalsFile);
     if (!_globalSettings) {
@@ -395,6 +413,8 @@ function getDecipher() {
 }
 
 utils.apiEncrypt = function (text) {
+    if (utils.isMigrationMode())
+        return text;
     const cipher = getCipher();
     // Add random bytes so that it looks different each time.
     let cipherText = cipher.update(utils.createRandomId() + text, 'utf8', 'hex');
@@ -404,6 +424,8 @@ utils.apiEncrypt = function (text) {
 };
 
 utils.apiDecrypt = function (cipherText) {
+    if (utils.isMigrationMode())
+        return cipherText;
     if (!cipherText.startsWith('!'))
         return cipherText;
     cipherText = cipherText.substring(1); // Strip '!'

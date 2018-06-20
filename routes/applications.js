@@ -29,8 +29,6 @@ const WRITE_SUBSCRIPTIONS = 'write_subscriptions';
 const verifySubscriptionsReadScope = utils.verifyScope(READ_SUBSCRIPTIONS);
 const verifySubscriptionsWriteScope = utils.verifyScope(WRITE_SUBSCRIPTIONS);
 
-const APP_MAX_LENGTH_DESCRIPTION = 1024;
-
 // Temporarily use a null middleware
 // const verifySubscriptionsReadScope = function (req, res, next) { next(); };
 // const verifySubscriptionsWriteScope = function (req, res, next) { next(); };
@@ -275,10 +273,7 @@ applications.createApplication = function (app, res, loggedInUserId, appCreateIn
             mainUrl: appCreateInfo.mainUrl
         };
 
-        if(appCreateInfo.description)
-          newAppInfo.description = appCreateInfo.description.substring(0, APP_MAX_LENGTH_DESCRIPTION);
-        
-        dao.applications.create(newAppInfo, userInfo, (err, createdAppInfo) => {
+        dao.applications.create(newAppInfo, userInfo.id, (err, createdAppInfo) => {
             if (err)
                 return utils.fail(res, 500, 'createApplication: DAO create failed', err);
 
@@ -324,7 +319,6 @@ applications.patchApplication = function (app, res, loggedInUserId, appId, appPa
             // Update app
             if (appPatchInfo.name)
                 appInfo.name = appPatchInfo.name.substring(0, 128);
-            appInfo.description = (appPatchInfo.description) ? appPatchInfo.description.substring(0, 128): "";
             if (redirectUri)
                 appInfo.redirectUri = redirectUri;
             if (appPatchInfo.hasOwnProperty('confidential'))
@@ -433,7 +427,7 @@ applications.addOwner = function (app, res, loggedInUserId, appId, ownerCreateIn
                         return utils.fail(res, 409, 'Bad request. Owner is already registered for this application.');
                 }
 
-                dao.applications.addOwner(appId, userToAdd, role, loggedInUserId, (err, updatedAppInfo) => {
+                dao.applications.addOwner(appId, userToAdd.id, role, loggedInUserId, (err, updatedAppInfo) => {
                     if (err)
                         return utils.fail(res, 500, 'addOwner: DAO addOwner failed', err);
 

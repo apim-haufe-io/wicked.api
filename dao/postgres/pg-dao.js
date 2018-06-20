@@ -21,15 +21,13 @@ class PgDao {
 
         this.pgMeta = new PgMeta(this.pgUtils);
         this.pgUsers = new PgUsers(this.pgUtils);
-        this.pgApplications = new PgApplications(this.pgUtils);
+        this.pgApplications = new PgApplications(this.pgUtils, this.pgUsers);
         this.pgSubscriptions = new PgSubscriptions(this.pgUtils);
         this.pgVerifications = new PgVerifications(this.pgUtils);
         this.pgRegistrations = new PgRegistrations(this.pgUtils);
         this.pgGrants = new PgGrants(this.pgUtils);
         this.pgWebhooks = new PgWebhooks(this.pgUtils);
     }
-
-    init(app) { }
 
     get meta() { return this.pgMeta; }
     get users() { return this.pgUsers; }
