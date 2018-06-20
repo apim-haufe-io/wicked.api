@@ -214,13 +214,13 @@ class JsonSubscriptions {
         const apiId = subsInfo.api;
         let apiIndex = this.loadSubscriptionApiIndex(apiId);
         if (!apiIndex) {
-            error('*** addSubscriptionApiIndexEntry: Could not find index; recreating.');
+            warn(`addSubscriptionApiIndexEntry: Could not find index for API ${apiId}; (re-)creating.`);
             apiIndex = [];
         }
 
         const indexEntry = apiIndex.find(ie => ie.application === appId);
         if (indexEntry) {
-            error('*** addSubscriptionApiIndexEntry() was called with an application which already has a subscription.');
+            warn('addSubscriptionApiIndexEntry() was called with an application which already has a subscription.');
             // This is strange, and shouldn't happen.
             indexEntry.plan = planId;
         } else {
@@ -239,7 +239,7 @@ class JsonSubscriptions {
 
         let apiIndex = this.loadSubscriptionApiIndex(apiId);
         if (!apiIndex) {
-            error('*** deleteSubscriptionApiIndexEntry: Could not find index; recreating.');
+            warn(`deleteSubscriptionApiIndexEntry: Could not find index for API ${apiId}; (re-)creating.`);
             apiIndex = [];
         }
         let indexOfApp = -1;
@@ -257,7 +257,7 @@ class JsonSubscriptions {
             // debug(apiIndex);
             this.saveSubscriptionApiIndex(apiId, apiIndex);
         } else {
-            error('*** deleteSubscriptionApiIndexEntry called to remove entry for ' + appId + ' which is not present for API ' + apiId);
+            warn(`deleteSubscriptionApiIndexEntry called to remove entry for ${appId} which is not present for API ${apiId}`);
         }
     }
 

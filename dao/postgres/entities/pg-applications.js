@@ -7,8 +7,9 @@ const utils = require('../../../routes/utils');
 const ownerRoles = require('../../../routes/ownerRoles');
 
 class PgApplications {
-    constructor(pgUtils) {
+    constructor(pgUtils, pgUsers) {
         this.pgUtils = pgUtils;
+        this.pgUsers = pgUsers;
     }
 
     // =================================================
@@ -21,10 +22,10 @@ class PgApplications {
         return this.getByIdImpl(appId, null, callback);
     }
 
-    create(appCreateInfo, userInfo, callback) {
+    create(appCreateInfo, creatingUserId, callback) {
         debug('create()');
         this.pgUtils.checkCallback(callback);
-        return this.createImpl(appCreateInfo, userInfo, callback);
+        return this.createImpl(appCreateInfo, creatingUserId, callback);
     }
 
     save(appInfo, savingUserId, callback) {
@@ -65,10 +66,10 @@ class PgApplications {
         return this.getOwnersImpl(appId, null, callback);
     }
 
-    addOwner(appId, userInfo, role, addingUserId, callback) {
+    addOwner(appId, addUserId, role, addingUserId, callback) {
         debug('addOwner()');
         this.pgUtils.checkCallback(callback);
-        return this.addOwnerImpl(appId, userInfo, role, addingUserId, callback);
+        return this.addOwnerImpl(appId, addUserId, role, addingUserId, callback);
     }
 
     deleteOwner(appId, deleteUserId, deletingUserId, callback) {
@@ -101,7 +102,19 @@ class PgApplications {
         });
     }
 
-    createImpl(appCreateInfo, userInfo, callback) {
+    getUserInfo(userId, callback) {
+        debug(`getUserInfo(${userId})`);
+        if (!userId) {
+            return callback(null, null);
+        }
+        this.pgUsers.getById(userId, function (err, userInfo) {
+            if (err)
+                return callback(err);
+            return callback(null, userInfo);
+        });
+    }
+
+    createImpl(appCreateInfo, creatingUserId, callback) {
         debug('createImpl()');
         const appId = appCreateInfo.id.trim();
 
@@ -112,44 +125,58 @@ class PgApplications {
                 return callback(err);
             if (existingApp)
                 return callback(utils.makeError(409, 'Application ID "' + appId + '" already exists.'));
-            // Now we can add the application
-            const newApp = {
-                id: appId,
-                name: appCreateInfo.name.substring(0, 128),
-                redirectUri: appCreateInfo.redirectUri,
-                confidential: !!appCreateInfo.confidential,
-                mainUrl: appCreateInfo.mainUrl
-            };
-            const ownerInfo = PgApplications.makeOwnerInfo(appId, userInfo, ownerRoles.OWNER);
-
-            let createdAppInfo = null;
-            // Use a transaction so that the state will remain consistent
-            instance.pgUtils.withTransaction((err, client, callback) => {
+            instance.getUserInfo(creatingUserId, (err, userInfo) => {
                 if (err)
                     return callback(err);
-                async.series({
-                    // Create the application
-                    createApp: callback => instance.pgUtils.upsert('applications', newApp, userInfo.id, client, callback),
-                    // ... and add an owner record for the current user for it
-                    createOwner: callback => instance.pgUtils.upsert('owners', ownerInfo, userInfo.id, client, callback),
-                    // And reload the structure to get what the DAO contract wants
-                    getApp: callback => instance.getByIdImpl(appId, client, callback)
-                }, (err, results) => {
+                // Note: userInfo can be null
+                // Now we can add the application
+                const newApp = {
+                    id: appId,
+                    name: appCreateInfo.name.substring(0, 128),
+                    redirectUri: appCreateInfo.redirectUri,
+                    confidential: !!appCreateInfo.confidential,
+                    mainUrl: appCreateInfo.mainUrl
+                };
+                let ownerInfo;
+                let upsertingUserId;
+                if (userInfo) {
+                    ownerInfo = PgApplications.makeOwnerInfo(appId, userInfo, ownerRoles.OWNER);
+                    upsertingUserId = userInfo.id;
+                }
+
+                let createdAppInfo = null;
+                // Use a transaction so that the state will remain consistent
+                instance.pgUtils.withTransaction((err, client, callback) => {
                     if (err)
                         return callback(err);
-                    debug('createImpl: Successfully created application');
-                    // We want to return this, so we need to save it from here and pass it
-                    // back to the calling function from below. This callback is the callback
-                    // from the withTransaction function, which swallows any return results.
-                    createdAppInfo = results.getApp;
-                    return callback(null);
+                    async.series({
+                        // Create the application
+                        createApp: callback => instance.pgUtils.upsert('applications', newApp, upsertingUserId, client, callback),
+                        // ... and add an owner record for the current user for it
+                        createOwner: callback => {
+                            if (ownerInfo)
+                                return instance.pgUtils.upsert('owners', ownerInfo, upsertingUserId, client, callback);
+                            return callback(null);
+                        },
+                        // And reload the structure to get what the DAO contract wants
+                        getApp: callback => instance.getByIdImpl(appId, client, callback)
+                    }, (err, results) => {
+                        if (err)
+                            return callback(err);
+                        debug('createImpl: Successfully created application');
+                        // We want to return this, so we need to save it from here and pass it
+                        // back to the calling function from below. This callback is the callback
+                        // from the withTransaction function, which swallows any return results.
+                        createdAppInfo = results.getApp;
+                        return callback(null);
+                    });
+                }, (err) => {
+                    if (err)
+                        return callback(err);
+                    debug('Created application info:');
+                    debug(createdAppInfo);
+                    return callback(null, createdAppInfo);
                 });
-            }, (err) => {
-                if (err)
-                    return callback(err);
-                debug('Created application info:');
-                debug(createdAppInfo);
-                return callback(null, createdAppInfo);
             });
         });
     }
@@ -239,15 +266,22 @@ class PgApplications {
         });
     }
 
-    addOwnerImpl(appId, userInfo, role, addingUserId, callback) {
-        debug(`addOwnerImpl(${appId}, ${userInfo.id}, role: ${role})`);
-        const ownerInfo = PgApplications.makeOwnerInfo(appId, userInfo, role);
+    addOwnerImpl(appId, addUserId, role, addingUserId, callback) {
+        debug(`addOwnerImpl(${appId}, ${addUserId}, role: ${role})`);
+
         const instance = this;
-        this.pgUtils.upsert('owners', ownerInfo, addingUserId, (err) => {
+        this.getUserInfo(addUserId, (err, userInfo) => {
             if (err)
                 return callback(err);
-            // Return the appInfo as a result
-            return this.getByIdImpl(appId, null, callback);
+            if (!userInfo)
+                return callback(utils.makeError(500, `addOwnerImpl(): Could not load user to add as owner.`));
+            const ownerInfo = PgApplications.makeOwnerInfo(appId, userInfo, role);
+            instance.pgUtils.upsert('owners', ownerInfo, addingUserId, (err) => {
+                if (err)
+                    return callback(err);
+                // Return the appInfo as a result
+                return this.getByIdImpl(appId, null, callback);
+            });
         });
     }
 

@@ -11,12 +11,18 @@ class PgMeta {
         this.pgUtils = pgUtils;
     }
 
-    getInitChecks(callback) {
+    getInitChecks() {
         debug('getInitChecks()');
         const instance = this;
         return [
             (glob, callback) => instance.runMigrations(glob, callback)
         ];
+    }
+
+    wipe(callback) {
+        debug('wipe()');
+        // Woooowahjkhkssdfarghl
+        this.pgUtils.dropWickedDatabase(callback);
     }
 
     // ================================================

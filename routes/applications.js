@@ -273,7 +273,7 @@ applications.createApplication = function (app, res, loggedInUserId, appCreateIn
             mainUrl: appCreateInfo.mainUrl
         };
 
-        dao.applications.create(newAppInfo, userInfo, (err, createdAppInfo) => {
+        dao.applications.create(newAppInfo, userInfo.id, (err, createdAppInfo) => {
             if (err)
                 return utils.fail(res, 500, 'createApplication: DAO create failed', err);
 
@@ -427,7 +427,7 @@ applications.addOwner = function (app, res, loggedInUserId, appId, ownerCreateIn
                         return utils.fail(res, 409, 'Bad request. Owner is already registered for this application.');
                 }
 
-                dao.applications.addOwner(appId, userToAdd, role, loggedInUserId, (err, updatedAppInfo) => {
+                dao.applications.addOwner(appId, userToAdd.id, role, loggedInUserId, (err, updatedAppInfo) => {
                     if (err)
                         return utils.fail(res, 500, 'addOwner: DAO addOwner failed', err);
 

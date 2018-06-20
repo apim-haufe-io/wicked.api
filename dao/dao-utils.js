@@ -61,6 +61,8 @@ daoUtils.isUserApprover = (userInfo) => {
 
 daoUtils.checkValidatedUserGroup = (userInfo) => {
     debug('checkValidatedUserGroup()');
+    if (utils.isMigrationMode())
+        return; // Do nothing
     if (!userInfo.validated)
         return;
     const globalSettings = utils.loadGlobals();
@@ -70,40 +72,6 @@ daoUtils.checkValidatedUserGroup = (userInfo) => {
     if (!userInfo.groups.find(function (group) { return group == devGroup; }))
         userInfo.groups.push(devGroup);
 };
-
-// daoUtils.checkClientIdAndSecret = (userInfo) => {
-//     debug('checkClientIdAndSecret()');
-//     var globalSettings = utils.loadGlobals();
-//     var entitled = false;
-//     if (userInfo.validated &&
-//         globalSettings.api &&
-//         globalSettings.api.portal &&
-//         globalSettings.api.portal.enableApi) {
-
-//         var requiredGroup = globalSettings.api.portal.requiredGroup;
-//         if (requiredGroup) {
-//             if (userInfo.groups &&
-//                 userInfo.groups.find(function (group) { return group == requiredGroup; }))
-//                 entitled = true;
-//         } else {
-//             entitled = true;
-//         }
-//     }
-
-//     if (entitled) {
-//         debug('entitled');
-//         if (!userInfo.clientId)
-//             userInfo.clientId = utils.createRandomId();
-//         if (!userInfo.clientSecret)
-//             userInfo.clientSecret = utils.createRandomId();
-//     } else {
-//         debug('not entitled');
-//         if (userInfo.clientId)
-//             delete userInfo.clientId;
-//         if (userInfo.clientSecret)
-//             delete userInfo.clientSecret;
-//     }
-// };
 
 daoUtils.makeName = (userInfo) => {
     if (userInfo.firstName && userInfo.lastName)

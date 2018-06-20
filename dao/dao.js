@@ -29,20 +29,16 @@ dao.init = (app) => {
     if (storageType === 'postgres') {
         // Postgres storage backend
         debug('DAO uses Postgres backing storage');
-        pgDao.init(app);
         dao._impl = pgDao;
     } else {
         // JSON backing files
         debug('JSON backing storage');
-        jsonDao.init(app);
         dao._impl = jsonDao;
     }
 };
 
-
 dao.meta = {
     getInitChecks: () => { return dao._impl.meta.getInitChecks(); },
-    // init:              (glob, callback)                         => { dao._impl.meta.init(glob, callback); }
 };
 
 dao.users = {
@@ -65,7 +61,7 @@ dao.users = {
 dao.applications = {
     getById: (appId, callback) => { dao._impl.applications.getById(appId, callback); },
 
-    create: (appCreateInfo, userInfo, callback) => { dao._impl.applications.create(appCreateInfo, userInfo, callback); },
+    create: (appCreateInfo, creatingUserId, callback) => { dao._impl.applications.create(appCreateInfo, creatingUserId, callback); },
     save: (appInfo, savingUserId, callback) => { dao._impl.applications.save(appInfo, savingUserId, callback); },
     // patch:             (appInfo, patchingUserId, callback) => { dao._impl.applications.patch(appInfo, patchingUserId, callback); },
     delete: (appId, deletingUserId, callback) => { dao._impl.applications.delete(appId, deletingUserId, callback); },
@@ -75,7 +71,7 @@ dao.applications = {
     getCount: (callback) => { dao._impl.applications.getCount(callback); },
 
     getOwners: (appId, callback) => { dao._impl.applications.getOwners(appId, callback); },
-    addOwner: (appId, userInfo, role, addingUserId, callback) => { dao._impl.applications.addOwner(appId, userInfo, role, addingUserId, callback); },
+    addOwner: (appId, addUserId, role, addingUserId, callback) => { dao._impl.applications.addOwner(appId, addUserId, role, addingUserId, callback); },
     deleteOwner: (appId, deleteUserId, deletingUserId, callback) => { dao._impl.applications.deleteOwner(appId, deleteUserId, deletingUserId, callback); }
 };
 

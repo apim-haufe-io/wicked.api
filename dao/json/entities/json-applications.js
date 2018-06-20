@@ -32,12 +32,12 @@ class JsonApplications {
         return callback(null, appInfo);
     }
 
-    create(appCreateInfo, userInfo, callback) {
+    create(appCreateInfo, creatingUserId, callback) {
         debug('create()');
         this.jsonUtils.checkCallback(callback);
         let newApp;
         try {
-            newApp = this.createSync(appCreateInfo, userInfo);
+            newApp = this.createSync(appCreateInfo, creatingUserId);
         } catch (err) {
             return callback(err);
         }
@@ -116,12 +116,12 @@ class JsonApplications {
         return callback(null, ownerList);
     }
 
-    addOwner(appId, userInfo, role, addingUserId, callback) {
+    addOwner(appId, addUserId, role, addingUserId, callback) {
         debug('addOwner()');
         this.jsonUtils.checkCallback(callback);
         let updatedAppInfo;
         try {
-            updatedAppInfo = this.addOwnerSync(appId, userInfo, role, addingUserId);
+            updatedAppInfo = this.addOwnerSync(appId, addUserId, role, addingUserId);
         } catch (err) {
             return callback(err);
         }
@@ -207,43 +207,54 @@ class JsonApplications {
         return appsIndex.length;
     }
 
-    createSync(appCreateInfo, userInfo) {
+    createSync(appCreateInfo, creatingUserId) {
         debug('createSync()');
         const appId = appCreateInfo.id.trim();
         const redirectUri = appCreateInfo.redirectUri;
         const instance = this;
         return instance.jsonUtils.withLockedAppsIndex(function () {
             const appsIndex = instance.loadAppsIndex();
-            return instance.jsonUtils.withLockedUser(userInfo.id, function () {
-                // Check for dupes
-                for (let i = 0; i < appsIndex.length; ++i) {
-                    const appInfo = appsIndex[i];
-                    if (appInfo.id === appId)
-                        throw utils.makeError(409, 'Application ID "' + appId + '" already exists.');
+            // Check for dupes
+            for (let i = 0; i < appsIndex.length; ++i) {
+                const appInfo = appsIndex[i];
+                if (appInfo.id === appId)
+                    throw utils.makeError(409, 'Application ID "' + appId + '" already exists.');
+            }
+
+            // In special cases, we may want to create an application without owners (migration)
+            const ownerList = [];
+            let userInfo;
+            if (creatingUserId) {
+                userInfo = instance.jsonUsers.loadUser(creatingUserId);
+                if (!userInfo) {
+                    throw utils.makeError(500, `createSync(): User with id ${creatingUserId} was not found.`);
                 }
-
-                // Now we can add the application
-                const newApp = {
-                    id: appId,
-                    name: appCreateInfo.name.substring(0, 128),
-                    redirectUri: appCreateInfo.redirectUri,
-                    confidential: !!appCreateInfo.confidential,
-                    mainUrl: appCreateInfo.mainUrl,
-                    owners: [
-                        {
-                            userId: userInfo.id,
-                            email: userInfo.email,
-                            role: ownerRoles.OWNER,
-                            _links: {
-                                user: { href: '/users/' + userInfo.id }
-                            }
-                        }
-                    ],
+            }
+            if (userInfo) {
+                ownerList.push({
+                    userId: userInfo.id,
+                    email: userInfo.email,
+                    role: ownerRoles.OWNER,
                     _links: {
-                        self: { href: '/applications/' + appId }
+                        user: { href: '/users/' + userInfo.id }
                     }
-                };
+                });
+            }
 
+            // Now we can add the application
+            const newApp = {
+                id: appId,
+                name: appCreateInfo.name.substring(0, 128),
+                redirectUri: appCreateInfo.redirectUri,
+                confidential: !!appCreateInfo.confidential,
+                mainUrl: appCreateInfo.mainUrl,
+                owners: ownerList,
+                _links: {
+                    self: { href: '/applications/' + appId }
+                }
+            };
+
+            if (userInfo) {
                 // Push new application to user
                 userInfo.applications.push({
                     id: appId,
@@ -251,21 +262,24 @@ class JsonApplications {
                         application: { href: '/applications/' + appId }
                     }
                 });
+            }
 
-                // Push to index
-                appsIndex.push({ id: appId });
-                // Persist application
-                instance.saveApplication(newApp, userInfo.id);
-                // Persist application subscriptions (empty)
-                instance.jsonSubscriptions.saveSubscriptions(appId, []);
-                // Persist index
-                instance.saveAppsIndex(appsIndex);
+            // Push to index
+            appsIndex.push({ id: appId });
+            // Persist application
+            instance.saveApplication(newApp, userInfo ? userInfo.id : null);
+            // Persist application subscriptions (empty)
+            instance.jsonSubscriptions.saveSubscriptions(appId, []);
+            // Persist index
+            instance.saveAppsIndex(appsIndex);
+
+            if (userInfo) {
                 // Persist user
                 delete userInfo.name;
                 instance.jsonUsers.saveUser(userInfo, userInfo.id);
+            }
 
-                return newApp;
-            });
+            return newApp;
         });
     }
 
@@ -367,7 +381,7 @@ class JsonApplications {
         });
     }
 
-    getOwnersSync (appId) {
+    getOwnersSync(appId) {
         debug('getOwnersSync()');
         const appInfo = this.loadApplication(appId);
         if (!appInfo)
@@ -375,12 +389,15 @@ class JsonApplications {
         return appInfo.owners;
     }
 
-    addOwnerSync(appId, userToAdd, role, addingUserId) {
+    addOwnerSync(appId, addUserId, role, addingUserId) {
         debug('addOwnerSync()');
         const instance = this;
         return instance.jsonUtils.withLockedApp(appId, function () {
-            return instance.jsonUtils.withLockedUser(userToAdd.id, function () {
-                userToAdd.applications.push({
+            return instance.jsonUtils.withLockedUser(addUserId, function () {
+                const userInfo = instance.jsonUsers.loadUser(addUserId);
+                if (!userInfo)
+                    throw utils.makeError(500, `addOwnerSync(): Could not load user with id ${addUserId}`);
+                userInfo.applications.push({
                     id: appId,
                     _links: {
                         application: { href: '/applications/' + appId }
@@ -390,11 +407,11 @@ class JsonApplications {
                 const appInfo = instance.loadApplication(appId);
 
                 appInfo.owners.push({
-                    userId: userToAdd.id,
-                    email: userToAdd.email,
+                    userId: userInfo.id,
+                    email: userInfo.email,
                     role: role,
                     _links: {
-                        user: { href: '/users/' + userToAdd.id }
+                        user: { href: '/users/' + userInfo.id }
                     }
                 });
 
@@ -402,7 +419,7 @@ class JsonApplications {
                 instance.saveApplication(appInfo, addingUserId);
 
                 // Persist user
-                instance.jsonUsers.saveUser(userToAdd, addingUserId);
+                instance.jsonUsers.saveUser(userInfo, addingUserId);
 
                 return appInfo;
             });
@@ -487,7 +504,10 @@ class JsonApplications {
         debug(appInfo);
         const appsDir = this.jsonUtils.getAppsDir();
         const appsFileName = path.join(appsDir, appInfo.id + '.json');
-        appInfo.changedBy = userId;
+        if (userId)
+            appInfo.changedBy = userId;
+        else if (appInfo.changedBy)
+            delete appInfo.changedBy;
         appInfo.changedDate = utils.getUtc();
         fs.writeFileSync(appsFileName, JSON.stringify(appInfo, null, 2), 'utf8');
     }

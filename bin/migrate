@@ -1,0 +1,56 @@
+#!/usr/bin/env node
+
+'use strict';
+
+const DaoMigrator = require('../dao/migrate/migrate');
+
+const migrationConfig = {
+    wipeTarget: true,
+    // source: {
+    //     type: 'postgres',
+    //     config: {
+    //         host: 'localhost',
+    //         port: 5432,
+    //         user: 'kong',
+    //         password: 'kong'
+    //     }
+    // },
+    source: {
+        type: 'json',
+        config: {
+            basePath: '/Users/martind/Projects/tmp/wicked-demo-dynamic'
+        }
+    },
+    target: {
+        type: 'postgres',
+        config: {
+            host: 'localhost',
+            port: 7654,
+            user: 'kong',
+            password: 'kong'
+        }
+    }
+    // target: {
+    //     type: 'json',
+    //     config: {
+    //         basePath: '/Users/martind/Projects/tmp/wicked-migrate-dynamic'
+    //     }
+    // }
+};
+
+const daoMigrator = new DaoMigrator(migrationConfig);
+daoMigrator.migrate((err) => {
+    let exitCode = 0;
+    if (err) {
+        console.error(err);
+        console.error('FAILURE!');
+        exitCode = 1;
+    } else {
+        console.log('SUCCESS');
+    }
+    cleanupAndExit(exitCode);
+});
+
+function cleanupAndExit(exitCode) {
+    process.exit(exitCode);
+}
