@@ -9,6 +9,7 @@ class JsonMeta {
 
     constructor(jsonUtils) {
         this.jsonUtils = jsonUtils;
+        this._metadata = {};
     }
 
     // =================================================
@@ -29,6 +30,27 @@ class JsonMeta {
     wipe(callback) {
         debug('wipe()');
         return this.wipeImpl(callback);
+    }
+
+    getMetadata(propName, callback) {
+        debug(`getMetadata(${propName})`);
+        let propValue;
+        try {
+            propValue = this.getMetadataSync(propName);
+        } catch (err) {
+            return callback(err);
+        }
+        return callback(null, propValue);
+    }
+
+    setMetadata(propName, propValue, callback) {
+        debug(`setMetadata(${propName}, ${propValue})`);
+        try {
+            this.setMetadataSync(propName, propValue);
+        } catch (err) {
+            return callback(err);
+        }
+        return callback(null);
     }
 
     // =================================================
@@ -328,6 +350,24 @@ class JsonMeta {
     migrateUsersToRegistrations_wicked1_0_0() {
         debug(`migrateUsersToRegistrations_wicked1_0_0()`);
         return new Error('Not implemented');
+    }
+
+    // Metadata
+
+    getMetadataSync(propName) {
+        debug(`getMetadataSync(${propName})`);
+        if (this._metadata.hasOwnProperty(propName))
+            return this._metadata[propName];
+        return null;
+    }
+
+    setMetadataSync(propName, propValue) {
+        debug(`getMetadataSync(${propName}, ${propValue})`);
+        if (propValue)
+            this._metadata[propName] = propValue;
+        else
+            delete this._metadata[propName];
+        return propValue;
     }
 }
 

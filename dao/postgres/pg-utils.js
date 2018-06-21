@@ -47,16 +47,14 @@ class PgUtils {
         }, callback);
     }
 
-    getMetadata(callback) {
-        debug('getMetaData()');
-        this.getPoolOrClient((err, pool) => {
-            if (err)
-                return callback(err);
-            pool.query('SELECT * FROM wicked.meta WHERE id = 1;', (err, results) => {
+    getMetadata(clientOrCallback, callback) {
+        debug('getMetadata()');
+        this.sortOutClientAndCallback(clientOrCallback, callback, (client, callback) => {
+            client.query('SELECT * FROM wicked.meta WHERE id = 1;', (err, results) => {
                 if (err)
                     return callback(err);
                 if (results.rows.length !== 1)
-                    return callback(new Error('getMetaData: Unexpected row count ' + results.rows.length));
+                    return callback(new Error('getMetadata: Unexpected row count ' + results.rows.length));
                 return callback(null, results.rows[0].data);
             });
         });
@@ -77,17 +75,15 @@ class PgUtils {
         });
     }
 
-    setMetadata(metadata, callback) {
-        debug('setMetaData()');
+    setMetadata(metadata, clientOrCallback, callback) {
+        debug('setMetadata()');
         debug(metadata);
-        this.getPoolOrClient((err, pool) => {
-            if (err)
-                return callback(err);
+        this.sortOutClientAndCallback(clientOrCallback, callback, (client, callback) => {
             const now = new Date();
             if (!metadata.create_date)
                 metadata.create_date = now;
             metadata.last_update = now;
-            pool.query('UPDATE wicked.meta SET data = $1', [metadata], callback);
+            client.query('UPDATE wicked.meta SET data = $1', [metadata], callback);
         });
     }
 

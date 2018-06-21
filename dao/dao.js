@@ -9,6 +9,7 @@ const daoUtils = require('./dao-utils');
 const dao = () => { };
 
 dao._impl = null;
+dao._isReady = false;
 dao.init = (app) => {
     debug('initialize()');
 
@@ -37,8 +38,19 @@ dao.init = (app) => {
     }
 };
 
+dao.isReady = () => {
+    return dao._isReady;
+};
+
+dao.initFinished = () => {
+    dao._isReady = true;
+};
+
 dao.meta = {
     getInitChecks: () => { return dao._impl.meta.getInitChecks(); },
+    wipe: (callback) => { return dao._impl.meta.wipe(callback); },
+    getMetadata: (propName, callback) => { return dao._impl.meta.getMetadata(propName, callback); },
+    setMetadata: (propName, propValue, callback) => { return dao._impl.meta.setMetadata(propName, propValue, callback); }
 };
 
 dao.users = {

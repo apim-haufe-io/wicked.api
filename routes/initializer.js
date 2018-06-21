@@ -10,6 +10,7 @@ const utils = require('./utils');
 const users = require('./users');
 const applications = require('./applications');
 const subscriptions = require('./subscriptions');
+const principal = require('./principal');
 
 const dao = require('../dao/dao');
 
@@ -30,6 +31,9 @@ initializer.checkDynamicConfig = (callback) => {
     checks.push(addInitialUsers);
     checks.push(checkApiPlans);
     checks.push(checkSubscriptions);
+
+    // This must always be the last step
+    checks.push(initializationFinished);
 
     async.mapSeries(checks,
         function (checkFunction, callback) {
@@ -256,6 +260,14 @@ function thatApiIndexIsWritten(apis, plans, sub) {
         plan: sub.plan
     });
     return null;
+}
+
+function initializationFinished(glob, callback) {
+    debug('initializationFinished()');
+    dao.initFinished();
+    // Principal/follower election triggering
+    principal.initialElection();
+    callback(null);
 }
 
 module.exports = initializer;

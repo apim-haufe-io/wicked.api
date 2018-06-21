@@ -25,6 +25,16 @@ class PgMeta {
         this.pgUtils.dropWickedDatabase(callback);
     }
 
+    getMetadata(propName, callback) {
+        debug(`getMetadata(${propName})`);
+        return this.getMetadataImpl(propName, callback);
+    }
+
+    setMetadata(propName, propValue, callback) {
+        debug(`setMetadata(${propName}, ${propValue}`);
+        return this.setMetadataImpl(propName, propValue, callback);
+    }
+
     // ================================================
     // Implementation
     // ================================================
@@ -65,6 +75,36 @@ class PgMeta {
                 return callback(null);
             }
         });
+    }
+
+    getMetadataImpl(propName, callback) {
+        debug(`getMetadataImpl(${propName})`);
+        const instance = this;
+        instance.pgUtils.getMetadata(function (err, metadata) {
+            if (err)
+                return callback(err);
+            if (metadata.hasOwnProperty(propName))
+                return callback(null, metadata[propName]);
+            return callback(null);
+        });
+    }
+
+    setMetadataImpl(propName, propValue, callback) {
+        debug(`setMetadataImpl(${propName}, ${propValue}`);
+        const instance = this;
+        instance.pgUtils.withTransaction((err, client, callback) => {
+            if (err)
+                return callback(err);
+            instance.pgUtils.getMetadata(client, function (err, metadata) {
+                if (err)
+                    return callback(err);
+                if (propValue)
+                    metadata[propName] = propValue;
+                else 
+                    delete metadata[propName];
+                instance.pgUtils.setMetadata(metadata, client, callback);
+            });
+        }, callback);
     }
 }
 

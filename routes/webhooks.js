@@ -8,6 +8,7 @@ var async = require('async');
 var { debug, info, warn, error } = require('portal-env').Logger('portal-api:webhooks');
 
 var dao = require('../dao/dao');
+var principal = require('./principal');
 
 var webhooks = require('express').Router();
 webhooks.setup = function (users) {
@@ -262,6 +263,12 @@ webhooks.checkAndFireHooks = function (callback) {
     if (!callback)
         throw new Error('checkAndFireHooks: callback is null');
     debug('checkAndFireHooks()');
+    if (!principal.isInstancePrincipal()) {
+        debug(`checkAndFireHooks(): Current instance is not the principal instance, not firing webhooks`);
+        return callback(null);
+    }
+    info('Checking and firing web hook events.');
+
     dao.webhooks.listeners.getAll((err, listenerInfos) => {
         if (err) {
             error('*** COULD NOT GET WEBHOOKS');
