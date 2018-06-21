@@ -415,7 +415,7 @@ subscriptions.deleteSubscription = function (app, res, applications, loggedInUse
                 return utils.fail(res, 403, 'Not allowed. User invalid.');
 
             var isAllowed = false;
-            if (userInfo.admin)
+            if (userInfo.admin || userInfo.approver)
                 isAllowed = true;
             if (!isAllowed) {
                 // Check for App rights

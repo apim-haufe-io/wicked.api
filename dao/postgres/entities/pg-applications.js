@@ -5,6 +5,7 @@ const { debug, info, warn, error } = require('portal-env').Logger('portal-api:da
 
 const utils = require('../../../routes/utils');
 const ownerRoles = require('../../../routes/ownerRoles');
+const APP_MAX_LENGTH_DESCRIPTION = 1024;
 
 class PgApplications {
     constructor(pgUtils, pgUsers) {
@@ -137,6 +138,9 @@ class PgApplications {
                     confidential: !!appCreateInfo.confidential,
                     mainUrl: appCreateInfo.mainUrl
                 };
+                if(appCreateInfo.description)
+                    newApp.description = appCreateInfo.description.substring(0, APP_MAX_LENGTH_DESCRIPTION);
+             
                 let ownerInfo;
                 let upsertingUserId;
                 if (userInfo) {
