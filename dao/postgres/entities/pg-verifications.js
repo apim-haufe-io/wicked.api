@@ -1,6 +1,9 @@
 'use strict';
 
+const async = require('async');
+
 const { debug, info, warn, error } = require('portal-env').Logger('portal-api:dao:pg:verifications');
+const utils = require('../../../routes/utils');
 
 class PgVerifications {
     constructor(pgUtils) {
@@ -46,16 +49,27 @@ class PgVerifications {
     // =================================================
 
     reconcileImpl(expirySeconds, callback) {
-        // TODO: Implement; this cannot be done with the current state
-        // of the pgUtils, it needs a check via time stamp. Full table scan?
-        // I guess a FTS is okay here. It's not done often, and the amount
-        // of data is not big.
+        debug(`reconcileImpl()`);
+        info(`Running verification record reconciliation.`);
 
-        error('*****************************************************************');
-        error('***** POSTGRES: RECONCILE VERIFICATIONS NOT YET IMPLEMENTED *****');
-        error('*****************************************************************');
-
-        return callback(null);
+        // Not so nice, this is a FTS, but we don't expect tons of records in here anyway
+        const instance = this;
+        instance.getAll((err, verifInfos, countResult) => {
+            if (err)
+                return callback(err);
+            debug(`reconcileImpl(): Found ${countResult.count} verifications.`);
+            const idsToDelete = [];
+            const nowUtc = utils.getUtc();
+            for (let i = 0; i < verifInfos.length; ++i) {
+                const v = verifInfos[i];
+                if (nowUtc - v.utc > expirySeconds)
+                    idsToDelete.push(v.id);
+            }
+            if (idsToDelete.length > 0) {
+                info(`Verification reconciliation: Pruning ${idsToDelete.length} verification records (older than ${expirySeconds} seconds).`);
+                async.eachSeries(idsToDelete, (id, callback) => instance.delete(id, callback), callback);
+            }
+        });
     }
 }
 
