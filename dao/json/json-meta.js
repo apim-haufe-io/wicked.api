@@ -5,11 +5,13 @@ const fs = require('fs');
 const path = require('path');
 const rimraf = require('rimraf');
 
+const utils = require('../../routes/utils');
+
 class JsonMeta {
 
     constructor(jsonUtils) {
         this.jsonUtils = jsonUtils;
-        this._metadata = {};
+        this._isLegacyData = false;
     }
 
     // =================================================
@@ -19,6 +21,7 @@ class JsonMeta {
     getInitChecks() {
         const instance = this;
         return [
+            (glob, callback) => instance.dataWasMigratedOrIsEmpty(glob, callback),
             (glob, callback) => instance.cleanupSubscriptionIndex(glob, callback),
             (glob, callback) => instance.cleanupSubscriptionApiIndex(glob, callback),
             (glob, callback) => instance.checkDynamicConfigDir(glob, callback),
@@ -30,6 +33,10 @@ class JsonMeta {
     wipe(callback) {
         debug('wipe()');
         return this.wipeImpl(callback);
+    }
+
+    isLegacyData() {
+        return this._isLegacyData;
     }
 
     getMetadata(propName, callback) {
@@ -63,79 +70,33 @@ class JsonMeta {
         rimraf(basePath, callback);
     }
 
-    cleanupDir(dir) {
-        debug('cleanupDir(): ' + dir);
-        var fileList = [];
-        this.gatherLockFiles(dir, fileList);
+    // INIT CHECKS
 
-        for (var i = 0; i < fileList.length; ++i) {
-            debug('cleanupDir: Deleting ' + fileList[i]);
-            fs.unlinkSync(fileList[i]);
-        }
-    }
-
-    gatherLockFiles(dir, fileList) {
-        var fileNames = fs.readdirSync(dir);
-        for (var i = 0; i < fileNames.length; ++i) {
-            var fileName = path.join(dir, fileNames[i]);
-            var stat = fs.statSync(fileName);
-            if (stat.isDirectory())
-                this.gatherLockFiles(fileName, fileList);
-            if (stat.isFile()) {
-                if (fileName.endsWith('.lock') &&
-                    !fileName.endsWith('global.lock')) {
-                    debug("Found lock file " + fileName);
-                    fileList.push(fileName);
-                }
-            }
-        }
-    }
-
-    cleanupLockFiles(glob, callback) {
-        debug('cleanupLockFiles()');
-        let error = null;
+    dataWasMigratedOrIsEmpty(glob, callback) {
+        debug('dataWasMigratedOrIsEmpty()');
         try {
-            const dynDir = this.jsonUtils.getDynamicDir();
-            this.cleanupDir(dynDir);
-            if (this.jsonUtils.hasGlobalLock())
-                this.jsonUtils.globalUnlock();
-            debug("checkForLocks() Done.");
-        } catch (err) {
-            error(err);
-            error(err.stack);
-            error = err;
-        }
-        callback(error);
-    }
-
-    isExistingDir(dirPath) {
-        if (!fs.existsSync(dirPath))
-            return false;
-        let dirStat = fs.statSync(dirPath);
-        return dirStat.isDirectory();
-    }
-
-    cleanupDirectory(dirName, callback) {
-        debug('cleanupDirectory(): ' + dirName);
-        try {
-            let dynamicDir = this.jsonUtils.getDynamicDir();
-            if (!this.isExistingDir(dynamicDir))
-                return callback(null); // We don't even have a dynamic dir yet; fine.
-            let subIndexDir = path.join(dynamicDir, dirName);
-            if (!this.isExistingDir(subIndexDir))
-                return callback(null); // We don't have that directory yet, that's fine
-
-            // Now we know we have a dirName directory.
-            // Let's kill all files in there, as we'll rebuild this index anyway.
-            let filenameList = fs.readdirSync(subIndexDir);
-            for (let i = 0; i < filenameList.length; ++i) {
-                const filename = path.join(subIndexDir, filenameList[i]);
-                fs.unlinkSync(filename);
+            const baseDir = this.jsonUtils.getDynamicDir();
+            // Does the directory exist at all?
+            if (!fs.existsSync(baseDir)) {
+                // No, let's create it
+                fs.mkdirSync(baseDir);
             }
-            callback(null);
+            const files = fs.readdirSync(baseDir);
+            // Is this a completely empty directory?
+            if (files.length === 0)
+                return callback(null);
+            // Otherwise, this must be a migrated data directory; we will see that in the metadata
+            const metadata = this.loadMetadata();
+            if (!metadata.hasOwnProperty('dynamicVersion')) {
+                // Is this during migration?
+                if (!utils.isMigrationMode())
+                    throw new Error('Wicked >= 1.0.0 cannot operate on legacy dynamic data; it must be run through the migration process first.');
+                this._isLegacyData = true;
+            }
         } catch (err) {
-            callback(err);
+            return callback(err);
         }
+        return callback(null);
     }
 
     cleanupSubscriptionIndex(glob, callback) {
@@ -193,9 +154,9 @@ class JsonMeta {
                 file: 'dummy'
             },
             {
-                dir: 'meta',
+                dir: null,
                 file: 'meta.json',
-                content: { dynamicVersion: 0 }
+                content: {}
             }
         ];
         try {
@@ -207,10 +168,15 @@ class JsonMeta {
 
             for (let fileDescIndex in neededFiles) {
                 let fileDesc = neededFiles[fileDescIndex];
-                let subDir = path.join(dynamicDir, fileDesc.dir);
-                if (!this.isExistingDir(subDir)) {
-                    debug('Creating dynamic directory ' + fileDesc.dir);
-                    fs.mkdirSync(subDir);
+                let subDir;
+                if (fileDesc.dir) {
+                    subDir = path.join(dynamicDir, fileDesc.dir);
+                    if (!this.isExistingDir(subDir)) {
+                        debug('Creating dynamic directory ' + fileDesc.dir);
+                        fs.mkdirSync(subDir);
+                    }
+                } else {
+                    subDir = dynamicDir;
                 }
                 let fileName = path.join(subDir, fileDesc.file);
                 if (!fs.existsSync(fileName)) {
@@ -224,6 +190,83 @@ class JsonMeta {
                 }
             }
 
+            callback(null);
+        } catch (err) {
+            callback(err);
+        }
+    }
+
+    cleanupLockFiles(glob, callback) {
+        debug('cleanupLockFiles()');
+        let error = null;
+        try {
+            const dynDir = this.jsonUtils.getDynamicDir();
+            this.cleanupDir(dynDir);
+            if (this.jsonUtils.hasGlobalLock())
+                this.jsonUtils.globalUnlock();
+            debug("checkForLocks() Done.");
+        } catch (err) {
+            error(err);
+            error(err.stack);
+            error = err;
+        }
+        callback(error);
+    }
+
+    // HELPER METHODS
+
+    cleanupDir(dir) {
+        debug('cleanupDir(): ' + dir);
+        var fileList = [];
+        this.gatherLockFiles(dir, fileList);
+
+        for (var i = 0; i < fileList.length; ++i) {
+            debug('cleanupDir: Deleting ' + fileList[i]);
+            fs.unlinkSync(fileList[i]);
+        }
+    }
+
+    gatherLockFiles(dir, fileList) {
+        var fileNames = fs.readdirSync(dir);
+        for (var i = 0; i < fileNames.length; ++i) {
+            var fileName = path.join(dir, fileNames[i]);
+            var stat = fs.statSync(fileName);
+            if (stat.isDirectory())
+                this.gatherLockFiles(fileName, fileList);
+            if (stat.isFile()) {
+                if (fileName.endsWith('.lock') &&
+                    !fileName.endsWith('global.lock')) {
+                    debug("Found lock file " + fileName);
+                    fileList.push(fileName);
+                }
+            }
+        }
+    }
+
+    isExistingDir(dirPath) {
+        if (!fs.existsSync(dirPath))
+            return false;
+        let dirStat = fs.statSync(dirPath);
+        return dirStat.isDirectory();
+    }
+
+    cleanupDirectory(dirName, callback) {
+        debug('cleanupDirectory(): ' + dirName);
+        try {
+            let dynamicDir = this.jsonUtils.getDynamicDir();
+            if (!this.isExistingDir(dynamicDir))
+                return callback(null); // We don't even have a dynamic dir yet; fine.
+            let subIndexDir = path.join(dynamicDir, dirName);
+            if (!this.isExistingDir(subIndexDir))
+                return callback(null); // We don't have that directory yet, that's fine
+
+            // Now we know we have a dirName directory.
+            // Let's kill all files in there, as we'll rebuild this index anyway.
+            let filenameList = fs.readdirSync(subIndexDir);
+            for (let i = 0; i < filenameList.length; ++i) {
+                const filename = path.join(subIndexDir, filenameList[i]);
+                fs.unlinkSync(filename);
+            }
             callback(null);
         } catch (err) {
             callback(err);
@@ -245,44 +288,14 @@ class JsonMeta {
         return metaFile;
     }
 
-    loadMetaJson() {
-        debug(`loadMetaJson()`);
-        const metaFile = this.getMetaFileName();
-        try {
-            const metaJson = JSON.parse(fs.readFileSync(metaFile, 'utf8'));
-            return metaJson;
-        } catch (err) {
-            error(`loadMetaJson(): File ${metaFile} could either not be loaded or not be parsed as JSON.`);
-            throw err;
-        }
-    }
-
-    saveMetaJson(metaJson) {
-        debug(`saveMetaJson()`);
-        debug(metaJson);
-        const metaFile = this.getMetaFileName();
-        fs.writeFileSync(metaFile, JSON.stringify(metaJson, null, 2), 'utf8');
-    }
-
     getDynamicVersion() {
         debug(`getDynamicVersion()`);
-
-        const metaJson = this.loadMetaJson();
-        if (metaJson.hasOwnProperty('dynamicVersion')) {
-            const dynamicVersion = metaJson.dynamicVersion;
-            debug(`getDynamicVersion(): Returns ${dynamicVersion}`);
-            return dynamicVersion;
-        }
-        warn(`getDynamicVersion(): File meta/meta.json did not contain a "dynamicVersion" property.`);
-        return 0;
+        return this.getMetadataSync('dynamicVersion');
     }
 
     setDynamicVersion(newDynamicVersion) {
         debug(`setDynamicVersion(${newDynamicVersion})`);
-        const metaJson = this.loadMetaJson();
-        metaJson.dynamicVersion = newDynamicVersion;
-        this.saveMetaJson(metaJson);
-        return;
+        return this.setMetadataSync('dynamicVersion', newDynamicVersion);
     }
 
     static findMaxIndex(o) {
@@ -336,6 +349,9 @@ class JsonMeta {
                     error(err);
                     throw err;
                 }
+
+                // Update meta.json
+                instance.setDynamicVersion(v);
             }
         }
 
@@ -347,27 +363,47 @@ class JsonMeta {
         return null;
     }
 
-    migrateUsersToRegistrations_wicked1_0_0() {
-        debug(`migrateUsersToRegistrations_wicked1_0_0()`);
-        return new Error('Not implemented');
+    // Metadata
+
+    getMetadataFileName() {
+        const fileName = path.join(this.jsonUtils.getDynamicDir(), 'meta.json');
+        return fileName;
     }
 
-    // Metadata
+    loadMetadata() {
+        debug(`loadMetadata()`);
+        const fileName = this.getMetadataFileName();
+        if (!fs.existsSync(fileName))
+            return {};
+        return JSON.parse(fs.readFileSync(fileName, 'utf8'));
+    }
+
+    saveMetadata(metadata) {
+        debug(`saveMetadata()`);
+        const fileName = this.getMetadataFileName();
+        return fs.writeFileSync(fileName, JSON.stringify(metadata, null, 2), 'utf8');
+    }
 
     getMetadataSync(propName) {
         debug(`getMetadataSync(${propName})`);
-        if (this._metadata.hasOwnProperty(propName))
-            return this._metadata[propName];
+        const metadata = this.loadMetadata();
+        if (metadata.hasOwnProperty(propName))
+            return metadata[propName];
         return null;
     }
 
     setMetadataSync(propName, propValue) {
         debug(`getMetadataSync(${propName}, ${propValue})`);
-        if (propValue)
-            this._metadata[propName] = propValue;
-        else
-            delete this._metadata[propName];
-        return propValue;
+        const instance = this;
+        return this.jsonUtils.withLockedMetadata(function () {
+            const metadata = instance.loadMetadata();
+            if (propValue)
+                metadata[propName] = propValue;
+            else
+                delete metadata[propName];
+            instance.saveMetadata(metadata);
+            return propValue;
+        });
     }
 }
 

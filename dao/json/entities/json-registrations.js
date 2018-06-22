@@ -107,7 +107,7 @@ class JsonRegistrations {
     }
 
     getByUserSync(userId) {
-        debug(`getByUser(${userId})`);
+        debug(`getByUserSync(${userId})`);
 
         // The userIndex contains pools this user has registrations for
         const userIndex = this.readUserIndex(userId);

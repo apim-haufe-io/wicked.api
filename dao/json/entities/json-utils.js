@@ -133,7 +133,7 @@ class JsonUtils {
             return retVal;
         } finally {
             for (let i = 0; i < lockedUsers.length; ++i) {
-                try { this.unlockUser(lockedUsers[i]); } catch (err) { debug(err); error(err); }
+                try { this.unlockUser(lockedUsers[i]); } catch (err) { error(err); }
             }
             debug('withLockedUserList() cleaned up');
         }
@@ -159,7 +159,7 @@ class JsonUtils {
             return retVal;
         } finally {
             if (lockedIndex)
-                try { this.unlockUserIndex(); } catch (err) { debug(err); error(err); }
+                try { this.unlockUserIndex(); } catch (err) { error(err); }
             debug('withLockedUserIndex() cleaned up');
         }
     }
@@ -259,7 +259,7 @@ class JsonUtils {
             return retVal;
         } finally {
             if (lockedEvents)
-                try { this.unlockEvents(listenerId); } catch (err) { }
+                try { this.unlockEvents(listenerId); } catch (err) { error(err); }
             debug('withLockedEvents(): ' + listenerId + ' cleaned up');
         }
     }
@@ -279,7 +279,7 @@ class JsonUtils {
             return retVal;
         } finally {
             if (lockedListeners)
-                try { this.unlockListeners(); } catch (err) { debug(err); error(err); }
+                try { this.unlockListeners(); } catch (err) { error(err); }
             debug('withLockedListeners() cleaned up');
         }
     }
@@ -299,8 +299,28 @@ class JsonUtils {
             return retVal;
         } finally {
             if (lockedVerifications)
-                try { this.unlockVerifications(); } catch (err) { debug(err); error(err); }
+                try { this.unlockVerifications(); } catch (err) { error(err); }
             debug('withLockedVerifications() cleaned up');
+        }
+    }
+
+    withLockedMetadata(actionHook) {
+        debug('withLockedMetadata()');
+        let lockedMetadata = false;
+        try {
+            if (!this.lockMetadata())
+                throw utils.makeError(423, 'Metadata locked. Try again later.');
+            lockedMetadata = true;
+
+            const retVal = actionHook();
+
+            debug('withLockedMetadata() finished');
+
+            return retVal;
+        } finally {
+            if (lockedMetadata)
+                try { this.unlockMetadata(); } catch (err) { error(err); }
+            debug('withLockedMetadata() cleaned up');
         }
     }
 
@@ -329,7 +349,7 @@ class JsonUtils {
         debug('lockFile(): ' + subDir + '/' + fileName);
         if (this.hasGlobalLock())
             return false;
-        const baseDir = path.join(this.getDynamicDir(), subDir);
+        const baseDir = subDir ? path.join(this.getDynamicDir(), subDir) : this.getDynamicDir();
         const fullFileName = path.join(baseDir, fileName);
         const lockFileName = fullFileName + '.lock';
 
@@ -345,7 +365,7 @@ class JsonUtils {
 
     unlockFile(subDir, fileName) {
         debug('unlockFile(): ' + subDir + '/' + fileName);
-        const baseDir = path.join(this.getDynamicDir(), subDir);
+        const baseDir = subDir ? path.join(this.getDynamicDir(), subDir) : this.getDynamicDir();
         const lockFileName = path.join(baseDir, fileName + '.lock');
 
         if (fs.existsSync(lockFileName))
@@ -441,6 +461,16 @@ class JsonUtils {
     unlockVerifications() {
         return this.unlockFile('verifications', '_index.json');
     }
+
+    // METADATA
+
+    lockMetadata() {
+        return this.lockFile(null, 'meta.json');
+    }
+
+    unlockMetadata() {
+        return this.unlockFile(null, 'meta.json');
+    } 
 }
 
 module.exports = JsonUtils;

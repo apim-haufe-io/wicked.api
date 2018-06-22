@@ -49,6 +49,7 @@ dao.initFinished = () => {
 dao.meta = {
     getInitChecks: () => { return dao._impl.meta.getInitChecks(); },
     wipe: (callback) => { return dao._impl.meta.wipe(callback); },
+    isLegacyData: () => { return dao._impl.meta.isLegacyData(); },
     getMetadata: (propName, callback) => { return dao._impl.meta.getMetadata(propName, callback); },
     setMetadata: (propName, propValue, callback) => { return dao._impl.meta.setMetadata(propName, propValue, callback); }
 };

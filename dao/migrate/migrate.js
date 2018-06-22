@@ -7,6 +7,7 @@ const fs = require('fs');
 
 const { debug, info, warn, error } = require('portal-env').Logger('portal-api:dao:migrate');
 const utils = require('../../routes/utils');
+const daoUtils = require('../dao-utils');
 const JsonDao = require('../json/json-dao');
 const PgDao = require('../postgres/pg-dao');
 
@@ -40,6 +41,7 @@ class DaoMigrator {
         this._cleanupHooks = [];
         this._warnings = [];
         this._skippedSubscriptions = new Set();
+        this._migrationFromLegacy = false;
     }
 
     // PUBLIC method
@@ -60,8 +62,8 @@ class DaoMigrator {
         info('Starting Migration');
         utils.setMigrationMode(true);
         async.series({
-            source: callback => this.createDao(this._config.source, false, callback),
-            target: callback => this.createDao(this._config.target, this._config.wipeTarget, callback)
+            source: callback => this.createDao(this._config.source, false, false, callback),
+            target: callback => this.createDao(this._config.target, this._config.wipeTarget, true, callback)
         }, (err, results) => {
             if (err)
                 return callback(err);
@@ -69,7 +71,10 @@ class DaoMigrator {
             const sourceDao = results.source;
             const targetDao = results.target;
 
-            return this.migrateEntities(sourceDao, targetDao, callback);
+            async.series({
+                validate: callback => this.validateSource(sourceDao, this._config, callback),
+                migrate: callback => this.migrateEntities(sourceDao, targetDao, callback)
+            }, callback);
         });
     }
 
@@ -87,22 +92,170 @@ class DaoMigrator {
         this._cleanupHooks.push(cleanupFunction);
     }
 
-    addSevereWarning(message, description, payload) {
+    addSevereWarning(message, description, payload, type) {
         this._warnings.push({
             message,
             description,
-            payload
+            payload,
+            type
         });
     }
 
     printWarnings() {
         for (let i = 0; i < this._warnings.length; ++i) {
             const w = this._warnings[i];
-            error(`WARNING: ${w.message}`);
+            if (w.type)
+                error(`${w.type}: ${w.message}`);
+            else
+                error(`WARNING: ${w.message}`);
             error(w.description);
             if (w.payload)
                 error(w.payload);
         }
+    }
+
+    validateSource(source, migrationConfig, callback) {
+        debug('validateSource()');
+        info('Validating source DAO with given migration configuration');
+        const instance = this;
+        async.series([
+            callback => instance.validateMeta(source, migrationConfig, callback),
+            callback => instance.validateSourceUsers(source, migrationConfig, callback)
+        ], callback);
+    }
+
+    validateMeta(source, migrationConfig, callback) {
+        debug('validateMeta()');
+        this._migrationFromLegacy = source.meta.isLegacyData();
+        if (this._migrationFromLegacy)
+            info('Migrating from a legacy wicked < 1.0.0 data source');
+        else
+            info('Migrating from a wicked >= 1.0.0 data source');
+        return callback(null);
+    }
+
+    isLegacyMigration() {
+        return this._migrationFromLegacy;
+    }
+
+    static getCustomIdPrefix(customId) {
+        const colonIndex = customId.indexOf(':');
+        if (colonIndex < 0)
+            return null;
+        const prefix = customId.substring(0, colonIndex);
+        if (prefix.indexOf(' ') >= 0)
+            return null;
+        return prefix;
+    }
+
+    static getCustomIdWithoutPrefix(customId) {
+        const colonIndex = customId.indexOf(':');
+        return customId.substring(colonIndex + 1);
+    }
+
+    mapCustomId(customId) {
+        if (!customId)
+            return null;
+        const prefix = DaoMigrator.getCustomIdPrefix(customId);
+        if (!prefix) {
+            const defaultPrefix = this._config.customIdMappings.defaultPrefix;
+            return `${defaultPrefix}:${customId}`;
+        }
+        // We have a prefix, and we checked in the validation that it's valid
+        const newPrefix = this._config.customIdMappings.prefixes[prefix];
+        const idWithoutPrefix = DaoMigrator.getCustomIdWithoutPrefix(customId);
+        return `${newPrefix}:${idWithoutPrefix}`;
+    }
+
+    validateSourceUsers(source, migrationConfig, callback) {
+        debug('validateSourceUsers()');
+
+        // We only need to do this if we have a migration from legacy (<1.0.0) data.
+        // Otherwise we assume that the data comes from a wicked 1.0.0+ installation,
+        // and there we needn't map the auth method prefixes.
+        if (this.isLegacyMigration()) {
+            return callback(null);
+        }
+
+        const instance = this;
+        let hasEmptyCustomIdPrefixes = false;
+        const customIdPrefixSet = new Set();
+        pagePerUser(source, (userId, callback) => {
+            source.users.getById(userId, (err, userInfo) => {
+                if (err)
+                    return callback(err);
+                if (!userInfo.customId)
+                    return callback(null);
+                const prefix = DaoMigrator.getCustomIdPrefix(userInfo.customId);
+                if (!prefix) {
+                    hasEmptyCustomIdPrefixes = true;
+                } else {
+                    if (prefix !== 'internal' && !customIdPrefixSet.has(prefix))
+                        customIdPrefixSet.add(prefix);
+                }
+                callback(null);
+            });
+        }, (err) => {
+            if (err)
+                return callback(err);
+            // Validate that all prefixes have a mapping, and in case we have empty
+            // prefixes, validate that there's a default prefix mapping.
+
+            // If we don't have any users with a customId, we are finished
+            if (!hasEmptyCustomIdPrefixes && customIdPrefixSet.size === 0)
+                return callback(null);
+
+            let success = true;
+            if (hasEmptyCustomIdPrefixes) {
+                if (!migrationConfig.customIdMappings || !migrationConfig.customIdMappings.defaultPrefix) {
+                    success = false;
+                    instance.addSevereWarning('Migration configuration for empty customId prefixes missing.',
+                        'In your data, there are users having a custom ID (federated identity) without a prefix mapping; this is not allowed in wicked 1.0.0, all custom IDs must have a prefix mapping. Specify the default mapping in your migration configuration as customIdMappings.defaultPrefix (see example payload). This prefix must match the Auth Method ID for this Identity Provider.',
+                        {
+                            customIdMappings: {
+                                defaultPrefix: 'someprefix'
+                            }
+                        }, 'ERROR');
+                }
+            }
+
+            if (customIdPrefixSet.size > 0) {
+                if (migrationConfig.customIdMappings && migrationConfig.customIdMappings.prefixes) {
+                    for (let authMethodPrefix of customIdPrefixSet) {
+                        if (!migrationConfig.customIdMappings.prefixes[authMethodPrefix]) {
+                            success = false;
+                            const examplePayload = {
+                                customIdMappings: {
+                                    prefixes: {}
+                                }
+                            };
+                            examplePayload.customIdMappings.prefixes[authMethodPrefix] = authMethodPrefix.toLowerCase();
+                            instance.addSevereWarning(`Migration configuration for custom ID prefix ${authMethodPrefix} to auth method ID missing.`,
+                                'For the above custom ID prefix there must exist a mapping to a new auth method ID for the default authorization server. See example payload.',
+                                examplePayload,
+                                'ERROR');
+                        }
+                    }
+                } else {
+                    success = false;
+                    instance.addSevereWarning('Migration configuration for custom ID/auth method ID prefix mapping missing',
+                        'In order to ensure a correct mapping of identities between your previous installation and the wicked 1.0.0+ installation, there has to be a list of custom ID prefix mappings to auth method IDs in your migration configuration. See payload for an example.',
+                        {
+                            customIdMappings: {
+                                prefixes: {
+                                    Google: 'google',
+                                    Github: 'github'
+                                }
+                            }
+                        }, 'ERROR');
+                }
+            }
+
+
+            if (!success)
+                return callback(new Error('validateSourceUsers failed; see warning list.'));
+            return callback(null);
+        });
     }
 
     migrateEntities(source, target, callback) {
@@ -129,17 +282,38 @@ class DaoMigrator {
     static migrateUsers(instance, source, target, callback) {
         debug('migrateUsers()');
         info('Migrating Users');
-        pagePerUser(source, (userId, callback) => DaoMigrator.migrateUser(source, target, userId, callback), callback);
+        pagePerUser(source, (userId, callback) => DaoMigrator.migrateUser(instance, source, target, userId, callback), callback);
     }
 
-    static migrateUser(source, target, userId, callback) {
+    static migrateUser(instance, source, target, userId, callback) {
         debug(`migrateUser(${userId})`);
         source.users.getById(userId, (err, userInfo) => {
             if (err)
                 return callback(err);
             info(`Migrating user ${userInfo.id}`);
-            target.users.create(userInfo, callback);
+            if (instance.isLegacyMigration()) {
+                userInfo.customId = instance.mapCustomId(userInfo.customId);
+            }
+
+            target.users.create(userInfo, (err) => {
+                if (err)
+                    return callback(err);
+                if (instance.isLegacyMigration())
+                    return DaoMigrator.createWickedRegistration(target, userInfo, callback);
+                return callback(null);
+            });
         });
+    }
+
+    static createWickedRegistration(target, userInfo, callback) {
+        debug(`createWickedRegistration(${userInfo.id})`);
+        const name = daoUtils.makeName(userInfo);
+        const regInfo = {
+            poolId: 'wicked',
+            userId: userInfo.id,
+            name: name
+        };
+        target.registrations.upsert('wicked', userInfo.id, null, regInfo, callback);
     }
 
     static migrateRegistrations(instance, source, target, callback) {
@@ -170,7 +344,6 @@ class DaoMigrator {
 
     // static migrateVerifications(source, target, callback) {
     //     debug('migrateVerifications()');
-
     //     return callback(null);
     // }
 
@@ -302,17 +475,17 @@ class DaoMigrator {
             throw new Error('Postgres configuration does not contain a "config.password" property.');
     }
 
-    createDaoByType(config, callback) {
+    createDaoByType(config, isTarget, callback) {
         if (config.type === 'json')
-            return this.createJsonDao(config, callback);
+            return this.createJsonDao(config, isTarget, callback);
         else if (config.type === 'postgres')
             return this.createPostgresDao(config, callback);
         return callback(new Error(`Unknown DAO type ${config.type}`));
     }
 
-    createDao(config, wipeDao, callback) {
+    createDao(config, wipeDao, isTarget, callback) {
         debug('createDao()');
-        this.createDaoByType(config, (err, dao) => {
+        this.createDaoByType(config, isTarget, (err, dao) => {
             if (err)
                 return callback(err);
 
@@ -336,21 +509,26 @@ class DaoMigrator {
         });
     }
 
-    createJsonDao(daoConfig, callback) {
+    createJsonDao(daoConfig, isTarget, callback) {
         debug('createJsonDao()');
-        // Make a copy of the original first, and then work off that; clean up the copy post-fact
-        const tmpDir = fs.mkdtempSync('wicked_migration');
-        debug(`createJsonDao(): Using tmp dir ${tmpDir}`);
-        this.hookCleanup((callback) => {
-            debug(`cleanupJsonDao(): Cleaning up ${tmpDir}`);
-            rimraf(tmpDir, callback);
-        });
-        ncp(daoConfig.config.basePath, tmpDir, (err) => {
-            if (err)
-                return callback(err);
-            debug(`createJsonDao(): Successfully copied files to ${tmpDir}`);
-            return callback(null, new JsonDao(tmpDir));
-        });
+        if (!isTarget) {
+            // Make a copy of the original first, and then work off that; clean up the copy post-fact
+            const tmpDir = fs.mkdtempSync('wicked_migration');
+            debug(`createJsonDao(): Using tmp dir ${tmpDir}`);
+            this.hookCleanup((callback) => {
+                debug(`cleanupJsonDao(): Cleaning up ${tmpDir}`);
+                rimraf(tmpDir, callback);
+            });
+            ncp(daoConfig.config.basePath, tmpDir, (err) => {
+                if (err)
+                    return callback(err);
+                debug(`createJsonDao(): Successfully copied files to ${tmpDir}`);
+                return callback(null, new JsonDao(tmpDir));
+            });
+        } else {
+            // The DAO is the target, so we'll work directly on the given path
+            return callback(null, new JsonDao(daoConfig.config.basePath));
+        }
     }
 
     createPostgresDao(daoConfig, callback) {

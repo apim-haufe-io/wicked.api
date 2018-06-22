@@ -2,41 +2,81 @@
 
 'use strict';
 
-const DaoMigrator = require('../dao/migrate/migrate');
+const fs = require('fs');
 
-const migrationConfig = {
-    wipeTarget: true,
-    // source: {
-    //     type: 'postgres',
-    //     config: {
-    //         host: 'localhost',
-    //         port: 5432,
-    //         user: 'kong',
-    //         password: 'kong'
-    //     }
-    // },
-    source: {
-        type: 'json',
-        config: {
-            basePath: '/Users/martind/Projects/tmp/wicked-demo-dynamic'
+// =====================================================
+
+if (process.argv.length < 3) {
+    console.log('Usage: node bin/migrate [--write-sample-config] <migration_config.json>');
+    console.log('   The migration tool needs a migration configuration; the command line switch --write-sample-config');
+    console.log('   can be used to write a sample migration configuration as ./migration_config.json.');
+    process.exit(1);
+}
+
+// =====================================================
+
+if (process.argv[2] === '--write-sample-config') {
+    console.log('Writing sample configuration to ./migration_config.json. Note that this can also be used to convert');
+    console.log('to and from Postgres and to and from JSON, also for non-legacy data, by specifying either "json" or');
+    console.log('"postgres" sources or targets.');
+
+    const sampleConfig = {
+        wipeTarget: true,
+        source: {
+            type: 'json',
+            config: {
+                basePath: '/path/to/var/portal-api/dynamic'
+            }
+        },
+        target: {
+            type: 'postgres',
+            config: {
+                host: 'localhost',
+                port: 5432,
+                user: 'kong',
+                password: 'kong'
+            }
+        },
+        customIdMappings: {
+            defaultPrefix: null,
+            prefixes: {
+                Google: 'google',
+                Github: 'github'
+            }
         }
-    },
-    target: {
-        type: 'postgres',
-        config: {
-            host: 'localhost',
-            port: 7654,
-            user: 'kong',
-            password: 'kong'
-        }
+    };
+    fs.writeFileSync('./migration_config.json', JSON.stringify(sampleConfig, null, 2), 'utf8');
+    process.exit(0);
+}
+
+// =====================================================
+
+let migrationConfig = null;
+const fileName = process.argv[2];
+try {
+    console.log(`Attempting to read migration configuration from ${fileName}`);
+    if (!fs.existsSync(fileName)) {
+        console.error(`ERROR: File ${fileName} does not exist.`);
+        process.exit(1);
     }
-    // target: {
-    //     type: 'json',
-    //     config: {
-    //         basePath: '/Users/martind/Projects/tmp/wicked-migrate-dynamic'
-    //     }
-    // }
-};
+    migrationConfig = JSON.parse(fs.readFileSync(fileName, 'utf8'));
+} catch (err) {
+    console.error(`ERROR: Could not load migration config from ${fileName}`);
+    console.error(err);
+    process.exit(1);
+}
+
+// =====================================================
+
+if (!process.env.LOG_LEVEL) {
+    process.env.LOG_LEVEL = 'info';
+    console.log('Note: Setting LOG_LEVEL to info; if you need more info, e.g. for debugging, run this');
+    console.log('      with the env var LOG_LEVEL set to "debug".');
+}
+
+// =====================================================
+
+const DaoMigrator = require('../dao/migrate/migrate');
 
 const daoMigrator = new DaoMigrator(migrationConfig);
 daoMigrator.migrate((err) => {

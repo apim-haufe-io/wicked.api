@@ -5,3 +5,5 @@ docker-api.log
 docker-portal.log
 git_*
 .idea
+wicked_migration*
+migration_config.json

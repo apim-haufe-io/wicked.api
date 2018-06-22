@@ -25,6 +25,11 @@ class PgMeta {
         this.pgUtils.dropWickedDatabase(callback);
     }
 
+    isLegacyData() {
+        // If it's in Postgres, it's definitely wicked 1.0.0+
+        return false;
+    }
+
     getMetadata(propName, callback) {
         debug(`getMetadata(${propName})`);
         return this.getMetadataImpl(propName, callback);
