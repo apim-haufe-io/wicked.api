@@ -481,31 +481,50 @@ function resolveSwagger(globalSettings, apiInfo, requestPath, fileName, callback
         // We'll refresh the data, fall past
     }
 
+    function injectOauth2(swaggerJson, oflow){
+        const securityDefinitionsParam = (swaggerJson.securityDefinitions) ? swaggerJson.securityDefinitions : {};
+        const securityParam = (swaggerJson.security) ? swaggerJson.security : [];
+        securityDefinitionsParam[oflow] = {
+          type: "oauth2",
+          flow: oflow,
+          authorizationUrl: globalSettings.network.schema+"://"+globalSettings.network.apiHost+"/auth-server/oauth2/api/"+apiInfo.id,
+          tokenUrl: globalSettings.network.schema+"://"+globalSettings.network.apiHost+((requestPath.startsWith('/')) ?  requestPath : '/'+requestPath   )+"/oauth2/token",
+          scopes: {
+            "read": "Grants read access",
+          }
+        }
+        const sec = {};
+        sec[oflow] = [
+           "read"
+        ]
+        securityParam.push(sec);
+        swaggerJson.securityDefinitions = securityDefinitionsParam;
+        swaggerJson.security = securityParam; //apply globally
+    }
+
     function injectAuthAndReturn(swaggerJson) {
         if (!apiInfo.auth || apiInfo.auth == "key-auth") {
-            // Inject a new parameter for the API key.
-            // globalSettings.api.headerName,
-            var apikeyParam = {
+            const apikeyParam =  [ { key: [] } ];
+            const securityDefinitionParam = {
+             key: {
+                type: "apiKey",
                 in: "header",
-                name: globalSettings.api.headerName,
-                required: false,
-                type: "string",
-                description: "API Key to authorize with API Gateway"
-            };
-            injectParameter(swaggerJson, apikeyParam);
+                name: globalSettings.api.headerName
+            }
+          };
+          swaggerJson.securityDefinitions = securityDefinitionParam;
+          swaggerJson.security = apikeyParam; //apply globally
         } else if (apiInfo.auth == "oauth2") {
+            if(apiInfo.settings.enable_authorization_code)
+                injectOauth2(swaggerJson, "accessCode");
+            if(apiInfo.settings.enable_implicit_grant)
+                injectOauth2(swaggerJson, "implicit");
+            if(apiInfo.settings.enable_password_grant)
+                injectOauth2(swaggerJson, "password");
+            if(apiInfo.settings.enable_client_credentials)
+              injectOauth2(swaggerJson, "application");
             debug('Injecting OAuth2');
-            var authParam = {
-                in: "header",
-                name: "Authorization",
-                required: true,
-                type: "string",
-                description: 'The OAuth2 Bearer token, "Bearer ..."'
-            };
-            injectParameter(swaggerJson, authParam);
-            injectTokenEndpoint(globalSettings, swaggerJson);
         }
-
         swaggerJson.host = globalSettings.network.apiHost;
         swaggerJson.basePath = requestPath;
         swaggerJson.schemes = [globalSettings.network.schema];
