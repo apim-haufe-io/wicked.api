@@ -15,7 +15,7 @@ utils.init = (app) => {
 
 function getApp() { return utils._app; }
 
-utils.getApp = function() { return getApp(); };
+utils.getApp = function () { return getApp(); };
 
 utils.getStaticDir = function () {
     return getApp().get('static_config');
@@ -269,6 +269,109 @@ utils.loadGlobals = function () {
     }
     return _globalSettings;
 };
+
+let _authServerNames = null;
+utils.loadAuthServerNames = function () {
+    debug('loadAuthServers()');
+    if (!_authServerNames) {
+        const staticDir = utils.getStaticDir();
+        const authServerDir = path.join(staticDir, 'auth-servers');
+        debug('Checking directory ' + authServerDir + ' for auth servers.');
+        if (!fs.existsSync(authServerDir)) {
+            debug('No auth servers defined.');
+            _authServerNames = [];
+        } else {
+            const fileNames = fs.readdirSync(authServerDir);
+            const serverNames = [];
+            for (let i = 0; i < fileNames.length; ++i) {
+                const fileName = fileNames[i];
+                if (fileName.endsWith('.json')) {
+                    const authServerName = fileName.substring(0, fileName.length - 5);
+                    debug('Found auth server ' + authServerName);
+                    serverNames.push(authServerName); // strip .json
+                }
+            }
+            _authServerNames = serverNames;
+        }
+    }
+    return _authServerNames;
+};
+
+const _authServers = {};
+utils.loadAuthServer = function (serverId) {
+    debug(`loadAuthServer(${serverId})`);
+
+    if (!_authServers[serverId]) {
+        const staticDir = utils.getStaticDir();
+        const authServerFileName = path.join(staticDir, 'auth-servers', serverId + '.json');
+
+        if (!fs.existsSync(authServerFileName)) {
+            debug('Unknown auth-server: ' + serverId);
+            _authServers[serverId] = {
+                name: serverId,
+                exists: false
+            };
+        } else {
+            const data = JSON.parse(fs.readFileSync(authServerFileName, 'utf8'));
+            utils.replaceEnvVars(data);
+            // Name and id of the Auth Server is used to identify the generated
+            // API within the Kong Adapter; if those are missing, add them automatically
+            // to the answer.
+            if (!data.name)
+                data.name = serverId;
+            if (!data.id)
+                data.id = serverId;
+
+            // Check a couple of standard end points for the auth methods
+            appendAuthMethodEndpoints(data);
+
+            debug('Found auth server "' + serverId + '"');
+            debug(data);
+            _authServers[serverId] = {
+                name: serverId,
+                exists: true,
+                data: data
+            };
+        }
+    }
+    return _authServers[serverId];
+};
+
+function appendAuthMethodEndpoints(authServer) {
+    debug('appendAuthMethodEndpoints()');
+    if (!authServer.authMethods ||
+        !Array.isArray(authServer.authMethods)) {
+        warn(`appendAuthMethodEndpoints(${authServer.id}): There are no authMethods defined, or it is not an array.`);
+        return;
+    }
+
+    const authServerId = authServer.id;
+    for (let i = 0; i < authServer.authMethods.length; ++i) {
+        const authMethod = authServer.authMethods[i];
+        const authMethodId = authMethod.name;
+
+        let config = authMethod.config;
+        if (!config) {
+            warn(`appendAuthMethodEndpoints(${authServerId}): Auth method ${authMethodId} does not have a config property; creating a default one.`);
+            config = {};
+            authMethod.config = config;
+        }
+
+        checkEndpoint(authServerId, authMethodId, config, 'authorizeEndpoint', '/{{name}}/api/{{api}}/authorize');
+        checkEndpoint(authServerId, authMethodId, config, 'tokenEndpoint', '/{{name}}/api/{{api}}/token');
+        checkEndpoint(authServerId, authMethodId, config, 'profileEndpoint', '/profile');
+        checkEndpoint(authServerId, authMethodId, config, 'verifyEmailEndpoint', '/{{name}}/verifyemail');
+        checkEndpoint(authServerId, authMethodId, config, 'grantsEndpoint', '/{{name}}/grants');
+    }
+}
+
+function checkEndpoint(authServerId, authMethodId, config, endpointName, defaultValue) {
+    if (!config.hasOwnProperty(endpointName)) {
+        config[endpointName] = defaultValue;
+    } else {
+        warn(`appendAuthMethodEndpoints(${authServerId}): Auth method ${authMethodId} has a specified ${endpointName} endpoint; consider using the default. Defined: ${config[endpointName]}, default: ${defaultValue}`);
+    }
+}
 
 function getConfigDate() {
     debug('getConfigDate()');

@@ -26,115 +26,34 @@ authServers.get('/:serverId', verifyScope, function (req, res, next) {
 
 // ===== IMPLEMENTATION =====
 
-authServers._authServerNames = null;
 authServers.getAuthServers = function (app, res) {
     debug('getAuthServers()');
-    if (!authServers._authServerNames) {
-        try {
-            const staticDir = utils.getStaticDir();
-            const authServerDir = path.join(staticDir, 'auth-servers');
-            debug('Checking directory ' + authServerDir + ' for auth servers.');
-            if (!fs.existsSync(authServerDir)) {
-                debug('No auth servers defined.');
-                authServers._authServerNames = [];
-            } else {
-                const fileNames = fs.readdirSync(authServerDir);
-                const serverNames = [];
-                for (let i = 0; i < fileNames.length; ++i) {
-                    const fileName = fileNames[i];
-                    if (fileName.endsWith('.json')) {
-                        const authServerName = fileName.substring(0, fileName.length - 5);
-                        debug('Found auth server ' + authServerName);
-                        serverNames.push(authServerName); // strip .json
-                    }
-                }
-                authServers._authServerNames = serverNames;
-            }
-        } catch (ex) {
-            error('getAuthServers threw an exception:');
-            error(ex);
-            error(ex.stack);
-            return res.status(500).json({ message: ex.message });
-        }
-    }
-    res.json(authServers._authServerNames);
-};
-
-const checkEndpoint = (authServerId, authMethodId, config, endpointName, defaultValue) => {
-    if (!config.hasOwnProperty(endpointName)) {
-        config[endpointName] = defaultValue;
-    } else {
-        warn(`appendAuthMethodEndpoints(${authServerId}): Auth method ${authMethodId} has a specified ${endpointName} endpoint; consider using the default. Defined: ${config[endpointName]}, default: ${defaultValue}`);
+    try {
+        const authServerNames = utils.loadAuthServerNames();
+        return res.json(authServerNames);
+    } catch (err) {
+        error('loadAuthServerNames threw an exception:');
+        error(err);
+        return res.status(500).json({ message: err.message });
     }
 };
 
-const appendAuthMethodEndpoints = (authServer) => {
-    debug('appendAuthMethodEndpoints()');
-    if (!authServer.authMethods ||
-        !Array.isArray(authServer.authMethods)) {
-        warn(`appendAuthMethodEndpoints(${authServer.id}): There are no authMethods defined, or it is not an array.`);
-        return;
-    }
-
-    const authServerId = authServer.id;
-    for (let i = 0; i < authServer.authMethods.length; ++i) {
-        const authMethod = authServer.authMethods[i];
-        const authMethodId = authMethod.name;
-
-        let config = authMethod.config;
-        if (!config) {
-            warn(`appendAuthMethodEndpoints(${authServerId}): Auth method ${authMethodId} does not have a config property; creating a default one.`);
-            config = {};
-            authMethod.config = config;
-        }
-
-        checkEndpoint(authServerId, authMethodId, config, 'authorizeEndpoint', '/{{name}}/api/{{api}}/authorize');
-        checkEndpoint(authServerId, authMethodId, config, 'tokenEndpoint', '/{{name}}/api/{{api}}/token');
-        checkEndpoint(authServerId, authMethodId, config, 'profileEndpoint', '/profile');
-        checkEndpoint(authServerId, authMethodId, config, 'verifyEmailEndpoint', '/{{name}}/verifyemail');
-        checkEndpoint(authServerId, authMethodId, config, 'grantsEndpoint', '/{{name}}/grants');
-    }
-};
-
-authServers._authServers = {};
 authServers.getAuthServer = function (app, res, loggedInUserId, serverId) {
     debug(`getAuthServer(${serverId})`);
 
-    if (!authServers._authServers[serverId]) {
-        const staticDir = utils.getStaticDir();
-        const authServerFileName = path.join(staticDir, 'auth-servers', serverId + '.json');
-
-        if (!fs.existsSync(authServerFileName)) {
-            debug('Unknown auth-server: ' + serverId);
-            authServers._authServers[serverId] = {
-                name: serverId,
-                exists: false
-            };
-        } else {
-            const data = JSON.parse(fs.readFileSync(authServerFileName, 'utf8'));
-            utils.replaceEnvVars(data);
-            // Name and id of the Auth Server is used to identify the generated
-            // API within the Kong Adapter; if those are missing, add them automatically
-            // to the answer.
-            if (!data.name)
-                data.name = serverId;
-            if (!data.id)
-                data.id = serverId;
-
-            // Check a couple of standard end points for the auth methods
-            appendAuthMethodEndpoints(data);
-
-            debug('Found auth server "' + serverId + '"');
-            debug(data);
-            authServers._authServers[serverId] = {
-                name: serverId,
-                exists: true,
-                data: data
-            };
-        }
+    let authServerData = null;
+    try {
+        authServerData = utils.loadAuthServer(serverId);
+    } catch (err) {
+        error('getAuthServer(): utils.loadAuthServer() returned an error');
+        error(err);
+        return res.status(500).json({ message: err.message });
     }
 
-    const authServer = utils.clone(authServers._authServers[serverId]);
+    // Let's clone it, as we want to change data in the object; doing that in
+    // what's returned changes the cached auth server data, and that's not
+    // what we want.
+    const authServer = utils.clone(authServerData);
 
     if (!authServer.exists)
         return utils.fail(res, 404, 'Not found.');
