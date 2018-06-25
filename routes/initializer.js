@@ -85,6 +85,7 @@ function addInitialUsers(glob, callback) {
                 thisUser.password = bcrypt.hashSync(thisUser.password);
             thisUser.applications = [];
             thisUser.validated = true;
+            thisUser.email = thisUser.email.toLowerCase();
 
             dao.users.create(thisUser, callback);
         });
