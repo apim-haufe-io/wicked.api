@@ -32,7 +32,7 @@
             "id": "__internal_api_unlimited",
             "name": "Portal API Unlimited Plan",
             "desc": "Unlimited access to the Portal API.",
-            "needsApproval": false,
+            "needsApproval": true,
             "requiredGroup": "admin",
             "config": {
                 "plugins": []

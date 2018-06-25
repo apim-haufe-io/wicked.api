@@ -924,6 +924,34 @@ paths:
             items:
               $ref: '#/definitions/approvalType'
 
+  '/approvals/{approvalId}':
+    get:
+      security:
+      - accessCode: ['read_approvals']
+      - implicit: ['read_approvals']
+      - password: ['read_approvals']
+      tags:
+        - misc
+      description: Gets all pending approvals (admin)
+      parameters:
+        - name: approvalId
+          in: path
+          type: string
+          required: true
+          description: The ID of the approval record to retrieve
+      responses:
+        '200':
+          description: Successful request
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/approvalType'
+        '403':
+          description: Not allowed
+        '404':
+          description: Not found
+
+
   '/verifications':
     post:
       security:

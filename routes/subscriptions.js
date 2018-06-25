@@ -193,15 +193,18 @@ subscriptions.addSubscription = function (app, res, applications, loggedInUserId
                 }
 
                 debug('All set to add subscription.');
-
                 debug('Subscription is new.');
 
+                // Is this a request for a trusted application?
+                const allowTrusted = isAdmin;
+                const wantsTrusted = subsCreateInfo.trusted;
+                const isTrusted = allowTrusted && wantsTrusted;
+
                 // Do we need to create an API key? Or did we get one passed in?
-                // Or do we require approval? Admins never need approval
-                var needsApproval = !isAdmin && apiPlan.needsApproval;
-                // var approvalInfos = null;
-                // if (needsApproval)
-                //     approvalInfos = approvals.loadApprovals(app);
+                // Or do we require approval? Admins never need approval. A trusted
+                // subscription always needs approval, if it's not an Admin creating
+                // it.
+                var needsApproval = !isAdmin && (apiPlan.needsApproval || wantsTrusted);
 
                 var apiKey = null;
                 var clientId = null;
@@ -222,9 +225,6 @@ subscriptions.addSubscription = function (app, res, applications, loggedInUserId
                 } else {
                     debug('Subscription needs approval.');
                 }
-
-                const allowTrusted = isAdmin;
-                const isTrusted = allowTrusted && subsCreateInfo.trusted;
 
                 const newSubscription = {
                     id: utils.createRandomId(),
@@ -282,7 +282,6 @@ subscriptions.addSubscription = function (app, res, applications, loggedInUserId
                             subscriptionId: persistedSubscription.id,
                             user: {
                                 id: userInfo.id,
-                                name: userInfo.name,
                                 email: userInfo.email,
                             },
                             api: {
@@ -292,7 +291,8 @@ subscriptions.addSubscription = function (app, res, applications, loggedInUserId
                             },
                             application: {
                                 id: appInfo.id,
-                                name: appInfo.name
+                                name: appInfo.name,
+                                trusted: wantsTrusted
                             },
                             plan: {
                                 id: apiPlan.id,
