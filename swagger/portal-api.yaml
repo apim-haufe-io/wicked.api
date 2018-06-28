@@ -95,6 +95,8 @@ securityDefinitions:
       read_approvals: Read pending approvals
       read_verifications: Read email and password verifications
       write_verifications: Create or delete verifications
+      read_namespaces: Read registration pool namespaces
+      write_namespaces: Write registration pool namespaces
       read_registrations: Read user registrations
       write_registrations: Write user registrations
       read_grants: Read user API grants
@@ -123,6 +125,8 @@ tags:
     description: Application management
   - name: verifications
     description: Email verification functionality
+  - name: registrations
+    description: Registration pool functionality
 paths:
   '/ping':
     get:
@@ -417,6 +421,30 @@ paths:
                 type: number
               limit:
                 type: number
+
+    post:
+      security:
+      - accessCode: ['read_users']
+      - implicit: ['read_users']
+      - password: ['read_users']
+      - clientCredentials: []
+      tags:
+        - users
+      description: Create a new user; only admin users can call this end point
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            $ref: '#/definitions/userCreateType'
+      responses:
+        '204':
+          description: Created
+          schema:
+            $ref: '#/definitions/userType'
+        '403':
+          description: Not allowed
+  
   '/users/{userId}':
     get:
       security:
@@ -1340,6 +1368,152 @@ paths:
           description: Successfully deleted
         '403':
           description: Not allowed
+  
+  '/pools':
+    get:
+      tags:
+        - registrations
+      description: Read registration pool information
+      responses:
+        '200':
+          description: Success
+          schema:
+            $ref: '#/definitions/poolCollection'
+  '/pools/{poolId}':
+    get:
+      tags:
+        - registrations
+      description: Read a single registration pool information
+      parameters:
+        - name: poolId
+          in: path
+          required: true
+          type: string
+          description: The ID of the pool to retrieve
+      responses:
+        '200':
+          description: Success
+          schema:
+            $ref: '#/definitions/poolType'
+
+  '/pools/{poolId}/namespaces':
+    get:
+      tags:
+        - registrations
+      description: Read pool namespaces
+      parameters:
+      - name: poolId
+        in: path
+        required: true
+        type: string
+        description: The ID of the pool to retrieve namespaces for
+      - name: offset
+        in: query
+        type: number
+        required: false
+      - name: limit
+        in: query
+        type: number
+        required: false
+      - name: filter
+        in: query
+        type: string
+        required: false
+        description: URI-encoded JSON with filter terms (substring search), e.g. {"description":"company xyz"}
+      - name: order_by
+        in: query
+        type: string
+        required: false
+        description: Ordering of the list, e.g. "description ASC", or "id DESC"
+      responses:
+        '200':
+          description: Success
+          schema:
+            $ref: '#/definitions/namespaceCollection'
+        '403':
+          description: Not allowed
+        '404':
+          description: Not found
+
+  '/pools/{poolId}/namespaces/{namespaceId}':
+    get:
+      tags:
+        - registrations
+      description: Retrieve a single pool namespace
+      parameters:
+      - name: poolId
+        in: path
+        type: string
+        required: true
+        description: The ID of the pool to retrieve the namespace for
+      - name: namespaceId
+        in: path
+        type: string
+        required: true
+        description: The ID of the namespace to retrieve
+      response:
+        '200':
+          description: Success
+          schema:
+            $ref: '#/definitions/namespaceType'
+        '403':
+          description: Not allowed
+        '404':
+          description: Not found
+
+    put:
+      tags:
+        - registrations
+      description: Upsert a single pool namespace
+      parameters:
+      - name: poolId
+        in: path
+        type: string
+        required: true
+        description: The ID of the pool to upsert the namespace for
+      - name: namespaceId
+        in: path
+        type: string
+        required: true
+        description: The ID of the namespace to upsert
+      - name: body
+        in: nody
+        schema:
+          $ref: '#/definitions/namespaceType'
+        required: true
+      responses:
+        '200':
+          description: Success, either created or updated
+          schema:
+            $ref: '#/definitions/namespaceType'
+        '400':
+          description: Invalid request
+        '403':
+          description: Not allowed
+        '404':
+          description: Not found (pool not found)    
+    delete:
+      tags:
+        - registrations
+      description: Delete a single pool namespace, INCLUDING all user registrations for this namespace (Admin only)
+      parameters:
+      - name: poolId
+        in: path
+        type: string
+        required: true
+        description: The ID of the pool to delete the namespace for
+      - name: namespaceId
+        in: path
+        type: string
+        required: true
+        description: The ID of the namespace to delete
+      responses:
+        '204':
+          description: Successfully deleted
+        '403':
+          description: Not allowed
+        '404':
+          description: Not found
 
   '/registrations/pools/{poolId}':
     get:
@@ -1348,7 +1522,7 @@ paths:
       - implicit: ['read_registrations']
       - password: ['read_registrations']
       tags:
-      - registration
+      - registrations
       description: Retrieve all registrations
       parameters:
       - name: poolId
@@ -1386,8 +1560,8 @@ paths:
       - implicit: ['read_registrations']
       - password: ['read_registrations']
       tags:
-      - registration
-      description: Retrieve a single user registration
+      - registrations
+      description: Retrieve user registration for a given pool
       parameters:
       - name: poolId
         in: path
@@ -1401,7 +1575,9 @@ paths:
         '403':
           description: Forbidden
         '200':
-          description: User registration
+          description: User registrations
+          schema:
+            $ref: '#/definitions/registrationCollection'
 
     put:
       security:
@@ -1409,8 +1585,8 @@ paths:
       - implicit: ['write_registrations']
       - password: ['write_registrations']
       tags:
-      - registration
-      description: Write a single user registration
+      - registrations
+      description: Write a user registration for a registration pool; for pools requiring namespaces, the `namespace` is a required body parameter
       parameters:
       - name: poolId
         in: path
@@ -1439,8 +1615,8 @@ paths:
       - implicit: ['write_registrations']
       - password: ['write_registrations']
       tags:
-      - registration
-      description: Delete a single user registration
+      - registrations
+      description: Delete a user's pool registrations
       parameters:
       - name: poolId
         in: path
@@ -1450,6 +1626,11 @@ paths:
         in: path
         type: string
         required: true
+      - name: namespace
+        in: query
+        type: string
+        required: false
+        description: Required parameter for pools requiring namespace
       responses:
         '204':
           description: Success, no result
@@ -1465,7 +1646,7 @@ paths:
       - implicit: ['read_registrations']
       - password: ['read_registrations']
       tags:
-      - registration
+      - registrations
       description: Retrieve a user's registrations
       parameters:
       - name: userId
@@ -1736,6 +1917,8 @@ definitions:
         type: string
       name:
         type: string
+      confidential:
+        type: boolean
       redirectUri:
         type: string
   ownerType:
@@ -1971,3 +2154,82 @@ definitions:
       grantedDate:
         type: string
         format: date-time
+  poolCollection:
+    type: object
+    properties:
+      items:
+        type: array
+        items:
+          $ref: '#/definitions/poolType'
+      count:
+        type: number
+      count_cached:
+        type: boolean
+      offset:
+        type: number
+      limit:
+        type: number
+  poolType:
+    type: object
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+      properties:
+        type: array
+        items:
+          $ref: '#/definitions/poolPropertyType'
+  poolPropertyType:
+    type: object
+    properties:
+      id:
+        type: string
+      description:
+        type: string
+      type:
+        type: string
+        enum:
+          - string
+      maxLength:
+        type: number
+      minLength:
+        type: number
+      oidcClaim:
+        type: string
+        description: Should match an OIDC claim, if applicable, or a unique claim name (namespaced)
+    required:
+      - id
+      - description
+      - type
+      - oidcClaim
+  
+  namespaceCollection:
+    type: object
+    properties:
+      items:
+        type: array
+        items:
+          $ref: '#/definitions/namespaceType'
+      count:
+        type: number
+      count_cached:
+        type: boolean
+      offset:
+        type: number
+      limit:
+        type: number
+      
+  namespaceType:
+    type: object
+    properties:
+      id:
+        type: string
+      poolId:
+        type: string
+      description:
+        type: string
+    required:
+      - id
+      - poolId
+      - description
