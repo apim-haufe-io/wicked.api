@@ -231,8 +231,9 @@ function validateRegistrationData(poolId, data) {
     let validatedData = {};
 
     const poolInfo = utils.getPool(poolId);
-    for (let propName in poolInfo.properties) {
-        const propInfo = poolInfo.properties[propName];
+    for (let i = 0; i < poolInfo.properties.length; ++i) {
+        const propInfo = poolInfo.properties[i];
+        const propName = propInfo.id;
         const exists = data.hasOwnProperty(propName);
         const isRequired = propInfo.required;
 
@@ -281,14 +282,18 @@ function validateString(propName, propInfo, prop) {
     if (propInfo.required && s.length === 0)
         return `Property ${propName} is empty, but is required`;
     if (propInfo.hasOwnProperty('minLength')) {
-        if (s.length < propInfo.minLength)
-            return `Property ${propName} has a required minimum length of ${propInfo.minLength}`;
+        if (propInfo.required || s.length > 0) {
+            if (s.length < propInfo.minLength)
+                return `Property ${propName} has a required minimum length of ${propInfo.minLength}`;
+        }
     }
     let maxLength = 255; // Default max length
     if (propInfo.hasOwnProperty('maxLength'))
         maxLength = propInfo.maxLength;
-    if (s.length > maxLength)
-        return `Property ${propName} has a max length of ${maxLength}, given string is ${s.length}`;
+    if (propInfo.required || s.length > 0) {
+        if (s.length > maxLength)
+            return `Property ${propName} has a max length of ${maxLength}, given string is ${s.length}`;
+    }
     return null;
 }
 
