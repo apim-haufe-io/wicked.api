@@ -147,6 +147,10 @@ utils.getPools = function () {
             const poolFile = path.join(poolsDir, file);
             const poolId = file.substring(0, file.length - 5); // Cut off .json
             const poolInfo = JSON.parse(fs.readFileSync(poolFile, 'utf8'));
+            debug(poolInfo);
+
+            if (!poolInfo.properties || !Array.isArray(poolInfo.properties))
+                throw new Error(`Pool info for pool ${poolId} contains an invalid "properties" property; MUST be an array.`);
 
             _poolsMap[poolId] = poolInfo;
         }
@@ -175,7 +179,7 @@ utils.isNamespaceValid = (namespace) => {
     // Empty or null namespaces are valid
     if (!namespace)
         return true;
-    if (namespace.match(validationRegex))
+    if (validationRegex.test(namespace))
         return true;
     return false;
 };
@@ -183,7 +187,7 @@ utils.isNamespaceValid = (namespace) => {
 utils.isPoolIdValid = (poolId) => {
     if (!poolId)
         return false;
-    if (poolId.match(validationRegex))
+    if (validationRegex.test(poolId))
         return true;
     return false;
 };
@@ -388,12 +392,6 @@ function getLastCommit() {
         return "(no last commit found)";
     return fs.readFileSync(commitPath, 'utf8');
 }
-
-utils.verifyScope = function (req, res, requiredScope) {
-    if (!requiredScope)
-        return true;
-    // TODO
-};
 
 utils.replaceEnvVars = function (someObject) {
     debug('replaceEnvVars()');

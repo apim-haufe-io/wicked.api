@@ -9,6 +9,7 @@ const PgApprovals = require('./entities/pg-approvals');
 const PgRegistrations = require('./entities/pg-registrations');
 const PgGrants = require('./entities/pg-grants');
 const PgWebhooks = require('./entities/pg-webhooks');
+const PgNamespaces = require('./entities/pg-namespaces');
 const PgUtils = require('./pg-utils');
 
 // ================================================
@@ -27,6 +28,7 @@ class PgDao {
         this.pgRegistrations = new PgRegistrations(this.pgUtils);
         this.pgGrants = new PgGrants(this.pgUtils);
         this.pgWebhooks = new PgWebhooks(this.pgUtils);
+        this.pgNamespaces = new PgNamespaces(this.pgUtils);
     }
 
     get meta() { return this.pgMeta; }
@@ -37,6 +39,7 @@ class PgDao {
     get approvals() { return this.pgApprovals; }
     get registrations() { return this.pgRegistrations; }
     get grants() { return this.pgGrants; }
+    get namespaces() { return this.pgNamespaces; }
     get webhooks() { return this.pgWebhooks; }
 }
 

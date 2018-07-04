@@ -149,7 +149,7 @@ dao.registrations = {
     getByUser: (userId, callback) => { dao._impl.registrations.getByUser(userId, callback); },
 
     upsert: (poolId, userId, upsertingUserId, userData, callback) => { dao._impl.registrations.upsert(poolId, userId, upsertingUserId, userData, callback); },
-    delete: (poolId, userId, deletingUserId, callback) => { dao._impl.registrations.delete(poolId, userId, deletingUserId, callback); }
+    delete: (poolId, userId, namespace, deletingUserId, callback) => { dao._impl.registrations.delete(poolId, userId, namespace, deletingUserId, callback); }
 };
 
 dao.grants = {
@@ -159,6 +159,13 @@ dao.grants = {
 
     upsert: (userId, applicationId, apiId, upsertingUserId, grantsInfo, callback) => { dao._impl.grants.upsert(userId, applicationId, apiId, upsertingUserId, grantsInfo, callback); },
     delete: (userId, applicationId, apiId, deletingUserId, callback) => { dao._impl.grants.delete(userId, applicationId, apiId, deletingUserId, callback); }
+};
+
+dao.namespaces = {
+    getByPool: (poolId, filter, orderBy, offset, limit, noCountCache, callback) => { dao._impl.namespaces.getByPool(poolId, filter, orderBy, offset, limit, noCountCache, callback); },
+    getByPoolAndNamespace: (poolId, namespace, callback) => { dao._impl.namespaces.getByPoolAndNamespace(poolId, namespace, callback); },
+    upsert: (poolId, namespace, upsertingUserId, namespaceData, callback) => { dao._impl.namespaces.upsert(poolId, namespace, upsertingUserId, namespaceData, callback); },
+    delete: (poolId, namespace, deletingUserId, callback) => { dao._impl.namespaces.delete(poolId, namespace, deletingUserId, callback); }
 };
 
 module.exports = dao;

@@ -108,6 +108,16 @@ const model = {
                 property_name: 'apiId'
             }
         }
+    },
+
+    namespaces: {
+        properties: {
+            pool_id: {
+                property_name: 'poolId'
+            },
+            namespace: {},
+            description: {}
+        }
     }
 };
 

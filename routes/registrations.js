@@ -22,7 +22,6 @@ const verifyWriteScope = utils.verifyScope(WRITE);
 registrations.get('/pools/:poolId', verifyReadScope, function (req, res, next) {
     // These may be undefined
     const namespace = req.query.namespace;
-    const nameFilter = req.query.name_filter;
     const filter = utils.getFilter(req);
     const orderBy = utils.getOrderBy(req);
     const { offset, limit } = utils.getOffsetLimit(req);
@@ -39,7 +38,8 @@ registrations.put('/pools/:poolId/users/:userId', verifyWriteScope, function (re
 });
 
 registrations.delete('/pools/:poolId/users/:userId', verifyWriteScope, function (req, res, next) {
-    registrations.delete(req.app, res, req.apiUserId, req.params.poolId, req.params.userId);
+    const namespace = req.query.namespace;
+    registrations.delete(req.app, res, req.apiUserId, req.params.poolId, req.params.userId, namespace);
 });
 
 registrations.get('/users/:userId', verifyReadScope, function (req, res, next) {
@@ -92,22 +92,30 @@ registrations.getByPoolAndNamespace = (app, res, loggedInUserId, poolId, namespa
         return utils.fail(res, 400, utils.validationErrorMessage('Namespace'));
     if (!utils.hasPool(poolId))
         return utils.fail(res, 404, `Pool with ID ${poolId} does not exist.'`);
+    const poolInfo = utils.getPool(poolId);
+    if (namespace && !poolInfo.requiresNamespace)
+        return utils.fail(res, 400, `Pool with ID ${poolId} does not support namespaces`);
+    if (!namespace && poolInfo.requiresNamespace)
+        return utils.fail(res, 400, `Pool with ID ${poolId} requires a namespace`);
 
     verifyAccess(app, loggedInUserId, null, true, (err) => {
         if (err)
             return utils.failError(res, err);
-
-        dao.registrations.getByPoolAndNamespace(poolId, namespace, filter, orderBy, offset, limit, noCountCache, (err, regList, countResult) => {
+        verifyNamespace(poolId, namespace, (err) => {
             if (err)
-                return utils.fail(res, 500, 'Registrations: Could not retrieve registrations by pool/namespace.', err);
-            // TODO: _links for paging?
-            addPool(poolId, regList);
-            return res.json({
-                items: regList,
-                count: countResult.count,
-                count_cached: countResult.cached,
-                offset: offset,
-                limit: limit
+                return utils.failError(res, err);
+            dao.registrations.getByPoolAndNamespace(poolId, namespace, filter, orderBy, offset, limit, noCountCache, (err, regList, countResult) => {
+                if (err)
+                    return utils.fail(res, 500, 'Registrations: Could not retrieve registrations by pool/namespace.', err);
+                // TODO: _links for paging?
+                addPool(poolId, regList);
+                return res.json({
+                    items: regList,
+                    count: countResult.count,
+                    count_cached: countResult.cached,
+                    offset: offset,
+                    limit: limit
+                });
             });
         });
     });
@@ -125,11 +133,15 @@ registrations.getByPoolAndUser = (app, res, loggedInUserId, poolId, userId) => {
         if (err)
             return utils.failError(res, err);
 
-        dao.registrations.getByPoolAndUser(poolId, userId, (err, reg) => {
+        dao.registrations.getByPoolAndUser(poolId, userId, (err, regList, countResult) => {
             if (err)
                 return utils.fail(res, 500, `Registrations: Could not retrieve registration for user ${userId} and pool ${poolId}.`, err);
-            addPool(poolId, reg);
-            return res.json(reg);
+            addPool(poolId, regList);
+            return res.json({
+                items: regList,
+                count: countResult.count,
+                count_cached: countResult.cached
+            });
         });
     });
 };
@@ -140,7 +152,6 @@ registrations.getByUser = (app, res, loggedInUserId, userId) => {
     verifyAccess(app, loggedInUserId, userId, false, (err) => {
         if (err)
             return utils.failError(res, err);
-
         dao.registrations.getByUser(userId, (err, regMap) => {
             if (err)
                 return utils.fail(res, 500, 'Registrations: Could not retrieve registrations for user.', err);
@@ -159,6 +170,12 @@ registrations.upsert = (app, res, loggedInUserId, poolId, userId, reg) => {
         return utils.fail(res, 400, utils.validationErrorMessage('Pool ID'));
     if (!utils.isNamespaceValid(reg.namespace))
         return utils.fail(res, 400, utils.validationErrorMessage('Namespace'));
+    const poolInfo = utils.getPool(poolId);
+    const namespace = reg.namespace;
+    if (namespace && !poolInfo.requiresNamespace)
+        return utils.fail(res, 400, `Pool with ID ${poolId} does not support namespaces`);
+    if (!namespace && poolInfo.requiresNamespace)
+        return utils.fail(res, 400, `Pool with ID ${poolId} requires a namespace`);
     if (!utils.hasPool(poolId))
         return utils.fail(res, 404, `Pool with ID ${poolId} does not exist.'`);
     const { errorMessage, validatedData } = validateRegistrationData(poolId, reg);
@@ -168,7 +185,7 @@ registrations.upsert = (app, res, loggedInUserId, poolId, userId, reg) => {
     // pool id, user id and namespace are never in the prop info, take these explicitly
     validatedData.poolId = poolId;
     validatedData.userId = userId;
-    validatedData.namespace = reg.namespace;
+    validatedData.namespace = namespace;
 
     // verifyAccess also can return the userInfo object of the user in question; we want
     // to use this to amend the registration with the email address and custom ID of the
@@ -176,36 +193,49 @@ registrations.upsert = (app, res, loggedInUserId, poolId, userId, reg) => {
     verifyAccess(app, loggedInUserId, userId, false, (err, userInfo) => {
         if (err)
             return utils.failError(res, err);
-
-        validatedData.email = userInfo.email;
-        validatedData.customId = userInfo.customId;
-
-        dao.registrations.upsert(poolId, userId, loggedInUserId, validatedData, (err) => {
+        verifyNamespace(poolId, namespace, (err) => {
             if (err)
-                return utils.fail(res, 500, 'Registrations: Failed to upsert.', err);
+                return utils.failError(res, err);
+            validatedData.email = userInfo.email;
+            validatedData.customId = userInfo.customId;
 
-            res.status(204).json({ code: 204, message: 'Upserted registration.' });
+            dao.registrations.upsert(poolId, userId, loggedInUserId, validatedData, (err) => {
+                if (err)
+                    return utils.fail(res, 500, 'Registrations: Failed to upsert.', err);
+
+                res.status(204).json({ code: 204, message: 'Upserted registration.' });
+            });
         });
     });
 };
 
-registrations.delete = (app, res, loggedInUserId, poolId, userId) => {
-    debug(`upsert(${poolId}, ${userId})`);
+registrations.delete = (app, res, loggedInUserId, poolId, userId, namespace) => {
+    debug(`delete(${poolId}, ${userId})`);
 
     if (!utils.isPoolIdValid(poolId))
         return utils.fail(res, 400, utils.validationErrorMessage('Pool ID'));
     if (!utils.hasPool(poolId))
         return utils.fail(res, 404, `Pool with ID ${poolId} does not exist.'`);
+    if (!utils.isNamespaceValid(namespace))
+        return utils.fail(res, 400, 'Invalid namespace');
+    const poolInfo = utils.getPool(poolId);
+    if (poolInfo.requiresNamespace && !namespace)
+        return utils.fail(res, 400, 'Namespace required to delete from this pool.');
+    if (!poolInfo.requiresNamespace && namespace)
+        return utils.fail(res, 400, 'Invalid request; namespace passed in, but pool does not support namespaces.');
 
     verifyAccess(app, loggedInUserId, userId, false, (err) => {
         if (err)
             return utils.failError(res, err);
-
-        dao.registrations.delete(poolId, userId, loggedInUserId, (err) => {
+        verifyNamespace(poolId, namespace, (err) => {
             if (err)
-                return utils.fail(res, 500, 'Registrations: Could not delete registration.', err);
+                return utils.failError(res, err);
+            dao.registrations.delete(poolId, userId, namespace, loggedInUserId, (err) => {
+                if (err)
+                    return utils.fail(res, 500, 'Registrations: Could not delete registration.', err);
 
-            return res.status(204).json({ code: 204, message: 'Deleted' });
+                return res.status(204).json({ code: 204, message: 'Deleted' });
+            });
         });
     });
 };
@@ -223,6 +253,19 @@ function addPool(poolId, regListOrSingle) {
 // Registration Validation Logic
 // =======================================
 
+function verifyNamespace(poolId, namespace, callback) {
+    debug(`verifyNamespace(${poolId}, ${namespace})`);
+    if (!namespace)
+        return callback(null, null);
+    dao.namespaces.getByPoolAndNamespace(poolId, namespace, (err, namespaceData) => {
+        if (err)
+            return callback(err);
+        if (!namespaceData)
+            return callback(utils.makeError(400, `Invalid request; namespace ${namespace} does not exist for pool ${poolId}`));
+        return callback(null, namespaceData);
+    });
+}
+
 function validateRegistrationData(poolId, data) {
     debug(`validateRegistrationData(${poolId})`);
     debug(data);
@@ -231,6 +274,7 @@ function validateRegistrationData(poolId, data) {
     let validatedData = {};
 
     const poolInfo = utils.getPool(poolId);
+    debug(poolInfo);
     for (let i = 0; i < poolInfo.properties.length; ++i) {
         const propInfo = poolInfo.properties[i];
         const propName = propInfo.id;

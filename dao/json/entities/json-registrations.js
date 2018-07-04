@@ -20,13 +20,13 @@ class JsonRegistrations {
     getByPoolAndUser(poolId, userId, callback) {
         debug(`getByPoolAndUser(${poolId}, ${userId})`);
         this.jsonUtils.checkCallback(callback);
-        let userRegistration;
+        let registrations;
         try {
-            userRegistration = this.getByPoolAndUserSync(poolId, userId);
+            registrations = this.getByPoolAndUserSync(poolId, userId);
         } catch (err) {
             return callback(err);
         }
-        return callback(null, userRegistration);
+        return callback(null, registrations.rows, { count: registrations.count, cached: false });
     }
 
     getByPoolAndNamespace(poolId, namespace, filter, orderBy, offset, limit, noCountCache, callback) {
@@ -44,13 +44,13 @@ class JsonRegistrations {
     getByUser(userId, callback) {
         debug(`getByUser(${userId})`);
         this.jsonUtils.checkCallback(callback);
-        let registrations;
+        let regMap;
         try {
-            registrations = this.getByUserSync(userId);
+            regMap = this.getByUserSync(userId);
         } catch (err) {
             return callback(err);
         }
-        return callback(null, registrations.rows, { count: registrations.count, cached: false });
+        return callback(null, regMap);
     }
 
     upsert(poolId, userId, upsertingUserId, userData, callback) {
@@ -64,11 +64,11 @@ class JsonRegistrations {
         return callback(null);
     }
 
-    delete(poolId, userId, deletingUserId, callback) {
+    delete(poolId, userId, namespace, deletingUserId, callback) {
         debug(`delete(${userId})`);
         this.jsonUtils.checkCallback(callback);
         try {
-            this.deleteSync(poolId, userId);
+            this.deleteSync(poolId, userId, namespace);
         } catch (err) {
             return callback(err);
         }
@@ -79,64 +79,128 @@ class JsonRegistrations {
     // DAO implementation/internal methods
     // =================================================
 
-    makeRegsFileName(poolId, userId) {
+    getPoolIndexFileName(poolId, namespace) {
         const regsDir = path.join(this.jsonUtils.getDynamicDir(), 'registrations');
-        const regsFile = path.join(regsDir, `${poolId}_${userId}.json`);
-        return regsFile;
+        if (namespace)
+            return path.join(regsDir, `${poolId}_${namespace}.json`);
+        return path.join(regsDir, `${poolId}.json`);
     }
 
-    hasRegistration(poolId, userId) {
-        debug(`hasRegistration(${poolId}, ${userId})`);
-        const regsFile = this.makeRegsFileName(poolId, userId);
-        if (fs.existsSync(regsFile))
+    loadPoolIndex(poolId, namespace) {
+        const indexFileName = this.getPoolIndexFileName(poolId, namespace);
+        if (fs.existsSync(indexFileName))
+            return JSON.parse(fs.readFileSync(indexFileName, 'utf8'));
+        return [];
+    }
+
+    savePoolIndex(poolId, namespace, poolIndex) {
+        const indexFileName = this.getPoolIndexFileName(poolId, namespace);
+        fs.writeFileSync(indexFileName, JSON.stringify(poolIndex, null, 2), 'utf8');
+    }
+
+    getUserRegistrationsFileName(userId) {
+        const regsDir = path.join(this.jsonUtils.getDynamicDir(), 'registrations');
+        return path.join(regsDir, `${userId}.json`);
+    }
+
+    loadUserRegistrations(userId) {
+        const regsFileName = this.getUserRegistrationsFileName(userId);
+        if (fs.existsSync(regsFileName))
+            return JSON.parse(fs.readFileSync(regsFileName, 'utf8'));
+        return [];
+    }
+
+    saveUserRegistrations(userId, userRegs) {
+        const indexFileName = this.getUserRegistrationsFileName(userId);
+        fs.writeFileSync(indexFileName, JSON.stringify(userRegs, null, 2), 'utf8');
+    }
+
+    static userEntryPredicate(poolId, namespace, userId) {
+        return function (pi) {
+            if (pi.poolId !== poolId)
+                return false;
+            if (namespace && pi.namespace !== namespace)
+                return false;
+            if (pi.userId !== userId)
+                return false;
             return true;
-        return false;
+        };
     }
 
-    getByPoolAndUserSync(poolId, userId) {
-        debug(`getByPoolAndUserSync(${poolId}, ${userId})`);
-
-        if (!this.hasRegistration(poolId, userId)) {
-            warn(`Registration record for user ${userId} in pool ${poolId} not found.`);
-            throw utils.makeError(404, 'Registration not found');
-        }
-        const regsFile = this.makeRegsFileName(poolId, userId);
-        const regsJson = JSON.parse(fs.readFileSync(regsFile, 'utf8'));
-        debug(regsJson);
-        return regsJson;
+    static poolEntryPredicate(poolId, namespace) {
+        return function (r) {
+            if (r.poolId !== poolId)
+                return false;
+            if (namespace && r.namespace !== namespace)
+                return false;
+            return true;
+        };
     }
 
-    getByUserSync(userId) {
-        debug(`getByUserSync(${userId})`);
+    ensurePoolIndex(poolId, namespace, userId) {
+        debug(`ensurePoolIndex(${poolId}, ${namespace}, ${userId})`);
+        const poolIndex = this.loadPoolIndex(poolId, namespace);
+        const userEntryIndex = poolIndex.findIndex(JsonRegistrations.userEntryPredicate(poolId, namespace, userId));
+        if (userEntryIndex >= 0)
+            return;
+        poolIndex.push({
+            poolId: poolId,
+            namespace: namespace,
+            userId: userId
+        });
+        this.savePoolIndex(poolId, namespace, poolIndex);
+    }
 
-        // The userIndex contains pools this user has registrations for
-        const userIndex = this.readUserIndex(userId);
-        const tmp = { pools: {} };
-        for (let i = 0; i < userIndex.length; ++i) {
-            const poolId = userIndex[i];
-            tmp.pools[poolId] = this.getByPoolAndUserSync(poolId, userId);
+    ensureUserRegistration(poolId, namespace, userId, userData) {
+        debug(`ensureUserRegistration(${userId})`);
+        const userRegs = this.loadUserRegistrations(userId);
+        const entryIndex = userRegs.findIndex(JsonRegistrations.poolEntryPredicate(poolId, namespace));
+        userData.poolId = poolId;
+        userData.namespace = namespace;
+        userData.userId = userId;
+        if (entryIndex >= 0) {
+            // Update
+            userRegs[entryIndex] = userData;
+        } else {
+            userRegs.push(userData);
         }
-        return { rows: tmp, count: userIndex.length };
+        this.saveUserRegistrations(userId, userRegs);
+    }
+
+    getByPoolUserAndNamespaceSync(poolId, namespace, userId) {
+        const userRegs = this.loadUserRegistrations(userId);
+        const reg = userRegs.find(JsonRegistrations.poolEntryPredicate(poolId, namespace));
+        if (!reg) {
+            // This shouldn't happen; if so, the indexes are out of sync.
+            error(`Registrations: Missing registration for user ${userId}, pool ${poolId}, namespace ${namespace}`);
+        }
+        return reg;
     }
 
     getByPoolAndNamespaceSync(poolId, namespace, filter, orderBy, offset, limit) {
-        debug(`getByPoolAndNamespaceSync(${poolId}, ${namespace}, ${filter}, ${orderBy})`);
+        debug(`getByPoolAndNamespaceSync(${poolId}, ${namespace}, ${JSON.stringify(filter)}, ${orderBy})`);
         // Note: All indexes are always sorted by name internally anyway,
         // so we don't have to do that here.
-        let indexList;
-        if (!namespace) {
-            // Use the "big" pool index
-            indexList = this.readPoolIndex(poolId);
-        } else {
-            // We need to use the namespace index
-            indexList = this.readNamespaceIndex(poolId, namespace);
-        }
-
+        const indexList = this.loadPoolIndex(poolId, namespace);
         const tmpArray = [];
         for (let i = 0; i < indexList.length; ++i) {
             const entry = indexList[i]; // contains id and name
-            const thisReg = this.getByPoolAndUserSync(poolId, entry.id);
-            tmpArray.push(thisReg);
+            const userRegs = this.getByPoolAndUserSync(poolId, entry.userId);
+            if (userRegs.rows.length <= 0) {
+                throw utils.makeError(500, `Missing user registration for user ${entry.userId}, pool ${poolId}, namespace ${namespace}`);
+            } else {
+                let reg;
+                if (namespace) {
+                    reg = userRegs.rows.find(r => r.namespace === namespace); // jshint ignore:line
+                    if (!reg)
+                        throw utils.makeError(500, `Invalid internal state: No registration for user ${entry.userId} for pool ${poolId} and namespace ${namespace}`);
+                } else {
+                    if (userRegs.rows.length !== 1)
+                        throw utils.makeError(500, `Invalid internal state: Multiple registrations for user ${entry.userId} for pool ${poolId}`);
+                    reg = userRegs.rows[0];
+                }
+                tmpArray.push(reg);
+            }
         }
 
         if (!orderBy)
@@ -147,300 +211,54 @@ class JsonRegistrations {
         return { rows: list, count: filterCount };
     }
 
+    getByPoolAndUserSync(poolId, userId) {
+        debug(`getByPoolAndUserSync(${poolId}, ${userId})`);
+        const userRegs = this.loadUserRegistrations(userId);
+        const tmpArray = [];
+        for (let i = 0; i < userRegs.length; ++i) {
+            const thisReg = userRegs[i];
+            if (thisReg.poolId !== poolId)
+                continue;
+            tmpArray.push(thisReg);
+        }
+        return { rows: tmpArray, count: tmpArray.length };
+    }
+
+    getByUserSync(userId) {
+        debug(`getByUserSync(${userId})`);
+        const userRegs = this.loadUserRegistrations(userId);
+        const regMap = {};
+        for (let i = 0; i < userRegs.length; ++i) {
+            const thisReg = userRegs[i];
+            if (regMap[thisReg.poolId])
+                regMap[thisReg.poolId].push(thisReg);
+            else
+                regMap[thisReg.poolId] = [thisReg];
+        }
+        return { pools: regMap };
+    }
+
     upsertSync(poolId, userId, userData) {
-        debug(`upsertSync(${userId})`);
-
-        let previousNamespace;
-        if (this.hasRegistration(poolId, userId)) {
-            const preUpdateData = this.getByPoolAndUserSync(poolId, userId);
-            previousNamespace = preUpdateData.namespace; // This may be undefined
-        }
-        const newNamespace = userData.namespace; // This may also be undefined, that's fine
-        const newName = userData.name ? userData.name : '';
-
-        // Probably not necessary, but mustn't hurt
-        userData.userId = userId;
-        userData.poolId = poolId;
-        const regsFile = this.makeRegsFileName(poolId, userId);
-        fs.writeFileSync(regsFile, JSON.stringify(userData, null, 2), 'utf8');
-
-        // Update the user index
-        this.ensureUserIndex(poolId, userId);
-        // Update the pool index
-        this.ensurePoolIndex(poolId, userId, newName);
-        // Update the namespace index
-        this.ensureNamespaceIndex(poolId, userId, newName, previousNamespace, newNamespace);
+        const namespace = userData.namespace; // Note: This may be null
+        debug(`upsertSync(${poolId}, ${userId}, namespace: ${namespace})`);
+        debug(userData);
+        this.ensurePoolIndex(poolId, namespace, userId);
+        this.ensureUserRegistration(poolId, namespace, userId, userData);
     }
 
-    deleteSync(poolId, userId) {
-        debug(`deleteSync(${userId})`);
-
-        let previousNamespace;
-        if (this.hasRegistration(poolId, userId)) {
-            const preUpdateData = this.getByPoolAndUserSync(poolId, userId);
-            previousNamespace = preUpdateData.namespace; // This may be undefined
-        }
-
-        const regsFile = this.makeRegsFileName(poolId, userId);
-        if (!fs.existsSync(regsFile)) {
-            warn(`deleteSync: File ${regsFile} does not exist, cannot delete`);
-            throw utils.makeError(404, 'User not found');
-        }
-        fs.unlinkSync(regsFile);
-        debug(`deleteSync: Deleted file ${regsFile}`);
-
-        // Clean up in indexes
-        this.deleteFromUserIndex(poolId, userId);
-        this.deleteFromPoolIndex(poolId, userId);
-        if (previousNamespace)
-            this.deleteFromNamespaceIndex(poolId, previousNamespace, userId);
-    }
-
-    // =================================================
-    // User Index updating helper methods
-    // =================================================
-
-    getUserIndexFile(userId) {
-        if (!userId)
-            throw new Error(`getUserIndexFile: userId is empty`);
-        const regsDir = path.join(this.jsonUtils.getDynamicDir(), 'registrations');
-        const userIndex = path.join(regsDir, `${userId}.json`);
-        return userIndex;
-    }
-
-    readUserIndex(userId) {
-        const userIndexFile = this.getUserIndexFile(userId);
-        if (!fs.existsSync(userIndexFile))
-            return [];
-        return JSON.parse(fs.readFileSync(userIndexFile));
-    }
-
-    writeUserIndex(userId, userIndex) {
-        const userIndexFile = this.getUserIndexFile(userId);
-        fs.writeFileSync(userIndexFile, JSON.stringify(userIndex, null, 2), 'utf8');
-    }
-
-    ensureUserIndex(poolId, userId) {
-        debug(`ensureUserIndex(${poolId}, ${userId})`);
-        const userIndex = this.readUserIndex(userId);
-        const poolPos = userIndex.findIndex(e => e === poolId);
-        if (poolPos < 0) {
-            // Not found, insert
-            userIndex.push(poolId);
-            this.writeUserIndex(userId, userIndex);
-        }
-    }
-
-    deleteFromUserIndex(poolId, userId) {
-        debug(`deleteFromUserIndex(${poolId}, ${userId})`);
-        const userIndex = this.readUserIndex(userId);
-        const poolPos = userIndex.findIndex(e => e === poolId);
-        if (poolPos >= 0) {
-            userIndex.splice(poolPos, 1);
-            this.writeUserIndex(userId, userIndex);
-        } else {
-            throw new Error(`deleteFromUserIndex: Pool ID ${poolId} not found in user index ${userId}`);
-        }
-    }
-
-    // =================================================
-    // Pool Index updating helper methods
-    // =================================================
-
-    static sortIndex(index) {
-        function compare(a, b) {
-            if (a.name < b.name)
-                return -1;
-            if (a.name > b.name)
-                return 1;
-            return 0;
-        }
-
-        index.sort(compare);
-    }
-
-    getPoolIndexFile(poolId) {
-        if (!poolId)
-            throw new Error(`getPoolIndexFile: poolId is empty`);
-        const regsDir = path.join(this.jsonUtils.getDynamicDir(), 'registrations');
-        const poolIndex = path.join(regsDir, `${poolId}.json`);
-        return poolIndex;
-    }
-
-    readPoolIndex(poolId) {
-        const indexFile = this.getPoolIndexFile(poolId);
-        if (!fs.existsSync(indexFile)) {
-            return [];
-        }
-        return JSON.parse(fs.readFileSync(indexFile, 'utf8'));
-    }
-
-    sanityCheckPoolIndex(poolId, poolIndex) {
-        debug(`sanityCheckPoolIndex(${poolId})`);
-        const idMap = {};
-        for (let i = 0; i < poolIndex.length; ++i) {
-            const id = poolIndex[i].id;
-            const name = poolIndex[i].name;
-            if (idMap[id])
-                throw new Error(`sanityCheckPoolIndex(${poolId}): Duplicate id detected: ${id} (${name})`);
-            idMap[id] = true;
-        }
-    }
-
-    writePoolIndex(poolId, poolIndex) {
-        const indexFile = this.getPoolIndexFile(poolId);
-        this.sanityCheckPoolIndex(poolId, poolIndex);
-        JsonRegistrations.sortIndex(poolIndex);
-        fs.writeFileSync(indexFile, JSON.stringify(poolIndex, null, 2), 'utf8');
-    }
-
-    ensurePoolIndex(poolId, userId, name) {
-        debug(`ensurePoolIndex(${poolId}, ${userId}, ${name})`);
-
-        const poolIndex = this.readPoolIndex(poolId);
-        const userPos = poolIndex.findIndex(e => e.id === userId);
-        if (userPos >= 0) {
-            debug(`User ${userId} already present in pool index for pool ${poolId}`);
-            if (poolIndex[userPos].name === name) {
-                // All is good, no need to update
-                return;
-            }
-            // Remove and re-add
-            poolIndex.splice(userPos, 1);
-        } else {
-            debug(`Adding user ${userId} to pool index for pool ${poolId}`);
-        }
-        poolIndex.push({
-            id: userId,
-            name: name
-        });
-        this.writePoolIndex(poolId, poolIndex);
-    }
-
-    deleteFromPoolIndex(poolId, userId) {
-        debug(`deleteFromPoolIndex(${poolId}, ${userId})`);
-
-        const poolIndex = this.readPoolIndex(poolId);
-        const userPos = poolIndex.findIndex(e => e.id === userId);
-        if (userPos < 0) {
-            warn(`deleteFromPoolIndex: User ${userId} was not found in ${poolId}`);
-            return;
-            // throw utils.makeError(404, `deleteFromPoolIndex: User ${userId} was not found in ${poolId}`);
-        }
-        poolIndex.splice(userPos, 1);
-        this.writePoolIndex(poolId, poolIndex);
-    }
-
-    // =================================================
-    // Namespace updating helper methods
-    // =================================================
-
-    /*
-    
-    Namespace index files; namespaces are a sharding of registration pools,
-    they are not orthogonal to pools! I.e. a namespace always belongs to
-    exactly one pool.
-    
-    [
-        {
-            "id": "<user id>",
-            "name": "<user display name>"
-        },
-        ...
-    ]
-    */
-
-    getNamespaceIndexFile(poolId, namespace) {
-        if (!namespace)
-            throw new Error("It doesn't make sense to get a namespace file for an empty namespace");
-        const regsDir = path.join(this.jsonUtils.getDynamicDir(), 'registrations');
-        const namespaceIndex = path.join(regsDir, `${poolId}_NS_${namespace}.json`);
-        return namespaceIndex;
-    }
-
-    readNamespaceIndex(poolId, namespace) {
-        const indexFile = this.getNamespaceIndexFile(poolId, namespace);
-        if (fs.existsSync(indexFile))
-            return JSON.parse(fs.readFileSync(indexFile, 'utf8'));
-        return [];
-    }
-
-    sanityCheckNamespaceIndex(poolId, namespace, namespaceData) {
-        debug('sanityCheckNamespaceIndex()');
-        const idMap = {};
-        for (let i = 0; i < namespaceData; ++i) {
-            const data = namespaceData[i];
-            const id = data.id;
-            if (idMap[id])
-                throw new Error(`Found duplicate ID in namespace map: ${id} (${data.name}), pool: ${poolId}, namespace ${namespace}`);
-            idMap[id] = data.name;
-        }
-    }
-
-    writeNamespaceIndex(poolId, namespace, namespaceIndex) {
-        const indexFile = this.getNamespaceIndexFile(poolId, namespace);
-        this.sanityCheckNamespaceIndex(poolId, namespace, namespaceIndex);
-        JsonRegistrations.sortIndex(namespaceIndex);
-        fs.writeFileSync(indexFile, JSON.stringify(namespaceIndex, null, 2), 'utf8');
-    }
-
-    upsertNamespaceIndex(poolId, namespace, userId, name) {
-        debug(`upsertNamespaceIndex(${poolId}, ${namespace}, ${userId}, ${name})`);
-        const index = this.readNamespaceIndex(poolId, namespace);
-        const userIndex = index.findIndex(e => e.id === userId);
-        const entry = {
-            id: userId,
-            name: name
-        };
-        if (userIndex >= 0) {
-            debug(`upsertIndex: Updating entry.`);
-            index[userIndex] = entry;
-        } else {
-            debug(`upsertIndex: New entry.`);
-            index.push(entry);
-        }
-        this.writeNamespaceIndex(poolId, namespace, index);
-    }
-
-    deleteFromNamespaceIndex(poolId, namespace, userId) {
-        debug(`deleteFromNamespaceIndex(${poolId}, ${namespace}, ${userId})`);
-        const index = this.readNamespaceIndex(poolId, namespace);
-        const userIndex = index.findIndex(e => e.id === userId);
-        if (userIndex < 0) {
-            warn(`deleteFromIndex: Could not find id ${userId} in namespace index, pool ${poolId}, namespace ${namespace}`);
-            return;
-        }
-        // splice operates on the array, returns removed items!
-        index.splice(userIndex, 1);
-        this.writeNamespaceIndex(poolId, namespace, index);
-    }
-
-    ensureNamespaceIndex(poolId, userId, name, previousNamespace, newNamespace) {
-        debug(`ensureNamespaceIndex(${poolId}, ${userId}, ${previousNamespace}, ${newNamespace}`);
-        if (!previousNamespace && !newNamespace) {
-            debug('No namespaces involved, nothing to do.');
-            return;
-        }
-        // Now we know either previousNamespace or newNamespace is defined
-        if (previousNamespace === newNamespace) {
-            if (!newNamespace) {
-                debug('ensureNamespaceIndex: Nothing to do (match)');
-                // Nothing to do
-                return;
-            }
-            debug('ensureNamespaceIndex: Same namespace, just upsert');
-            this.upsertNamespaceIndex(poolId, newNamespace, userId, name);
-        } else if (!previousNamespace && newNamespace) {
-            debug('Adding user to a namespace (or new insert)');
-            this.upsertNamespaceIndex(poolId, newNamespace, userId, name);
-        } else if (previousNamespace && !newNamespace) {
-            debug('Deleting a user from a namespace');
-            this.deleteFromNamespaceIndex(poolId, previousNamespace, userId);
-        } else {
-            debug('Moving from one namespace to the other');
-            this.deleteFromNamespaceIndex(poolId, previousNamespace, userId);
-            this.upsertNamespaceIndex(poolId, newNamespace, userId, name);
-        }
+    deleteSync(poolId, userId, namespace) {
+        debug(`deleteSync(${poolId}, ${userId}, ${namespace})`);
+        const poolIndex = this.loadPoolIndex(poolId, namespace);
+        const userIndex = poolIndex.findIndex(JsonRegistrations.userEntryPredicate(poolId, namespace, userId));
+        const userRegs = this.loadUserRegistrations(userId);
+        const regIndex = userRegs.findIndex(JsonRegistrations.poolEntryPredicate(poolId, namespace));
+        if (userIndex < 0 || regIndex < 0)
+            throw utils.makeError(404, 'Not found');
+        // Both are valid now
+        poolIndex.splice(userIndex, 1);
+        userRegs.splice(regIndex, 1);
+        this.savePoolIndex(poolId, namespace, poolIndex);
+        this.saveUserRegistrations(userId, userRegs);
     }
 }
 

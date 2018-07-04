@@ -38,10 +38,10 @@ class PgRegistrations {
         return this.upsertImpl(poolId, userId, upsertingUserId, userData, callback);
     }
 
-    delete(poolId, userId, deletingUserId, callback) {
-        debug(`delete(${poolId}, ${userId})`);
+    delete(poolId, userId, namespace, deletingUserId, callback) {
+        debug(`delete(${poolId}, ${userId}, ${namespace})`);
         this.pgUtils.checkCallback(callback);
-        return this.deleteImpl(poolId, userId, deletingUserId, callback);
+        return this.deleteImpl(poolId, userId, namespace, deletingUserId, callback);
     }
 
     // =================================================
@@ -50,15 +50,7 @@ class PgRegistrations {
 
     getByPoolAndUserImpl(poolId, userId, callback) {
         debug(`getByPoolAndUserImpl(${poolId}, ${userId})`);
-        this.pgUtils.getSingleBy('registrations', ['poolId', 'userId'], [poolId, userId], (err, data) => {
-            if (err)
-                return callback(err);
-            if (!data) {
-                warn(`Registration record for user ${userId} in pool ${poolId} not found.`);
-                return callback(utils.makeError(404, 'Registration not found'));
-            }
-            return callback(null, data);
-        });
+        this.pgUtils.getBy('registrations', ['poolId', 'userId'], [poolId, userId], {}, callback);
     }
 
     getByPoolAndNamespaceImpl(poolId, namespace, filter, orderBy, offset, limit, noCountCache, callback) {
@@ -92,7 +84,13 @@ class PgRegistrations {
             const tmp = {
                 pools: {}
             };
-            data.forEach(r => tmp.pools[r.poolId] = r);
+
+            data.forEach(r => {
+                if (tmp.pools[r.poolId])
+                    tmp.pools[r.poolId].push(r);
+                else
+                    tmp.pools[r.poolId] = [r];
+            });
             return callback(null, tmp, countResult);
         });
     }
@@ -100,23 +98,41 @@ class PgRegistrations {
     upsertImpl(poolId, userId, upsertingUserId, userData, callback) {
         debug(`upsertImpl(${poolId}, ${userId}, ${userData})`);
         const instance = this;
-        this.pgUtils.getBy('registrations', ['poolId', 'userId'], [poolId, userId], {}, (err, data) => {
-            if (err)
-                return callback(err);
-            if (data.length > 1)
-                return callback(utils.makeError(500, `More than one entry in registrations for pool ${poolId} and user ${userId}`));
-            // Add the id of the previous record; it's needed here
-            if (data.length === 1)
-                userData.id = data[0].id;
-            else // new record
-                userData.id = utils.createRandomId();
-            return instance.pgUtils.upsert('registrations', userData, upsertingUserId, callback);
-        });
+        if (userData.namespace) {
+            const namespace = userData.namespace;
+            this.pgUtils.getBy('registrations', ['poolId', 'namespace', 'userId'], [poolId, namespace, userId], {}, (err, data) => {
+                if (err)
+                    return callback(err);
+                if (data.length > 1)
+                    return callback(utils.makeError(500, `More than one entry in registrations for pool ${poolId}, namespace ${namespace} and user ${userId}`));
+                // Add the id of the previous record; it's needed here
+                if (data.length === 1)
+                    userData.id = data[0].id;
+                else // new record
+                    userData.id = utils.createRandomId();
+                return instance.pgUtils.upsert('registrations', userData, upsertingUserId, callback);
+            });
+        } else {
+            this.pgUtils.getBy('registrations', ['poolId', 'userId'], [poolId, userId], {}, (err, data) => {
+                if (err)
+                    return callback(err);
+                if (data.length > 1)
+                    return callback(utils.makeError(500, `More than one entry in registrations for pool ${poolId} and user ${userId}`));
+                // Add the id of the previous record; it's needed here
+                if (data.length === 1)
+                    userData.id = data[0].id;
+                else // new record
+                    userData.id = utils.createRandomId();
+                return instance.pgUtils.upsert('registrations', userData, upsertingUserId, callback);
+            });
+        }
     }
 
-    deleteImpl(poolId, userId, deletingUserId, callback) {
+    deleteImpl(poolId, userId, namespace, deletingUserId, callback) {
         debug(`deleteImpl(${poolId}, ${userId})`);
-        return this.pgUtils.deleteBy('registrations', ['poolId', 'userId'], [poolId, userId], callback);
+        if (!namespace)
+            return this.pgUtils.deleteBy('registrations', ['poolId', 'userId'], [poolId, userId], callback);
+        return this.pgUtils.deleteBy('registrations', ['poolId', 'userId', 'namespace'], [poolId, userId, namespace], callback);
     }
 }
 

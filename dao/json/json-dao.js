@@ -8,6 +8,7 @@ const JsonVerifications = require('./entities/json-verifications');
 const JsonWebhooks = require('./entities/json-webhooks');
 const JsonRegistrations = require('./entities/json-registrations');
 const JsonGrants = require('./entities/json-grants');
+const JsonNamespaces = require('./entities/json-namespaces');
 const JsonMeta = require('./json-meta');
 const JsonUtils = require('./entities/json-utils');
 
@@ -25,6 +26,7 @@ class JsonDao {
         this.jsonVerifications = new JsonVerifications(this.jsonUtils);
         this.jsonRegistrations = new JsonRegistrations(this.jsonUtils);
         this.jsonWebhooks = new JsonWebhooks(this.jsonUtils);
+        this.jsonNamespaces = new JsonNamespaces(this.jsonUtils);
     }
 
     init(app) {
@@ -38,6 +40,7 @@ class JsonDao {
     get approvals() { return this.jsonApprovals; }
     get registrations() { return this.jsonRegistrations; }
     get grants() { return this.jsonGrants; }
+    get namespaces() { return this.jsonNamespaces; }
     get webhooks() { return this.jsonWebhooks; }
 }
 

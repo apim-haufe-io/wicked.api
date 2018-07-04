@@ -1561,7 +1561,7 @@ paths:
       - password: ['read_registrations']
       tags:
       - registrations
-      description: Retrieve user registration for a given pool
+      description: Retrieve user registrations for a given pool
       parameters:
       - name: poolId
         in: path

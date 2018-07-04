@@ -4,7 +4,7 @@ const async = require('async');
 const { debug, info, warn, error } = require('portal-env').Logger('portal-api:dao:pg:meta');
 const path = require('path');
 
-const CURRENT_DATABASE_VERSION = 1;
+const CURRENT_DATABASE_VERSION = 2;
 
 class PgMeta {
     constructor(pgUtils) {

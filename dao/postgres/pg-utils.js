@@ -483,7 +483,12 @@ class PgUtils {
         debug(`upsert(${entity}, ...)`);
         const instance = this;
         this.sortOutClientAndCallback(clientOrCallback, callback, (client, callback) => {
-            const pgRow = instance.postgresizeRow(entity, data, upsertingUserId);
+            let pgRow;
+            try {
+                pgRow = instance.postgresizeRow(entity, data, upsertingUserId);
+            } catch (err) {
+                return callback(err);
+            }
             const { fieldNames, fieldValues } = instance.getFieldArrays(entity, pgRow);
             const fieldNamesString = instance.assembleFieldsString(fieldNames);
             const placeholdersString = instance.assemblePlaceholdersString(fieldNames);

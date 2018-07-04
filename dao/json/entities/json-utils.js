@@ -1,6 +1,6 @@
 'use strict';
 
-const { debug, info, warn, error } = require('portal-env').Logger('portal-api:dao:json');
+const { debug, info, warn, error } = require('portal-env').Logger('portal-api:dao:json:utils');
 const fs = require('fs');
 const path = require('path');
 
@@ -346,7 +346,7 @@ class JsonUtils {
     }
 
     lockFile(subDir, fileName) {
-        debug('lockFile(): ' + subDir + '/' + fileName);
+        debug(`lockFile(): ${subDir ? '/'  +subDir : ''}${fileName}`);
         if (this.hasGlobalLock())
             return false;
         const baseDir = subDir ? path.join(this.getDynamicDir(), subDir) : this.getDynamicDir();
@@ -364,7 +364,7 @@ class JsonUtils {
     }
 
     unlockFile(subDir, fileName) {
-        debug('unlockFile(): ' + subDir + '/' + fileName);
+        debug(`lockFile(): ${subDir ? '/' + subDir : ''}${fileName}`);
         const baseDir = subDir ? path.join(this.getDynamicDir(), subDir) : this.getDynamicDir();
         const lockFileName = path.join(baseDir, fileName + '.lock');
 

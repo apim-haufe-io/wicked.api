@@ -91,6 +91,12 @@
                     "write_registrations": {
                         "description": "Write user registrations"
                     },
+                    "read_namespaces": {
+                        "description": "Read registration pool namespaces"
+                    },
+                    "write_namespaces": {
+                        "description": "Write registration pool namespaces"
+                    },
                     "read_grants": {
                         "description": "Read user API/Application grants"
                     },

@@ -154,6 +154,10 @@ class JsonMeta {
                 file: 'dummy'
             },
             {
+                dir: 'namespaces',
+                file: 'dummy'
+            },
+            {
                 dir: null,
                 file: 'meta.json',
                 content: {}
