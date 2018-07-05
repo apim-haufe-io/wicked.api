@@ -23,7 +23,7 @@ class PgNamespaces {
     getByPoolAndNamespace(poolId, namespace, callback) {
         debug(`getByPoolAndNamespace(${poolId}, ${namespace})`);
         this.pgUtils.checkCallback(callback);
-        return this.pgUtils.getBy('namespaces', ['poolId', 'namespace'], [poolId, namespace], {}, callback);
+        return this.pgUtils.getSingleBy('namespaces', ['poolId', 'namespace'], [poolId, namespace], {}, callback);
     }
 
     upsert(poolId, namespace, upsertingUserId, namespaceData, callback) {
@@ -71,7 +71,7 @@ class PgNamespaces {
                 namespaceData.id = data[0].id;
             else // new record
                 namespaceData.id = utils.createRandomId();
-            return instance.pgUtils.upsert('registrations', namespaceData, upsertingUserId, callback);
+            return instance.pgUtils.upsert('namespaces', namespaceData, upsertingUserId, callback);
         });
     }
 }
