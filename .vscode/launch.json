@@ -13,7 +13,8 @@
             "env": {
                 "PORTAL_CONFIG_BASE": "../wicked-sample-config",
                 "DEBUG": "*",
-                "NODE_ENV": "localhost"
+                "NODE_ENV": "portal_local",
+                "PORTAL_STORAGE_TYPE": "postgres"
             }
         },
         {
@@ -24,7 +25,8 @@
             "env": {
                 "PORTAL_CONFIG_BASE": "../wicked-sample-config",
                 "DEBUG": "*",
-                "NODE_ENV": "localhost_json"
+                "NODE_ENV": "portal_local",
+                "PORTAL_STORAGE_TYPE": "json"
             }
         },
         {

@@ -341,6 +341,23 @@ utils.loadAuthServer = function (serverId) {
     return _authServers[serverId];
 };
 
+let _authServerMap = null;
+utils.loadAuthServerMap = function () {
+    if (!_authServerMap) {
+        _authServerMap = {};
+        const serverNames = utils.loadAuthServerNames();
+        for (let i = 0; i < serverNames.length; ++i) {
+            const authServerName = serverNames[i];
+            const as = utils.loadAuthServer(authServerName);
+            if (as.exists && as.data)
+                _authServerMap[authServerName] = as.data;
+            else
+                warn(`Could not load auth server with id ${authServerName}`);
+        }
+    }
+    return _authServerMap;
+};
+
 function appendAuthMethodEndpoints(authServer) {
     debug('appendAuthMethodEndpoints()');
     if (!authServer.authMethods ||

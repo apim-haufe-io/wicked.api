@@ -5,10 +5,10 @@ var fs = require('fs');
 var { debug, info, warn, error } = require('portal-env').Logger('portal-api:apis');
 var yaml = require('js-yaml');
 var request = require('request');
+var mustache = require('mustache');
 
 var utils = require('./utils');
 var users = require('./users');
-var subscriptions = require('./subscriptions');
 
 var apis = require('express').Router();
 
@@ -389,6 +389,57 @@ function injectTokenEndpoint(globalSettings, swaggerJson) {
     paths['/oauth2/token'] = oauthPath;
 }
 
+function lookupAuthMethod(globalSettings, apiId, authMethodRef) {
+    debug(`lookupAuthMethodConfig(${authMethodRef})`);
+    const split = authMethodRef.split(':');
+    if (split.length !== 2) {
+        error(`lookupAuthMethodConfig: Invalid auth method "${authMethodRef}", expected "<auth server id>:<method id>"`);
+        return null;
+    }
+    const authServerName = split[0];
+    const authMethodName = split[1];
+
+    const authServers = utils.loadAuthServerMap();
+    if (!authServers[authServerName]) {
+        warn(`lookupAuthMethodConfig: Unknown auth server ${authServerName}`);
+        return null;
+    }
+    const authServer = authServers[authServerName];
+
+    const authMethodOrig = authServer.authMethods.find(am => am.name === authMethodName);
+    if (!authMethodOrig) {
+        warn(`lookupAuthMethodConfig: Unknown auth method name ${authMethodName} (${authMethodRef})`);
+        return null;
+    }
+
+    if (!authMethodOrig.enabled) {
+        warn(`lookupAuthMethodConfig: Auth method ${authMethodRef} is not enabled, skipping.`);
+        return null;
+    }
+
+    const authMethod = utils.clone(authMethodOrig);
+    const endpoints = [
+        "authorizeEndpoint",
+        "tokenEndpoint",
+        "profileEndpoint"
+    ];
+
+    const apiUrl = globalSettings.network.schema + "://" + globalSettings.network.apiHost;
+    // The loading of the authServers in 'www' ensures this is specified
+    const authServerUrl = apiUrl + authServer.config.api.uris[0];
+
+    for (let i = 0; i < endpoints.length; ++i) {
+        const endpoint = endpoints[i];
+        if (authMethod.config && authMethod.config[endpoint]) {
+            authMethod.config[endpoint] = authServerUrl + mustache.render(authMethod.config[endpoint], { api: apiId, name: authMethodName });
+        } else {
+            warn(`Auth server ${authServer.name} does not have definition for endpoint ${endpoint}`);
+        }
+    }
+
+    return authMethod;
+}
+
 // apis.getSwagger = function (app, res, loggedInUserId, apiId) {
 //     debug('getSwagger(): ' + apiId);
 //     if (apiId == '_portal')
@@ -481,48 +532,133 @@ function resolveSwagger(globalSettings, apiInfo, requestPath, fileName, callback
         // We'll refresh the data, fall past
     }
 
-    function injectOauth2(swaggerJson, oflow){
+    function makeSwaggerUiScopes(apiInfo) {
+        const scopeMap = {};
+        if (apiInfo.settings && apiInfo.settings.scopes) {
+            for (let s in apiInfo.settings.scopes) {
+                const thisScope = apiInfo.settings.scopes[s];
+                if (thisScope.description)
+                    scopeMap[s] = thisScope.description;
+                else
+                    scopeMap[s] = s;
+            }
+        }
+        return scopeMap;
+    }
+
+    function findSecurityProperties(swaggerJson) {
+        const securityList = [];
+        findSecurityPropertiesRecursive(swaggerJson, securityList);
+        return securityList;
+    }
+
+    function findSecurityPropertiesRecursive(someProperty, securityList) {
+        if (typeof someProperty === 'string' || typeof someProperty === 'number')
+            return;
+        if (Array.isArray(someProperty)) {
+            for (let i = 0; i < someProperty.length; ++i) {
+                findSecurityPropertiesRecursive(someProperty[i], securityList);
+            }
+        } else if (typeof someProperty === 'object') {
+            for (let k in someProperty) {
+                if (k === 'security')
+                    securityList.push(someProperty[k]);
+                else
+                    findSecurityPropertiesRecursive(someProperty[k], securityList);
+            }
+        } else {
+            debug(`Unknown typeof someProperty: ${typeof someProperty}`);
+        }
+    }
+
+    function deleteEmptySecurityProperties(someProperty) {
+        if (typeof someProperty === 'string' || typeof someProperty === 'number')
+            return;
+        if (Array.isArray(someProperty)) {
+            for (let i = 0; i < someProperty.length; ++i) {
+                deleteEmptySecurityProperties(someProperty[i]);
+            }
+        } else if (typeof someProperty === 'object') {
+            for (let k in someProperty) {
+                if (k === 'security') {
+                    if (Array.isArray(someProperty[k])) {
+                        if (someProperty[k].length === 0)
+                            delete someProperty[k];
+                    } else {
+                        warn('deleteEmptySecurityProperties: Non-Array security property')
+                    }
+                } else {
+                    deleteEmptySecurityProperties(someProperty[k]);
+                }
+            }
+        } else {
+            debug(`Unknown typeof someProperty: ${typeof someProperty}`);
+        }
+    }
+
+    function injectOAuth2(swaggerJson, oflow, authMethod) {
         const securityDefinitionsParam = (swaggerJson.securityDefinitions) ? swaggerJson.securityDefinitions : {};
         const securityParam = (swaggerJson.security) ? swaggerJson.security : [];
-        securityDefinitionsParam[oflow] = {
-          type: "oauth2",
-          flow: oflow,
-          authorizationUrl: globalSettings.network.schema+"://"+globalSettings.network.apiHost+"/auth-server/oauth2/api/"+apiInfo.id,
-          tokenUrl: globalSettings.network.schema+"://"+globalSettings.network.apiHost+((requestPath.startsWith('/')) ?  requestPath : '/'+requestPath   )+"/oauth2/token",
-          scopes: {
-            "read": "Grants read access",
-          }
-        }
-        const sec = {};
-        sec[oflow] = [
-           "read"
-        ]
-        securityParam.push(sec);
+        const securitySchemaName = `${authMethod.friendlyShort}, ${oflow}`;
+        securityDefinitionsParam[securitySchemaName] = {
+            type: "oauth2",
+            flow: oflow,
+            authorizationUrl: authMethod.config.authorizeEndpoint,
+            tokenUrl: authMethod.config.tokenEndpoint,
+            scopes: makeSwaggerUiScopes(apiInfo)
+        };
+
+
+        // TODO: Scopes on specific endpoints
+        const securityDef = {};
+        securityDef[securitySchemaName] = [];
+        securityParam.push(securityDef);
         swaggerJson.securityDefinitions = securityDefinitionsParam;
         swaggerJson.security = securityParam; //apply globally
     }
 
     function injectAuthAndReturn(swaggerJson) {
         if (!apiInfo.auth || apiInfo.auth == "key-auth") {
-            const apikeyParam =  [ { key: [] } ];
+            const apikeyParam = [{ key: [] }];
             const securityDefinitionParam = {
-             key: {
-                type: "apiKey",
-                in: "header",
-                name: globalSettings.api.headerName
-            }
-          };
-          swaggerJson.securityDefinitions = securityDefinitionParam;
-          swaggerJson.security = apikeyParam; //apply globally
+                key: {
+                    type: "apiKey",
+                    in: "header",
+                    name: globalSettings.api.headerName
+                }
+            };
+            swaggerJson.securityDefinitions = securityDefinitionParam;
+            swaggerJson.security = apikeyParam; //apply globally
         } else if (apiInfo.auth == "oauth2") {
-            if(apiInfo.settings.enable_authorization_code)
-                injectOauth2(swaggerJson, "accessCode");
-            if(apiInfo.settings.enable_implicit_grant)
-                injectOauth2(swaggerJson, "implicit");
-            if(apiInfo.settings.enable_password_grant)
-                injectOauth2(swaggerJson, "password");
-            if(apiInfo.settings.enable_client_credentials)
-              injectOauth2(swaggerJson, "application");
+            swaggerJson.securityDefinitions = {};
+
+            const securityProperties = findSecurityProperties(swaggerJson);
+            debug(securityProperties);
+            // Reset all security properties
+            securityProperties.forEach(sp => sp.length = 0);
+
+            // Iterate over the authMethods
+            if (!apiInfo.authMethods)
+                return callback(new Error('API does not have an authMethods setting.'));
+
+            for (let i = 0; i < apiInfo.authMethods.length; ++i) {
+                const authMethod = lookupAuthMethod(globalSettings, apiInfo.id, apiInfo.authMethods[i]);
+                const flows = [];
+                if (apiInfo.settings.enable_authorization_code)
+                    flows.push("accessCode");
+                if (apiInfo.settings.enable_implicit_grant)
+                    flows.push("implicit");
+                if (apiInfo.settings.enable_password_grant)
+                    flows.push("password");
+                if (apiInfo.settings.enable_client_credentials)
+                    flows.push("application");
+
+                for (let j = 0; j < flows.length; ++j) {
+                    injectOAuth2(swaggerJson, flows[j], authMethod);
+                }
+            }
+
+            deleteEmptySecurityProperties(swaggerJson);
             debug('Injecting OAuth2');
         }
         swaggerJson.host = globalSettings.network.apiHost;
@@ -606,6 +742,7 @@ apis.getSwagger = function (app, res, loggedInUserId, apiId) {
         // swagger JSON contains a href property, get it from a remote location.
         resolveSwagger(globalSettings, apiInfo, requestPath, swaggerFileName, (err, swaggerJson) => {
             if (err) {
+                error(err);
                 return res.status(500).json({
                     message: 'Could not resolve the Swagger JSON file, an error occurred.',
                     error: err
