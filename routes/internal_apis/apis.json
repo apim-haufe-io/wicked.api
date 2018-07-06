@@ -17,9 +17,6 @@
             "name": "Portal API",
             "desc": "This is the API for wicked, which is used to store the entire state of the portal. Can e.g. be used for automation.",
             "auth": "oauth2",
-            "authServers": [
-                "default"
-            ],
             "authMethods": [
                 "will be overridden from globals.json settings"
             ],
@@ -29,7 +26,7 @@
                 "enable_implicit_grant": true,
                 "enable_authorization_code": true,
                 "enable_password_grant": true,
-                "token_expiration": "120",
+                "token_expiration": "1800",
                 "scopes": {
                     "read_plans": {
                         "description": "Read plans"
