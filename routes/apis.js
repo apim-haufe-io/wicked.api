@@ -440,73 +440,6 @@ function lookupAuthMethod(globalSettings, apiId, authMethodRef) {
     return authMethod;
 }
 
-// apis.getSwagger = function (app, res, loggedInUserId, apiId) {
-//     debug('getSwagger(): ' + apiId);
-//     if (apiId == '_portal')
-//         return getPortalSwagger(app, res);
-//     apis.checkAccess(app, res, loggedInUserId, apiId, (err) => {
-//         if (err)
-//             return utils.fail(res, 403, 'Access denied', err);
-//         var staticDir = utils.getStaticDir();
-//         var swaggerFileName = path.join(staticDir, 'apis', apiId, 'swagger.json');
-//         if (!fs.existsSync(swaggerFileName)) {
-//             // Check internal APIs
-//             swaggerFileName = path.join(__dirname, 'internal_apis', apiId, 'swagger.json');
-//             if (!fs.existsSync(swaggerFileName))
-//                 return res.status(404).jsonp({ message: 'Not found. This is a bad sign; the Swagger definition must be there!' });
-//         }
-
-//         var globalSettings = utils.loadGlobals(app);
-//         var configJson = loadApiConfig(app, apiId);
-
-//         if (!configJson || !configJson.api || !configJson.api.uris || !configJson.api.uris.length)
-//             return res.status(500).jsonp({ message: 'Invalid API configuration; does not contain uris array.' });
-//         var requestPath = configJson.api.uris[0];
-
-//         var apiList = utils.loadApis(app);
-//         var apiInfo = apiList.apis.find(function (anApi) { return anApi.id == apiId; });
-
-//         // Read it, we want to do stuff with it.
-//         try {
-//             var swaggerJson = require(swaggerFileName);
-
-//             if (!apiInfo.auth || apiInfo.auth == "key-auth") {
-//                 // Inject a new parameter for the API key.
-//                 // globalSettings.api.headerName,
-//                 var apikeyParam = {
-//                     in: "header",
-//                     name: globalSettings.api.headerName,
-//                     required: false,
-//                     type: "string",
-//                     description: "API Key to authorize with API Gateway"
-//                 };
-//                 injectParameter(swaggerJson, apikeyParam);
-//             } else if (apiInfo.auth == "oauth2") {
-//                 debug('Injecting OAuth2');
-//                 var authParam = {
-//                     in: "header",
-//                     name: "Authorization",
-//                     required: true,
-//                     type: "string",
-//                     description: 'The OAuth2 Bearer token, "Bearer ..."'
-//                 };
-//                 injectParameter(swaggerJson, authParam);
-
-//                 injectTokenEndpoint(globalSettings, swaggerJson);
-//             }
-
-//             swaggerJson.host = globalSettings.network.apiHost;
-//             swaggerJson.basePath = requestPath;
-//             swaggerJson.schemes = [globalSettings.network.schema];
-//             //swaggerJson.schemes = ["http"];
-
-//             // OK, that worked
-//             return res.json(swaggerJson);
-//         } catch (err) {
-//             return res.status(500).jsonp({ message: 'Internal Server Error! Could not parse Swagger, check your files.' + err });
-//         }
-//     });
-// }
 
 // Looks like this:
 // {
@@ -585,7 +518,7 @@ function resolveSwagger(globalSettings, apiInfo, requestPath, fileName, callback
                         if (someProperty[k].length === 0)
                             delete someProperty[k];
                     } else {
-                        warn('deleteEmptySecurityProperties: Non-Array security property')
+                        warn('deleteEmptySecurityProperties: Non-Array security property');
                     }
                 } else {
                     deleteEmptySecurityProperties(someProperty[k]);
@@ -608,7 +541,6 @@ function resolveSwagger(globalSettings, apiInfo, requestPath, fileName, callback
             scopes: makeSwaggerUiScopes(apiInfo)
         };
 
-
         // TODO: Scopes on specific endpoints
         const securityDef = {};
         securityDef[securitySchemaName] = [];
@@ -627,12 +559,22 @@ function resolveSwagger(globalSettings, apiInfo, requestPath, fileName, callback
                     name: globalSettings.api.headerName
                 }
             };
+            // Delete all security properties; those are overridden by the global default
+            const securityProperties = findSecurityProperties(swaggerJson);
+            securityProperties.forEach(sp => sp.length = 0);
+            deleteEmptySecurityProperties(swaggerJson);
+
+            // Inject securityDefinitions (Swagger 2.0)
             swaggerJson.securityDefinitions = securityDefinitionParam;
-            swaggerJson.security = apikeyParam; //apply globally
+            swaggerJson.security = apikeyParam; // Apply globally
         } else if (apiInfo.auth == "oauth2") {
+            // securityDefinitions is specific for Swagger 2.0
+            const origSecurityDefinitions = utils.clone(swaggerJson.securityDefinitions);
+            // We will override the security definitions with our own ones
             swaggerJson.securityDefinitions = {};
 
             const securityProperties = findSecurityProperties(swaggerJson);
+            const origSecurityProperties = utils.clone(securityProperties);
             debug(securityProperties);
             // Reset all security properties
             securityProperties.forEach(sp => sp.length = 0);
@@ -643,6 +585,8 @@ function resolveSwagger(globalSettings, apiInfo, requestPath, fileName, callback
 
             for (let i = 0; i < apiInfo.authMethods.length; ++i) {
                 const authMethod = lookupAuthMethod(globalSettings, apiInfo.id, apiInfo.authMethods[i]);
+                if (!authMethod)
+                    continue;
                 const flows = [];
                 if (apiInfo.settings.enable_authorization_code)
                     flows.push("accessCode");
@@ -655,6 +599,8 @@ function resolveSwagger(globalSettings, apiInfo, requestPath, fileName, callback
 
                 for (let j = 0; j < flows.length; ++j) {
                     injectOAuth2(swaggerJson, flows[j], authMethod);
+
+                    // TODO: Here we must add the scope for each individual security property
                 }
             }
 
@@ -713,8 +659,8 @@ function resolveSwagger(globalSettings, apiInfo, requestPath, fileName, callback
 
 apis.getSwagger = function (app, res, loggedInUserId, apiId) {
     debug('getSwagger(): ' + apiId);
-    if (apiId == '_portal')
-        return getPortalSwagger(app, res);
+    // if (apiId == '_portal')
+    //     return getPortalSwagger(app, res);
     apis.checkAccess(app, res, loggedInUserId, apiId, (err) => {
         if (err)
             return utils.fail(res, 403, 'Access denied', err);
@@ -752,44 +698,6 @@ apis.getSwagger = function (app, res, loggedInUserId, apiId) {
         });
     });
 };
-
-apis._portalSwagger = null;
-function getPortalSwagger(app, res) {
-    try {
-        if (!apis._portalSwagger) {
-            apis._portalSwagger = initPortalSwagger(app);
-        }
-
-        return res.json(apis._portalSwagger);
-    } catch (err) {
-        error(err.message);
-        error(err.stack);
-        return res.status(500).json({ message: err.message });
-    }
-}
-
-function initPortalSwagger(app) {
-    var swaggerFileName = path.join(__dirname, '..', 'swagger', 'portal-api-public.yaml');
-    if (!fs.existsSync(swaggerFileName))
-        throw new Error('File not found: ' + swaggerFileName);
-
-    var swaggerYaml = yaml.safeLoad(fs.readFileSync(swaggerFileName, 'utf8'));
-    injectParameter(swaggerYaml, {
-        in: "header",
-        name: "Authorization",
-        required: true,
-        type: "string",
-        desc: 'The OAuth2 Bearer token, "Bearer ..."'
-    });
-    var globalSettings = utils.loadGlobals(app);
-    injectTokenEndpoint(globalSettings, swaggerYaml);
-
-    swaggerYaml.host = globalSettings.network.apiHost;
-    swaggerYaml.basePath = '/portal-api/v1';
-    swaggerYaml.schemes = [globalSettings.network.schema];
-
-    return swaggerYaml;
-}
 
 apis.getSubscriptions = function (app, res, loggedInUserId, apiId, offset, limit) {
     debug('getSubscriptions() ' + apiId);
