@@ -5,6 +5,7 @@ const path = require('path');
 const { debug, info, warn, error } = require('portal-env').Logger('portal-api:initializer');
 const bcrypt = require('bcrypt-nodejs');
 const async = require('async');
+const yaml = require('js-yaml');
 
 const utils = require('./utils');
 const users = require('./users');
@@ -58,6 +59,32 @@ initializer.checkDynamicConfig = (callback) => {
                 checkResults = null;
             callback(err, checkResults);
         });
+};
+
+initializer.writeSwaggerJsonFiles = function () {
+    debug(`writeSwaggerJsonFiles()`);
+    const swaggerDir = path.join(__dirname, '..', 'swagger');
+    const swaggerFiles = fs.readdirSync(swaggerDir);
+    for (let i = 0; i < swaggerFiles.length; ++i) {
+        const fileName = swaggerFiles[i];
+        const apiName = fileName.substring(0, fileName.length - 5); // strip .yaml
+        if (!fileName.toLowerCase().endsWith('.yaml'))
+            continue;
+        const fullFileName = path.join(swaggerDir, fileName);
+        try {
+            const swaggerYaml = yaml.safeLoad(fs.readFileSync(fullFileName, 'utf8'));
+            const apiDir = path.join(__dirname, 'internal_apis', apiName);
+            if (!fs.existsSync(apiDir)) {
+                warn(`writeSwaggerJsonFiles: Detected Swagger YAML for API ${apiName}, but there is no such directory (${apiDir}).`);
+                continue;
+            }
+            const swaggerJsonFile = path.join(apiDir, 'swagger.json');
+            fs.writeFileSync(swaggerJsonFile, JSON.stringify(swaggerYaml, null, 2), 'utf8');
+        } catch (err) {
+            error(`writeSwaggerJsonFiles: Could not convert file ${fileName} to JSON`);
+            throw err;
+        }
+    }
 };
 
 function addInitialUsers(glob, callback) {

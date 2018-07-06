@@ -108,7 +108,30 @@ securityDefinitions:
     type: oauth2
     tokenUrl: https://api.portal.com/portal-api/v1/oauth2/token
     flow: application
-    scopes: {}
+    scopes:
+      read_plans: Read plans
+      read_groups: Read user group definitions
+      read_content: Read custom/markdown/HTML content
+      health: Read out health information
+      read_templates: Read templates
+      read_auth_servers: Read authorization servers
+      read_apis: Read API definitions
+      read_users: Read user information
+      write_users: Write user information
+      read_applications: Read application data
+      write_applications: Write application data
+      read_subscriptions: Read subscriptions
+      write_subscriptions: Write/edit/delete subscriptions
+      read_approvals: Read pending approvals
+      read_verifications: Read email and password verifications
+      write_verifications: Create or delete verifications
+      read_namespaces: Read registration pool namespaces
+      write_namespaces: Write registration pool namespaces
+      read_registrations: Read user registrations
+      write_registrations: Write user registrations
+      read_grants: Read user API grants
+      write_grants: Write user API grants
+      webhooks: Access and change webhooks
     
 produces:
   - application/hal+json
@@ -152,7 +175,7 @@ paths:
       - accessCode: ['read_apis']
       - implicit: ['read_apis']
       - password: ['read_apis']
-      - clientCredentials: []
+      - clientCredentials: ['read_apis']
       tags:
         - apis
       description: Gets the list of APIs of this API Portal.
@@ -180,7 +203,7 @@ paths:
       - accessCode: ['read_apis']
       - implicit: ['read_apis']
       - password: ['read_apis']
-      - clientCredentials: []
+      - clientCredentials: ['read_apis']
       tags:
         - apis
       description: Returns a generic description of the APIs
@@ -195,7 +218,7 @@ paths:
       - accessCode: ['read_apis']
       - implicit: ['read_apis']
       - password: ['read_apis']
-      - clientCredentials: []
+      - clientCredentials: ['client_credentials']
       tags:
         - apis
       description: >-
@@ -215,7 +238,7 @@ paths:
       - accessCode: ['read_apis']
       - implicit: ['read_apis']
       - password: ['read_apis']
-      - clientCredentials: []
+      - clientCredentials: ['read_apis']
       tags:
         - apis
       description: Returns a description of the API in markdown notation.
@@ -239,7 +262,7 @@ paths:
       - accessCode: ['read_apis', 'read_plans']
       - implicit: ['read_apis', 'read_plans']
       - password: ['read_apis', 'read_plans']
-      - clientCredentials: []
+      - clientCredentials: ['read_apis', 'read_plans']
       tags:
         - apis
       description: Returns a description of the API in markdown notation.
@@ -334,7 +357,7 @@ paths:
       - accessCode: ['read_plans']
       - implicit: ['read_plans']
       - password: ['read_plans']
-      - clientCredentials: []
+      - clientCredentials: ['read_plans']
       tags:
         - misc
       description: Gets the available plans for APIs
@@ -352,7 +375,7 @@ paths:
       - accessCode: ['read_groups']
       - implicit: ['read_groups']
       - password: ['read_groups']
-      - clientCredentials: []
+      - clientCredentials: ['read_groups']
       tags:
         - misc
       description: Gets the list of available user groups
@@ -389,7 +412,6 @@ paths:
       - accessCode: ['read_users']
       - implicit: ['read_users']
       - password: ['read_users']
-      - clientCredentials: []
       tags:
         - users
       parameters:
@@ -424,10 +446,9 @@ paths:
 
     post:
       security:
-      - accessCode: ['read_users']
-      - implicit: ['read_users']
-      - password: ['read_users']
-      - clientCredentials: []
+      - accessCode: ['write_users']
+      - implicit: ['write_users']
+      - password: ['write_users']
       tags:
         - users
       description: Create a new user; only admin users can call this end point
@@ -471,7 +492,6 @@ paths:
       - accessCode: ['write_users']
       - implicit: ['write_users']
       - password: ['write_users']
-      - clientCredentials: []
       tags:
         - users
       parameters:
@@ -983,7 +1003,9 @@ paths:
   '/verifications':
     post:
       security:
-      - clientCredentials: []
+      - accessCode: ['write_verifications']
+      - implicit: ['write_verifications']
+      - password: ['write_verifications']
       tags:
         - verifications
       description: >-
@@ -1022,10 +1044,9 @@ paths:
   '/verifications/{verificationId}':
     get:
       security:
-      - clientCredentials: []
-      - accessCode: []
-      - implicit: []
-      - password: []
+      - accessCode: ['read_verifications']
+      - implicit: ['read_verifications']
+      - password: ['read_verifications']
       tags:
         - verifications
       parameters:
@@ -1042,10 +1063,9 @@ paths:
           description: Not found
     delete:
       security:
-      - clientCredentials: []
-      - accessCode: []
-      - implicit: []
-      - password: []
+      - accessCode: ['write_verifications']
+      - implicit: ['write_verifications']
+      - password: ['write_verifications']
       tags:
         - verifications
       parameters:
@@ -1163,7 +1183,7 @@ paths:
       - accessCode: ['read_auth_servers']
       - implicit: ['read_auth_servers']
       - password: ['read_auth_servers']
-      - clientCredentials: []
+      - clientCredentials: ['read_auth_servers']
       description: Get a list of available authorization servers
       tags:
         - misc
@@ -1181,7 +1201,7 @@ paths:
       - accessCode: ['read_auth_servers']
       - implicit: ['read_auth_servers']
       - password: ['read_auth_servers']
-      - clientCredentials: []
+      - clientCredentials: ['read_auth_servers']
       description: Get information on a registered authorization serverId
       tags:
         - misc
@@ -1371,6 +1391,11 @@ paths:
   
   '/pools':
     get:
+      security:
+      - accessCode: []
+      - implicit: []
+      - password: []
+      - clientCredentials: []
       tags:
         - registrations
       description: Read registration pool information
@@ -1381,6 +1406,11 @@ paths:
             $ref: '#/definitions/poolCollection'
   '/pools/{poolId}':
     get:
+      security:
+      - accessCode: []
+      - implicit: []
+      - password: []
+      - clientCredentials: []
       tags:
         - registrations
       description: Read a single registration pool information
@@ -1398,6 +1428,10 @@ paths:
 
   '/pools/{poolId}/namespaces':
     get:
+      security:
+      - accessCode: ['read_namespaces']
+      - implicit: ['read_namespaces']
+      - password: ['read_namespaces']
       tags:
         - registrations
       description: Read pool namespaces
@@ -1437,6 +1471,10 @@ paths:
 
   '/pools/{poolId}/namespaces/{namespaceId}':
     get:
+      security:
+      - accessCode: ['read_namespaces']
+      - implicit: ['read_namespaces']
+      - password: ['read_namespaces']
       tags:
         - registrations
       description: Retrieve a single pool namespace
@@ -1462,6 +1500,10 @@ paths:
           description: Not found
 
     put:
+      security:
+      - accessCode: ['write_namespaces']
+      - implicit: ['write_namespaces']
+      - password: ['write_namespaces']
       tags:
         - registrations
       description: Upsert a single pool namespace
@@ -1493,6 +1535,10 @@ paths:
         '404':
           description: Not found (pool not found)    
     delete:
+      security:
+      - accessCode: ['write_namespaces']
+      - implicit: ['write_namespaces']
+      - password: ['write_namespaces']
       tags:
         - registrations
       description: Delete a single pool namespace, INCLUDING all user registrations for this namespace (Admin only)

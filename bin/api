@@ -103,6 +103,9 @@ initializer.checkDynamicConfig(function (err, results) {
     // Turn on the regular hooks
     app.setupHooks();
 
+    // Write swagger.json files for internal APIs
+    initializer.writeSwaggerJsonFiles();
+
     // Create HTTP server.
     server = http.createServer(app);
 
