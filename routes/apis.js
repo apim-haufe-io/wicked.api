@@ -529,6 +529,101 @@ function resolveSwagger(globalSettings, apiInfo, requestPath, fileName, callback
         }
     }
 
+    function injectOAuth2OpenAPI(swaggerJson, oflow, authMethod) {
+        const securitySchemesParam = (swaggerJson.components.securitySchemes) ? swaggerJson.components.securitySchemes : {};
+        const securityParam = (swaggerJson.security) ? swaggerJson.security : [];
+        const securitySchemaName = `${authMethod.friendlyShort}, ${oflow}`;
+        securitySchemesParam[securitySchemaName] = {
+            type: "oauth2"
+        };
+        const mflows = {};
+        mflows[oflow] = {
+            authorizationUrl: authMethod.config.authorizeEndpoint,
+            tokenUrl: authMethod.config.tokenEndpoint,
+            scopes: makeSwaggerUiScopes(apiInfo)
+        };
+        securitySchemesParam[securitySchemaName].flows = mflows;
+       
+        // TODO: Scopes on specific endpoints
+        const securityDef = {};
+        securityDef[securitySchemaName] = [];
+        securityParam.push(securityDef);
+        swaggerJson.components.securitySchemes = securitySchemesParam;
+        swaggerJson.security = securityParam; //apply globally
+        console.log('ssssss'+JSON.stringify(swaggerJson.components));
+    }
+
+    function injectAuthAndReturnOpenAPI(swaggerJson) {
+        if (!apiInfo.auth || apiInfo.auth == "key-auth") {
+            const apikeyParam = [{ key: [] }];
+            const securitySchemesParam = {
+                key: {
+                    type: "apiKey",
+                    in: "header",
+                    name: globalSettings.api.headerName
+                }
+            };
+            // Delete all security properties; those are overridden by the global default
+            const securityProperties = findSecurityProperties(swaggerJson);
+            securityProperties.forEach(sp => sp.length = 0);
+            deleteEmptySecurityProperties(swaggerJson);
+
+            // Inject securitySchemes(Swagger 3.0)
+            swaggerJson.components.securitySchemes = securitySchemesParam;
+            swaggerJson.security = apikeyParam; // Apply globally
+        } else if (apiInfo.auth == "oauth2") {
+            // securitySchemesParam is specific for Swagger 3.0
+            const origSecuritySchemesParam = utils.clone(swaggerJson.components.securitySchemes);
+            // We will override the security definitions with our own ones
+            swaggerJson.components.securitySchemes = {};
+
+            const securityProperties = findSecurityProperties(swaggerJson);
+            const origSecurityProperties = utils.clone(securityProperties);
+            debug(securityProperties);
+            // Reset all security properties
+            securityProperties.forEach(sp => sp.length = 0);
+
+            // Iterate over the authMethods
+            if (!apiInfo.authMethods)
+                return callback(new Error('API does not have an authMethods setting.'));
+
+            for (let i = 0; i < apiInfo.authMethods.length; ++i) {
+                const authMethod = lookupAuthMethod(globalSettings, apiInfo.id, apiInfo.authMethods[i]);
+                if (!authMethod)
+                    continue;
+                const flows = [];
+                if (apiInfo.settings.enable_authorization_code)
+                    flows.push("authorizationCode");
+                if (apiInfo.settings.enable_implicit_grant)
+                    flows.push("implicit");
+                if (apiInfo.settings.enable_password_grant)
+                    flows.push("password");
+                if (apiInfo.settings.enable_client_credentials)
+                    flows.push("clientCredentials");
+
+                for (let j = 0; j < flows.length; ++j) {
+                    injectOAuth2OpenAPI(swaggerJson, flows[j], authMethod);
+                    // TODO: Here we must add the scope for each individual security property
+                }
+            }
+
+            deleteEmptySecurityProperties(swaggerJson);
+            debug('Injecting OAuth2');
+        }
+        swaggerJson.host = globalSettings.network.apiHost;
+        swaggerJson.basePath = requestPath;
+        swaggerJson.schemes = [globalSettings.network.schema];
+
+        // Cache it for a while
+        _swaggerMap[apiInfo.id] = {
+            date: new Date(),
+            valid: true,
+            swagger: swaggerJson
+        };
+
+        return callback(null, swaggerJson);
+    }
+
     function injectOAuth2(swaggerJson, oflow, authMethod) {
         const securityDefinitionsParam = (swaggerJson.securityDefinitions) ? swaggerJson.securityDefinitions : {};
         const securityParam = (swaggerJson.security) ? swaggerJson.security : [];
@@ -626,6 +721,8 @@ function resolveSwagger(globalSettings, apiInfo, requestPath, fileName, callback
         const rawSwagger = JSON.parse(swaggerText);
         if (rawSwagger.swagger) { // version, e.g. "2.0"
             return injectAuthAndReturn(rawSwagger);
+        } else if (rawSwagger.openapi) { //version "3.0"
+             return injectAuthAndReturnOpenAPI(rawSwagger);
         } else if (rawSwagger.href) {
             // We have a href property inside the Swagger, we will try to retrieve it
             // from an URL here.
