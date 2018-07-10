@@ -16,6 +16,7 @@ var envReader = require('portal-env'); // local npm module
 var initializer = require('../routes/initializer.js');
 var utils = require('../routes/utils.js');
 var dao = require('../dao/dao');
+var echoApp = require('../routes/echo');
 
 /**
  * Get port from environment and store in Express.
@@ -122,6 +123,9 @@ initializer.checkDynamicConfig(function (err, results) {
     };
     process.on('SIGINT', () => shutdown("SIGINT"));
     process.on('SIGTERM', () => shutdown("SIGTERM"));
+
+    // Also start the simple echo server
+    echoApp.start();
 });
 
 

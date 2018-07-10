@@ -49,7 +49,7 @@ securityDefinitions:
     tokenUrl: https://api.portal.com/portal-api/v1/oauth2/token
     # This should be updated to the Authorization URL of your OAuth provider.
     authorizationUrl: https://api.portal.com/portal-auth/api/portal-api
-    flow: accessCode
+    flow: implicit
     scopes:
       read_plans: Read plans
       read_groups: Read user group definitions

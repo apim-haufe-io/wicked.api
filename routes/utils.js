@@ -240,6 +240,12 @@ function injectAuthMethods(apis) {
     debug('Configuring auth methods for portal-api API:');
     debug(globals.portal.authMethods);
     portalApi.authMethods = utils.clone(globals.portal.authMethods);
+
+    const echoApi = apis.apis.find(api => api.id === 'echo');
+    if (!echoApi)
+        throw utils.makeError(500, 'injectAuthMethods: Internal API echo not found in internal APIs list');
+    debug('Configuring auth methods for echo API:');
+    echoApi.authMethods = utils.clone(globals.portal.authMethods);
 }
 
 let _plans = null;

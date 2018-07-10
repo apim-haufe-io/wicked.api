@@ -109,6 +109,46 @@
                 "__internal_api_unlimited"
             ],
             "internal": true
-        }
+        },
+        {
+            "id": "echo",
+            "name": "Echo API",
+            "desc": "A simple echo API which can be used to test authentication and authorization integrations, or for demonstration purposes.",
+            "auth": "oauth2",
+            "authMethods": [
+                "will be overridden from globals.json settings"
+            ],
+            "settings": {
+                "enable_client_credentials": true,
+                "enable_implicit_grant": true,
+                "enable_authorization_code": true,
+                "enable_password_grant": true,
+                "token_expiration": "1800",
+                "scopes": {
+                    "get": {
+                        "description": "Allow GET operations"
+                    },
+                    "put": {
+                        "description": "Allow POST operations"
+                    },
+                    "post": {
+                        "description": "Allow POST operations"
+                    },
+                    "patch": {
+                        "description": "Allow PATCH operations"
+                    },
+                    "delete": {
+                        "description": "Allow DELETE operations"
+                    }
+                }
+            },
+            "tags": [],
+            "requiredGroup": null,
+            "plans": [
+                "__internal_api_basic",
+                "__internal_api_unlimited"
+            ],
+            "internal": true
+        }       
     ]
 }
