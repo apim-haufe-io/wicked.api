@@ -1871,9 +1871,18 @@ definitions:
         type: array
         items:
           type: string
-      authServer:
-        description: The authorization server for this API (this is optional and only applies to OAuth2 flows other than the client credentials flow)
+      registrationPool:
         type: string
+      passthroughUsers:
+        type: boolean
+      passthroughScopeUrl:
+        type: string
+      authMethods:
+        description: Valid auth methods for this API, e.g. ["default:local", "default:google"]
+        type: array
+        items:
+          type: string
+
   userType:
     title: UserInfo
     type: object
