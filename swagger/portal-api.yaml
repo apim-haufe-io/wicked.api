@@ -425,6 +425,14 @@ paths:
           in: query
           type: string
           required: false
+        - name: offset
+          in: query
+          type: number
+          required: false
+        - name: limit
+          in: query
+          type: number
+          required: false
       responses:
         '200':
           description: Successful response
@@ -1403,7 +1411,7 @@ paths:
         '200':
           description: Success
           schema:
-            $ref: '#/definitions/poolCollection'
+            $ref: '#/definitions/poolMap'
   '/pools/{poolId}':
     get:
       security:
@@ -1591,6 +1599,10 @@ paths:
         in: query
         type: number
         required: false
+      - name: no_cache
+        in: query
+        type: boolean
+        required: false
       responses:
         '403':
           description: Forbidden
@@ -1703,7 +1715,7 @@ paths:
         '200':
           description: Success
           schema:
-            $ref: '#/definitions/registrationCollection'
+            $ref: '#/definitions/registrationMap'
         '403':
           description: Forbidden
         '404':
@@ -2143,6 +2155,14 @@ definitions:
       name:
         type: string
       # Plus other properties
+  registrationMap:
+    type: object
+    properties:
+      pools:
+        type: object
+        properties:
+          any_pool_id:
+            $ref: '#/definitions/registrationType'
   registrationCollection:
     type: object
     properties:
@@ -2200,21 +2220,12 @@ definitions:
       grantedDate:
         type: string
         format: date-time
-  poolCollection:
+  poolMap:
     type: object
     properties:
-      items:
-        type: array
-        items:
-          $ref: '#/definitions/poolType'
-      count:
-        type: number
-      count_cached:
-        type: boolean
-      offset:
-        type: number
-      limit:
-        type: number
+      any_property:
+        $ref: '#/definitions/poolType'
+
   poolType:
     type: object
     properties:
@@ -2222,6 +2233,10 @@ definitions:
         type: string
       name:
         type: string
+      requiresNamespace:
+        type: boolean
+      disallowRegister:
+        type: boolean
       properties:
         type: array
         items:
