@@ -88,6 +88,9 @@ if [ ! -z "${MINIKUBE_IP}" ]; then
     echo ${MINIKUBE_IP} ${PORTAL_NETWORK_PORTALHOST} ${PORTAL_NETWORK_APIHOST} | tee -a /etc/hosts
 fi
 
+echo "Granting read/write rights to user 'wicked' for Swagger files..."
+chown -R wicked:wicked /usr/src/app/routes/internal_apis
+
 echo "Starting API, running as user 'wicked'..."
 
 # Use gosu to start node as the user "wicked"
