@@ -83,8 +83,12 @@ class JsonMeta {
             }
             const files = fs.readdirSync(baseDir);
             // Is this a completely empty directory?
-            if (files.length === 0)
+            if (files.length === 0) {
                 return callback(null);
+            } else {
+                debug('File list prior to start up:');
+                debug(files);
+            }
             // Otherwise, this must be a migrated data directory; we will see that in the metadata
             const metadata = this.loadMetadata();
             if (!metadata.hasOwnProperty('dynamicVersion')) {
