@@ -430,6 +430,10 @@ class DaoMigrator {
                     warn(`Skipped approval records for subscription ${approvalInfo.subscriptionId} (application ${approvalInfo.application.id})`);
                     return callback(null);
                 }
+                // Older versions of wicked did not create a dedicated ID for approvals; so check for that.
+                if (!approvalInfo.id) {
+                    approvalInfo.id = utils.createRandomId();
+                }
                 target.approvals.create(approvalInfo, callback);
             }, callback);
         });
