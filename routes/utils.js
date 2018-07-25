@@ -111,7 +111,6 @@ utils.loadApis = function () {
         _apis = require(apisFile);
         const internalApisFile = path.join(__dirname, 'internal_apis', 'apis.json');
         const internalApis = require(internalApisFile);
-        injectGroupScopes(internalApis);
         injectAuthMethods(internalApis);
         _apis.apis.push.apply(_apis.apis, internalApis.apis);
         utils.replaceEnvVars(_apis);
@@ -206,25 +205,6 @@ utils.isValidApplicationId = (appId) => {
 utils.invalidApplicationIdMessage = () => {
     return 'Invalid application ID, allowed chars are: a-z, 0-9, - and _';
 };
-
-function injectGroupScopes(apis) {
-    debug('injectGroupScopes()');
-    const groups = utils.loadGroups();
-    const portalApi = apis.apis.find(api => api.id === 'portal-api');
-    if (!portalApi)
-        throw utils.makeError(500, 'injectGroupScopes: Internal API portal-api not found in internal APIs list');
-    if (portalApi.settings && portalApi.settings.scopes) {
-        const scopes = portalApi.settings.scopes;
-        for (let groupIndex = 0; groupIndex < groups.groups.length; ++groupIndex) {
-            const group = groups.groups[groupIndex];
-            scopes[`wicked_group:${group.id}`] = {
-                description: `Group: ${group.name}`
-            };
-        }
-    } else {
-        throw utils.makeError(500, 'Internal API portal-api does not have a settings.scopes property');
-    }
-}
 
 function injectAuthMethods(apis) {
     debug('injectAuthMethods()');
