@@ -7,7 +7,7 @@ const http = require('http');
 
 var { debug, info, warn, error } = require('portal-env').Logger('portal-api:echo');
 
-const ECHO_PORT = 3009;
+const ECHO_PORT = process.env.ECHO_PORT ? process.env.ECHO_PORT : 3009;
 
 const echoApp = express();
 
@@ -44,6 +44,7 @@ echoApp.use(function (req, res, next) {
 echoApp.start = function () {
     debug('start()');
     const echoServer = http.createServer(echoApp);
+    info(`Echo server is listening on port ${ECHO_PORT} (override with env var ECHO_PORT)`);
     echoServer.listen(ECHO_PORT);
 };
 
