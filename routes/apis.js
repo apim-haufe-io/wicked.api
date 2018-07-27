@@ -1,5 +1,8 @@
 'use strict';
 
+// URL is not known by jshnit, for whatever reason
+/* globals URL */
+
 var path = require('path');
 var fs = require('fs');
 var { debug, info, warn, error } = require('portal-env').Logger('portal-api:apis');
@@ -250,6 +253,13 @@ function loadApiConfig(app, apiId) {
             configJson = JSON.parse(fs.readFileSync(configFileName, 'utf8'));
     }
     utils.replaceEnvVars(configJson);
+    // Check upstream_url
+    try {
+        const url = new URL(configJson.api.upstream_url);
+        configJson.api.upstream_url = url.toString();
+    } catch (err) {
+        error(`loadApiConfig(${apiId}): The api.upstream_url is not a valid URL: ${configJson.api.upstream_url}`);
+    }
     return configJson;
 }
 
