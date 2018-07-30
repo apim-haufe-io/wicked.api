@@ -357,7 +357,7 @@ applications.deleteApplication = function (app, res, loggedInUserId, appId) {
             return utils.fail(res, 500, 'deleteApplication: Loading app failed', err);
         if (!appInfo)
             return res.status(404).jsonp({ message: 'Not found: ' + appId });
-        dao.users.getById(loggedInUserId, (err, userInfo) => {
+        users.loadUser(app, loggedInUserId, (err, userInfo) => {
             if (err)
                 return utils.fail(res, 500, 'deleteApplication: Could not load user.', err);
             if (!userInfo)

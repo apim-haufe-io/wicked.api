@@ -79,7 +79,7 @@ class PgWebhooksEvents {
     getByListener(listenerId, callback) {
         debug(`getByListener(${listenerId})`);
         this.pgUtils.checkCallback(callback);
-        return this.pgUtils.getBy('webhook_events', 'webhook_listeners_id', listenerId, {}, callback);
+        return this.pgUtils.getBy('webhook_events', 'webhook_listeners_id', listenerId, { orderBy: 'id ASC' }, callback);
     }
 
     flush(listenerId, callback) {
@@ -133,7 +133,7 @@ class PgWebhooksEvents {
         debug('hookListenersImpl()');
         const instance = this;
         this.pgUtils.listenToChannel('webhook_insert', (data) => {
-            debug('Received a pending event, queueing...');
+            info('Received a pending event, queueing...');
             instance._eventsPending = true;
         });
         setInterval(() => {
@@ -145,7 +145,7 @@ class PgWebhooksEvents {
             }
             if (instance._eventsPending || safetyDispatch) {
                 if (instance._eventsPending)
-                    debug('detected pending webhook events, firing dispatcher');
+                    info('Detected pending webhook events, firing dispatcher');
                 instance._lastDispatch = Date.now();
                 instance._eventsPending = false;
                 dispatchEvents((err) => {
