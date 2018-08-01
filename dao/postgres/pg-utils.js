@@ -669,8 +669,40 @@ class PgUtils {
             }
 
             // Yay, this is fine.
-            instance._pool = pool;
-            return callback(null, pool);
+            // Let's verify we also have the schema
+            instance.verifySchema(pool, function (err, schemaPresent) {
+                if (err)
+                    return callback(err);
+                instance._pool = pool;
+                if (schemaPresent) {
+                    return callback(null, pool);
+                }
+                warn('Creating schema "wicked" with initial schema.');
+                instance.createInitialSchema(function (err) {
+                    info('Successfully create the "wicked" schema.');
+                    return callback(null, pool);
+                });
+            });
+        });
+    }
+
+    verifySchema(pool, callback) {
+        const instance = this;
+        pool.query("SELECT schema_name FROM information_schema.schemata WHERE schema_name = 'wicked';", (err, results) => {
+            if (err) {
+                error('COULD NOT QUERY FOR SCHEMAS!');
+                return callback(err);
+            }
+            if (results.rows.length === 0) {
+                warn('Database "wicked" was present, but did not have schems "wicked".');
+                // We have the DB, but not the schema. We have seen this
+                // issue with Azure Postgres, so let's create the schema then.
+                return callback(null, false);
+            } else {
+                // All's good
+                info('Found database "wicked" and schema "wicked"');
+                return callback(null, true);
+            }
         });
     }
 
@@ -685,11 +717,7 @@ class PgUtils {
                 return callback(err);
             }
             debug('createWickedDatabase: Creating database "wicked"');
-            client.query('CREATE DATABASE wicked;', (err, results) => {
-                if (err)
-                    return callback(err);
-                return instance.createInitialSchema(callback);
-            });
+            client.query('CREATE DATABASE wicked;', callback);
         });
     }
 
