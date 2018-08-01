@@ -679,6 +679,10 @@ class PgUtils {
                 }
                 warn('Creating schema "wicked" with initial schema.');
                 instance.createInitialSchema(function (err) {
+                    if (err) {
+                        error('COULD NOT CREATE SCHEMA, this is bad.');
+                        return callback(err);
+                    }
                     info('Successfully create the "wicked" schema.');
                     return callback(null, pool);
                 });
