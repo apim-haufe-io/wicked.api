@@ -645,7 +645,8 @@ class PgUtils {
                         return instance.getPoolOrClient(callback, true);
                     });
                 } else if (errorCode === 'ECONNREFUSED' || // Postgres not answering at all
-                    errorCode === '57P03') // "Postgres is starting up"
+                    errorCode === '57P03' || // "Postgres is starting up"
+                    err.message === 'Connection terminated unexpectedly') // Postgres queried too early
                 {
                     if (retryCounter < POSTGRES_CONNECT_RETRIES - 1) {
                         error(`Could not connect to Postgres, will retry (#${retryCounter + 1}). Host: ${pgOptions.host}:${pgOptions.port}, user ${pgOptions.user}`);
