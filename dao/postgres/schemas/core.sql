@@ -24,9 +24,6 @@ SET row_security = off;
 
 CREATE SCHEMA wicked;
 
-
-ALTER SCHEMA wicked OWNER TO postgres;
-
 --
 -- TOC entry 197 (class 1255 OID 16858)
 -- Name: webhooknotify(); Type: FUNCTION; Schema: wicked; Owner: postgres
@@ -41,8 +38,6 @@ BEGIN
 END;
 $$;
 
-
-ALTER FUNCTION wicked.webhook_notify() OWNER TO postgres;
 
 SET default_tablespace = '';
 
@@ -59,8 +54,6 @@ CREATE TABLE wicked.applications (
 );
 
 
-ALTER TABLE wicked.applications OWNER TO postgres;
-
 --
 -- TOC entry 187 (class 1259 OID 16722)
 -- Name: approvals; Type: TABLE; Schema: wicked; Owner: postgres
@@ -72,8 +65,6 @@ CREATE TABLE wicked.approvals (
     data jsonb
 );
 
-
-ALTER TABLE wicked.approvals OWNER TO postgres;
 
 --
 -- TOC entry 188 (class 1259 OID 16728)
@@ -89,8 +80,6 @@ CREATE TABLE wicked.grants (
 );
 
 
-ALTER TABLE wicked.grants OWNER TO postgres;
-
 --
 -- TOC entry 189 (class 1259 OID 16734)
 -- Name: meta; Type: TABLE; Schema: wicked; Owner: postgres
@@ -101,8 +90,6 @@ CREATE TABLE wicked.meta (
     data jsonb
 );
 
-
-ALTER TABLE wicked.meta OWNER TO postgres;
 
 --
 -- TOC entry 190 (class 1259 OID 16740)
@@ -116,8 +103,6 @@ CREATE TABLE wicked.owners (
     data jsonb
 );
 
-
-ALTER TABLE wicked.owners OWNER TO postgres;
 
 --
 -- TOC entry 191 (class 1259 OID 16746)
@@ -134,8 +119,6 @@ CREATE TABLE wicked.registrations (
 );
 
 
-ALTER TABLE wicked.registrations OWNER TO postgres;
-
 --
 -- TOC entry 192 (class 1259 OID 16752)
 -- Name: subscriptions; Type: TABLE; Schema: wicked; Owner: postgres
@@ -151,8 +134,6 @@ CREATE TABLE wicked.subscriptions (
 );
 
 
-ALTER TABLE wicked.subscriptions OWNER TO postgres;
-
 --
 -- TOC entry 193 (class 1259 OID 16758)
 -- Name: users; Type: TABLE; Schema: wicked; Owner: postgres
@@ -166,8 +147,6 @@ CREATE TABLE wicked.users (
 );
 
 
-ALTER TABLE wicked.users OWNER TO postgres;
-
 --
 -- TOC entry 194 (class 1259 OID 16764)
 -- Name: verifications; Type: TABLE; Schema: wicked; Owner: postgres
@@ -179,8 +158,6 @@ CREATE TABLE wicked.verifications (
     data jsonb
 );
 
-
-ALTER TABLE wicked.verifications OWNER TO postgres;
 
 --
 -- TOC entry 195 (class 1259 OID 16770)
@@ -194,8 +171,6 @@ CREATE TABLE wicked.webhook_events (
 );
 
 
-ALTER TABLE wicked.webhook_events OWNER TO postgres;
-
 --
 -- TOC entry 196 (class 1259 OID 16776)
 -- Name: webhook_listeners; Type: TABLE; Schema: wicked; Owner: postgres
@@ -206,8 +181,6 @@ CREATE TABLE wicked.webhook_listeners (
     data jsonb
 );
 
-
-ALTER TABLE wicked.webhook_listeners OWNER TO postgres;
 
 --
 -- TOC entry 2057 (class 2606 OID 16783)

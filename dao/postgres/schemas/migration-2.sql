@@ -8,8 +8,6 @@ CREATE TABLE wicked.namespaces (
     data jsonb
 );
 
-ALTER TABLE wicked.namespaces OWNER TO postgres;
-
 ALTER TABLE ONLY wicked.namespaces
     ADD CONSTRAINT namespaces_pkey PRIMARY KEY (id);
 
