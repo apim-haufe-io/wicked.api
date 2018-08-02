@@ -250,8 +250,12 @@ function createUserImpl(app, res, userCreateInfo) {
 
     const newId = userCreateInfo.id || utils.createRandomId();
     let password = null;
-    if (userCreateInfo.password)
-        password = bcrypt.hashSync(userCreateInfo.password);
+    if (userCreateInfo.password) {
+        if (userCreateInfo.passwordIsHashed)
+            password = userCreateInfo.password;
+        else
+            password = bcrypt.hashSync(userCreateInfo.password);
+    }
     if (!userCreateInfo.groups)
         userCreateInfo.groups = [];
 
