@@ -5,6 +5,7 @@ var fs = require('fs');
 var path = require('path');
 var { debug, info, warn, error } = require('portal-env').Logger('portal-api:users');
 var bcrypt = require('bcrypt-nodejs');
+var crypto = require('crypto');
 var webhooks = require('./webhooks');
 var verifications = require('./verifications');
 var authMiddleware = require('../auth-middleware');
@@ -254,7 +255,7 @@ function createUserImpl(app, res, userCreateInfo) {
         if (userCreateInfo.passwordIsHashed)
             password = userCreateInfo.password;
         else
-            password = bcrypt.hashSync(userCreateInfo.password);
+            password = makePasswordHash(userCreateInfo.password);
     }
     if (!userCreateInfo.groups)
         userCreateInfo.groups = [];
@@ -380,6 +381,33 @@ users.getUserByEmail = function (app, res, email) {
     });
 };
 
+function makePasswordHash(password) {
+    return bcrypt.hashSync(password);
+}
+
+function comparePasswords(password, userInfo, callback) {
+    debug(`comparePasswords()`);
+    if (bcrypt.compareSync(password, userInfo.password))
+        return callback(null);
+    // Fallback to Meteor type checking
+    debug('comparePasswords(): Falling back to Meteor type matching');
+    const hash = crypto.createHash('sha256');
+    const passwordSha256 = hash.update(password).digest('hex');
+    if (bcrypt.compareSync(passwordSha256, userInfo.password)) {
+        debug('comparePasswords(): Meteor style password matching succeeded; updating user.');
+        userInfo.password = makePasswordHash(password);
+        dao.users.save(userInfo, userInfo.id, function (err) {
+            if (err) {
+                error(`comparePasswords(): Did not manage to update user password of user with id ${userInfo.id} (${userInfo.email})`);
+                error(err);
+            }
+            return callback(null);
+        });
+    }
+    debug('comparePasswords(): Failed, passwords do not match.');
+    return callback(new Error('Could not verify password.'));
+}
+
 users.getUserByEmailAndPassword = function (app, res, loggedInUserId, email, password) {
     debug('getUserByEmailAndPassword(): ' + email + ', password=***');
     users.loadUser(app, loggedInUserId, (err, loggedInUserInfo) => {
@@ -394,10 +422,12 @@ users.getUserByEmailAndPassword = function (app, res, loggedInUserId, email, pas
                 return utils.fail(res, 404, 'User not found or password not correct.');
             if (!userInfo.password)
                 return utils.fail(res, 400, 'Bad request. User has no defined password.');
-            if (!bcrypt.compareSync(password, userInfo.password))
-                return utils.fail(res, 403, 'Password not correct or user not found.');
-            delete userInfo.password;
-            res.json([userInfo]);
+            comparePasswords(password, userInfo, function (err) {
+                if (err)
+                    return utils.fail(res, 403, 'Password not correct or user not found.');
+                delete userInfo.password;
+                res.json([userInfo]);
+            });
         });
     });
 };
@@ -411,8 +441,10 @@ users.patchUser = function (app, res, loggedInUserId, userId, userInfo) {
         if (!isAllowed)
             return utils.fail(res, 403, 'Not allowed');
         if (userInfo.password &&
-            !users.isGoodPassword(userInfo.password))
+            !users.isGoodPassword(userInfo.password) &&
+            !userInfo.forcePasswordUpdate)
             return utils.fail(res, 400, users.BAD_PASSWORD);
+        delete userInfo.forcePasswordUpdate;
 
         users.loadUser(app, userId, (err, user) => {
             if (err)
@@ -443,7 +475,7 @@ users.patchUser = function (app, res, loggedInUserId, userId, userInfo) {
             if (userInfo.hasOwnProperty('validated'))
                 user.validated = userInfo.validated;
             if (userInfo.password)
-                user.password = bcrypt.hashSync(userInfo.password);
+                user.password = makePasswordHash(userInfo.password);
 
             dao.users.save(user, loggedInUserId, (err) => {
                 if (err)
