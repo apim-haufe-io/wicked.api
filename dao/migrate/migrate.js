@@ -162,7 +162,7 @@ class DaoMigrator {
             return `${defaultPrefix}:${customId}`;
         }
         // We have a prefix, and we checked in the validation that it's valid
-        const newPrefix = this._config.customIdMappings.prefixes[prefix];
+        const newPrefix = prefix !== 'internal' ? this._config.customIdMappings.prefixes[prefix] : 'internal';
         const idWithoutPrefix = DaoMigrator.getCustomIdWithoutPrefix(customId);
         return `${newPrefix}:${idWithoutPrefix}`;
     }
