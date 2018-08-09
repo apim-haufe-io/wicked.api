@@ -113,7 +113,7 @@
         {
             "id": "echo",
             "name": "Echo API",
-            "desc": "A simple echo API which can be used to test authentication and authorization integrations, or for demonstration purposes.",
+            "desc": "A simple echo API which can be used to test authentication and authorization integrations, or for demonstration purposes. Supports all OAuth2 flows.",
             "auth": "oauth2",
             "authMethods": [
                 "will be overridden from globals.json settings"
