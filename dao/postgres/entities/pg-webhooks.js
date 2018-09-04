@@ -108,25 +108,23 @@ class PgWebhooksEvents {
     createImpl(eventData, callback) {
         debug('createImpl()');
         const instance = this;
-        this.pgUtils.withTransaction((err, client, callback) => {
-            instance.pgWebhooksListeners.getAllListenersImpl((err, listenerList) => {
+        instance.pgWebhooksListeners.getAllListenersImpl((err, listenerList) => {
+            if (err)
+                return callback(err);
+            async.forEach(listenerList, (listenerInfo, callback) => {
+                const tmpEvent = Object.assign({}, eventData);
+                // Each record needs its own ID, not like in the JSON implementation where
+                // the ID is reused across the listeners.
+                tmpEvent.id = utils.createRandomId();
+                tmpEvent.listenerId = listenerInfo.id;
+                instance.pgUtils.upsert('webhook_events', tmpEvent, null, callback);
+            }, (err) => {
                 if (err)
                     return callback(err);
-                async.forEach(listenerList, (listenerInfo, callback) => {
-                    const tmpEvent = Object.assign({}, eventData);
-                    // Each record needs its own ID, not like in the JSON implementation where
-                    // the ID is reused across the listeners.
-                    tmpEvent.id = utils.createRandomId();
-                    tmpEvent.listenerId = listenerInfo.id;
-                    instance.pgUtils.upsert('webhook_events', tmpEvent, null, callback);
-                }, (err) => {
-                    if (err)
-                        return callback(err);
-                    debug('Successfully upserted events for all listeners.');
-                    return callback(null);
-                });
+                debug('Successfully upserted events for all listeners.');
+                return callback(null);
             });
-        }, callback);
+        });
     }
 
     hookListenersImpl(dispatchEvents, callback) {

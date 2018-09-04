@@ -14,6 +14,9 @@ const model = require('../model/model');
 // then it will fail (and subsequently be restarted by some orchestrator)
 const POSTGRES_CONNECT_RETRIES = 30;
 const POSTGRES_CONNECT_DELAY = 2000;
+// Number of clients in connection pool
+const POSTGRES_MAX_CLIENTS = 50;
+const POSTGRES_CONNECT_TIMEOUT = 10000;
 
 const COUNT_CACHE_TIMEOUT = 1 * 60 * 1000; // 1 minute
 
@@ -154,6 +157,7 @@ class PgUtils {
                 release = function () {
                     releaseHook();
                     debug(`withTransaction(): Released connect with id ${connectId}`);
+                    delete connectIds[connectId];
                 };
                 if (err) {
                     if (release)
@@ -595,6 +599,8 @@ class PgUtils {
         if (this.postgresOptions) {
             options = utils.clone(this.postgresOptions);
             options.database = dbName;
+            options.max = POSTGRES_MAX_CLIENTS;
+            options.connectionTimeoutMillis = POSTGRES_CONNECT_TIMEOUT;
         } else {
             const glob = utils.loadGlobals();
             options = {
@@ -602,7 +608,9 @@ class PgUtils {
                 port: glob.storage.pgPort,
                 user: glob.storage.pgUser,
                 password: glob.storage.pgPassword,
-                database: dbName
+                database: dbName,
+                max: POSTGRES_MAX_CLIENTS,
+                connectionTimeoutMillis: POSTGRES_CONNECT_TIMEOUT
             };
         }
         debug(options);
