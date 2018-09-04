@@ -474,8 +474,13 @@ users.patchUser = function (app, res, loggedInUserId, userId, userInfo) {
                 return utils.fail(res, 403, 'Not allowed. Only admins can change a user\'s validated email status.');
             if (userInfo.hasOwnProperty('validated'))
                 user.validated = userInfo.validated;
-            if (userInfo.password)
-                user.password = makePasswordHash(userInfo.password);
+            if (userInfo.password) {
+                // If password is already hashed, leave as is.
+                if (!userInfo.passwordIsHashed)
+                    user.password = makePasswordHash(userInfo.password);
+                else
+                    user.password = userInfo.password;
+            }
 
             dao.users.save(user, loggedInUserId, (err) => {
                 if (err)
