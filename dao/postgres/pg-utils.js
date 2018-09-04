@@ -17,6 +17,8 @@ const POSTGRES_CONNECT_DELAY = 2000;
 
 const COUNT_CACHE_TIMEOUT = 1 * 60 * 1000; // 1 minute
 
+const connectIds = {};
+
 class PgUtils {
     constructor(postgresOptions) {
         this.postgresOptions = postgresOptions;
@@ -140,11 +142,19 @@ class PgUtils {
      * transaction. In case everything is fine, `next(null)` is invoked.
      */
     withTransaction(payload, next) {
-        debug('withTransaction()');
+        const connectId = utils.createRandomId();
+        debug('withTransaction(): connectId = ' + connectId);
+        connectIds[connectId] = new Date().getTime();
         this.getPoolOrClient((err, pool) => {
             if (err)
                 return payload(err);
+            
             pool.connect((err, client, release) => {
+                const releaseHook = release;
+                release = function () {
+                    releaseHook();
+                    debug(`withTransaction(): Released connect with id ${connectId}`);
+                };
                 if (err) {
                     if (release)
                         release();
@@ -357,6 +367,12 @@ class PgUtils {
             }
             if (purgeCount > 0)
                 debug(`countRecords() - purged ${purgeCount} cache entries`);
+            
+            for (let connectId in connectIds) {
+                const delta = now - connectIds[connectId];
+                if (delta > 1000)
+                    debug(`*** Open connect ID: ${connectId}`);
+            }
         }, 15000);
     }
 
