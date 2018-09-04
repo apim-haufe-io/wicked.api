@@ -405,9 +405,10 @@ function comparePasswords(password, userInfo, callback) {
             }
             return callback(null);
         });
+    } else {
+        debug('comparePasswords(): Failed, passwords do not match.');
+        return callback(new Error('Could not verify password.'));
     }
-    debug('comparePasswords(): Failed, passwords do not match.');
-    return callback(new Error('Could not verify password.'));
 }
 
 users.getUserByEmailAndPassword = function (app, res, loggedInUserId, email, password) {
