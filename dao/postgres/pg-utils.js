@@ -15,7 +15,7 @@ const model = require('../model/model');
 const POSTGRES_CONNECT_RETRIES = 30;
 const POSTGRES_CONNECT_DELAY = 2000;
 // Number of clients in connection pool
-const POSTGRES_MAX_CLIENTS = 50;
+const POSTGRES_MAX_CLIENTS = 10;
 const POSTGRES_CONNECT_TIMEOUT = 10000;
 
 const COUNT_CACHE_TIMEOUT = 1 * 60 * 1000; // 1 minute
