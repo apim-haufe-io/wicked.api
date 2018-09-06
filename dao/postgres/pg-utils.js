@@ -592,13 +592,26 @@ class PgUtils {
     // Auxiliary functions
     // ================================================
 
+    resolveDatabase(dbName, postgresOptions) {
+        let pgDatabase = 'wicked';
+        if (dbName === 'postgres')
+            pgDatabase = dbName;
+        else if (postgresOptions) {
+            if (postgresOptions.pgDatabase)
+                pgDatabase = postgresOptions.pgDatabase;
+        }
+        debug(`resolveDatabase(${dbName}) resolves to: ${pgDatabase}`);
+        return pgDatabase;
+    } 
+
     getPostgresOptions(dbName) {
         debug('getPostgresOptions()');
         // Needs to get things from globals.json
         let options = null;
         if (this.postgresOptions) {
             options = utils.clone(this.postgresOptions);
-            options.database = dbName;
+            if (dbName === 'postgres')
+            options.database = this.resolveDatabase(dbName, options);
             options.max = POSTGRES_MAX_CLIENTS;
             options.connectionTimeoutMillis = POSTGRES_CONNECT_TIMEOUT;
         } else {
@@ -608,7 +621,7 @@ class PgUtils {
                 port: glob.storage.pgPort,
                 user: glob.storage.pgUser,
                 password: glob.storage.pgPassword,
-                database: dbName,
+                database: this.resolveDatabase(dbName, glob.storage),
                 max: POSTGRES_MAX_CLIENTS,
                 connectionTimeoutMillis: POSTGRES_CONNECT_TIMEOUT
             };
@@ -722,13 +735,13 @@ class PgUtils {
                 return callback(err);
             }
             if (results.rows.length === 0) {
-                warn('Database "wicked" was present, but did not have schems "wicked".');
+                warn('Database was present, but did not have schema "wicked".');
                 // We have the DB, but not the schema. We have seen this
                 // issue with Azure Postgres, so let's create the schema then.
                 return callback(null, false);
             } else {
                 // All's good
-                info('Found database "wicked" and schema "wicked"');
+                info('Found configured database and schema "wicked"');
                 return callback(null, true);
             }
         });
@@ -744,8 +757,10 @@ class PgUtils {
                 debug('createWickedDatabase: Failed to connect to "postgres" database.');
                 return callback(err);
             }
-            debug('createWickedDatabase: Creating database "wicked"');
-            client.query('CREATE DATABASE wicked;', callback);
+            const glob = utils.loadGlobals();
+            const pgDatabase = glob.storage.pgDatabase;
+            debug(`createWickedDatabase: Creating database "${pgDatabase}"`);
+            client.query(`CREATE DATABASE "${pgDatabase}";`, callback);
         });
     }
 
