@@ -760,6 +760,7 @@ class PgUtils {
             const glob = utils.loadGlobals();
             const pgDatabase = glob.storage.pgDatabase;
             debug(`createWickedDatabase: Creating database "${pgDatabase}"`);
+            // TODO: Release client? client.end()
             client.query(`CREATE DATABASE "${pgDatabase}";`, callback);
         });
     }

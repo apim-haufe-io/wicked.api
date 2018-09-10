@@ -3,20 +3,20 @@
 // URL is not known by jshnit, for whatever reason
 /* globals URL */
 
-var path = require('path');
-var fs = require('fs');
-var { debug, info, warn, error } = require('portal-env').Logger('portal-api:apis');
-var yaml = require('js-yaml');
-var request = require('request');
+const path = require('path');
+const fs = require('fs');
+const { debug, info, warn, error } = require('portal-env').Logger('portal-api:apis');
+const request = require('request');
+const async = require('async');
 
-var utils = require('./utils');
-var swaggerUtils = require('./swagger-utils');
-var users = require('./users');
+const utils = require('./utils');
+const swaggerUtils = require('./swagger-utils');
+const users = require('./users');
 
-var apis = require('express').Router();
+const apis = require('express').Router();
 
-var dao = require('../dao/dao');
-var daoUtils = require('../dao/dao-utils');
+const dao = require('../dao/dao');
+const daoUtils = require('../dao/dao-utils');
 
 // ===== SCOPES =====
 
@@ -74,6 +74,14 @@ apis.getApis = function (app, res, loggedInUserId) {
     var userGroups = [];
     var isAdmin = false;
 
+    function injectAndReturn(anApiList) {
+        checkAndInjectScopes(anApiList.apis, function (err) {
+            if (err)
+                return utils.failError(res, err);
+            return res.json(anApiList);
+        });
+    }
+
     if (loggedInUserId) {
         users.loadUser(app, loggedInUserId, (err, userInfo) => {
             if (!userInfo)
@@ -81,10 +89,10 @@ apis.getApis = function (app, res, loggedInUserId) {
             isAdmin = daoUtils.isUserAdmin(userInfo);
             if (!isAdmin)
                 userGroups = userInfo.groups;
-            return res.json(filterApiList(isAdmin, userGroups, apiList));
+            return injectAndReturn(filterApiList(isAdmin, userGroups, apiList));
         });
     } else {
-        return res.json(filterApiList(isAdmin, userGroups, apiList));
+        return injectAndReturn(filterApiList(isAdmin, userGroups, apiList));
     }
 };
 
@@ -193,6 +201,59 @@ apis.checkAccess = function (app, res, userId, apiId, callback) {
     });
 };
 
+function assignScope(apiDef, scopes) {
+    if (!apiDef.settings)
+        apiDef.settings = {};
+    apiDef.settings.scopes = scopes;
+}
+
+const _scopeMap = {};
+function checkAndInjectScopes(apiList, callback) {
+    debug(`checkAndInjectScopes()`);
+    async.each(apiList, function (apiDef, callback) {
+        // Do we need to look up a scope definition?
+        if (!apiDef.scopeLookupUrl)
+            return callback(null);
+
+        const now = (new Date()).getTime();
+        if (_scopeMap[apiDef.id]) {
+            const cachedScopes = _scopeMap[apiDef.id];
+            if (now - cachedScopes.timestamp < 5 * 60 * 1000) { // 5 minutes
+                // Cache valid
+                assignScope(apiDef, cachedScopes.scopes);
+                return callback(null);
+            }
+        }
+        let scopeUrl = apiDef.scopeLookupUrl;
+        if (!scopeUrl.endsWith('/'))
+            scopeUrl += '/';
+
+        async.retry({ times: 10, interval: 1000 }, function (callback) {
+            const url = `${scopeUrl}${apiDef.id}`;
+            debug(`checkAndInjectScopes: Attempting to get scopes from ${url}`);
+            request.get({
+                url: url,
+                timeout: 10000
+            }, function (err, res, body) {
+                if (err)
+                    return callback(err);
+                if (res.statusCode !== 200)
+                    return callback(new Error(`checkAndInjectScopes: GET ${url} return unexpected status code ${res.statusCode} (expected 200)`));
+                debug(`checkAndInjectScope: Succeeded gettings scopes from external URL.`);
+                const jsonBody = utils.getJson(body);
+                if (!apiDef.settings)
+                    apiDef.settings = {};
+                apiDef.settings.scopes = jsonBody;
+                _scopeMap[apiDef.id] = {
+                    timestamp: now,
+                    scopes: jsonBody
+                };
+                return callback(null);
+            });
+        }, callback);
+    }, callback);
+}
+
 apis.getApi = function (app, res, loggedInUserId, apiId) {
     debug('getApi(): ' + apiId);
     apis.checkAccess(app, res, loggedInUserId, apiId, (err) => {
@@ -200,7 +261,12 @@ apis.getApi = function (app, res, loggedInUserId, apiId) {
             return utils.fail(res, 403, 'Access denied', err);
         var apiList = utils.loadApis(app);
         var apiIndex = apiList.apis.findIndex(a => a.id === apiId);
-        res.json(apiList.apis[apiIndex]);
+        const apiInfo = apiList.apis[apiIndex];
+        checkAndInjectScopes([apiInfo], function (err) {
+            if (err)
+                return utils.failError(res, err);
+            res.json(apiInfo);
+        });
     });
 };
 
@@ -336,15 +402,15 @@ function resolveSwagger(globalSettings, apiInfo, requestPath, fileName, callback
         if (apiInfo.auth == "oauth2" && (!apiInfo.authMethods))
             return callback(new Error('API does not have an authMethods setting.'));
 
-        swaggerJson = (swaggerJson.openapi)  ?
-                        swaggerUtils.injectOpenAPIAuth(swaggerJson, globalSettings, apiInfo, requestPath)://Open API 3.0
-                        swaggerUtils.injectSwaggerAuth(swaggerJson, globalSettings, apiInfo, requestPath); //Version 2.0
-        
-                        // Cache it for a while
-         _swaggerMap[apiInfo.id] = {
-          date: new Date(),
-          valid: true,
-          swagger: swaggerJson
+        swaggerJson = (swaggerJson.openapi) ?
+            swaggerUtils.injectOpenAPIAuth(swaggerJson, globalSettings, apiInfo, requestPath) ://Open API 3.0
+            swaggerUtils.injectSwaggerAuth(swaggerJson, globalSettings, apiInfo, requestPath); //Version 2.0
+
+        // Cache it for a while
+        _swaggerMap[apiInfo.id] = {
+            date: new Date(),
+            valid: true,
+            swagger: swaggerJson
         };
 
         return callback(null, swaggerJson);
