@@ -6,6 +6,7 @@ const logger = require('morgan');
 const bodyParser = require('body-parser');
 const { debug, info, warn, error } = require('portal-env').Logger('portal-api:app');
 const correlationIdHandler = require('portal-env').CorrelationIdHandler();
+const prometheusMiddleware = require('portal-env').PrometheusMiddleware;
 const authMiddleware = require('./auth-middleware');
 
 const healthApi = require('./routes/health');
@@ -63,9 +64,17 @@ if (app.get('env') == 'development') {
 // 
 // app.use('/deploy', deploy);
 
+// ------- METRICS COLLECTION MIDDLEWARE -------
+
+app.use(prometheusMiddleware.middleware('wicked_api'));
+
 // ------- HEALTH API -------
 
 app.use('/health', healthApi);
+
+// ------- METRICS ---------
+
+app.get('/metrics', authMiddleware.rejectFromKong, prometheusMiddleware.metrics);
 
 // ------- PING -------
 

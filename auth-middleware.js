@@ -4,13 +4,6 @@ const { debug, info, warn, error } = require('portal-env').Logger('portal-api:au
 // ===== MIDDLEWARE =====
 
 authMiddleware.fillUserId = function (req, res, next) {
-    // var kongCustomId = req.get('x-consumer-custom-id'); 
-    // if (kongCustomId) {
-    //     req.apiUserId = kongCustomId;
-    //     req.kongRequest = true;
-    //     return next();
-    // }
-
     req.kongRequest = false;
     if (req.get('x-consumer-custom-id')) {
         req.kongRequest = true;
@@ -20,8 +13,16 @@ authMiddleware.fillUserId = function (req, res, next) {
     // inside the network, which is how the wicked SDK does it to
     // inject the user id for the machine users.
     const authenticatedUserId = req.get('x-authenticated-userid');
-    if (authenticatedUserId)
-        req.apiUserId = authenticatedUserId;
+    if (authenticatedUserId) {
+        // This must be in this format:
+        // sub=<user id>
+        if (authenticatedUserId.startsWith('sub=')) {
+            req.apiUserId = authenticatedUserId.substring(4);
+            debug(`fillUserId: Authenticated User Id: ${req.apiUserId}`);
+        } else {
+            warn(`fillUserId: Unexpected format of x-authenticated-userid, expected "sub=<user id>" (${authenticatedUserId})`);
+        }
+    }
     const scope = req.get('x-authenticated-scope');
     if (scope) {
         req.scope = makeScopeMap(scope);

@@ -6,6 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const pg = require('pg');
 const crypto = require('crypto');
+const promClient = require('portal-env').PrometheusMiddleware.getPromClient();
 
 const utils = require('../../routes/utils');
 const model = require('../model/model');
@@ -14,8 +15,13 @@ const model = require('../model/model');
 // then it will fail (and subsequently be restarted by some orchestrator)
 const POSTGRES_CONNECT_RETRIES = 30;
 const POSTGRES_CONNECT_DELAY = 2000;
+// Number of clients in connection pool
+const POSTGRES_MAX_CLIENTS = 10;
+const POSTGRES_CONNECT_TIMEOUT = 10000;
 
 const COUNT_CACHE_TIMEOUT = 1 * 60 * 1000; // 1 minute
+
+const connectIds = {};
 
 class PgUtils {
     constructor(postgresOptions) {
@@ -26,6 +32,47 @@ class PgUtils {
         this._pool = null;
 
         this.setupCountCachePurging();
+        this.initPrometheus();
+    }
+
+    initPrometheus() {
+        info('initPrometheus()');
+        this._pgPoolErrors = new promClient.Counter({
+            name: 'wicked_api_pg_pool_errors',
+            help: 'Number of errors emitted by the Postgres Pool'
+        });
+        this._pgListenerErrors = new promClient.Counter({
+            name: 'wicked_api_pg_listener_errors',
+            help: 'Number of errors emitted by the Postgres event listener'
+        });
+        this._pgQueryErrors = new promClient.Counter({
+            name: 'wicked_api_pg_query_errors',
+            help: 'Number of errors emitted by the normal Postgres queries',
+            labelNames: ['command', 'entity']
+        });
+        this._pgQueryHistogram = new promClient.Histogram({
+            name: 'wicked_api_pg_response_times',
+            help: 'Postgres query response time histogram',
+            labelNames: ['command', 'entity'],
+            buckets: [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.0]
+        });
+        this._pgNormalizeErrors = new promClient.Counter({
+            name: 'wicked_api_pg_normalize_errors',
+            help: 'Number of errors occurring when translating Postgres responses',
+            labelNames: ['command', 'entity']
+        });
+        this._pgCountTotal = new promClient.Counter({
+            name: 'wicked_api_pg_count_total',
+            help: 'Number of performed count queries'
+        });
+        this._pgCountCacheHit = new promClient.Counter({
+            name: 'wicked_api_pg_count_cache_hits',
+            help: 'Number of cached count queries'
+        });
+        this._pgCountCacheMiss = new promClient.Counter({
+            name: 'wicked_api_pg_count_cache_misses',
+            help: 'Number of uncached count queries'
+        });
     }
 
     runSql(sqlFileName, callback) {
@@ -49,12 +96,21 @@ class PgUtils {
 
     getMetadata(clientOrCallback, callback) {
         debug('getMetadata()');
+        const instance = this;
         this.sortOutClientAndCallback(clientOrCallback, callback, (client, callback) => {
+            const labels = {
+                command: 'SELECT',
+                entity: 'meta'
+            };
+            const end = instance._pgQueryHistogram.startTimer(labels);
             client.query('SELECT * FROM wicked.meta WHERE id = 1;', (err, results) => {
-                if (err)
+                if (err) {
+                    instance._pgQueryErrors.inc(labels);
                     return callback(err);
+                }
                 if (results.rows.length !== 1)
                     return callback(new Error('getMetadata: Unexpected row count ' + results.rows.length));
+                end();
                 return callback(null, results.rows[0].data);
             });
         });
@@ -105,6 +161,12 @@ class PgUtils {
             debug('listenToChannel - setting up listener PG client');
             // Initial setup
             instance._listenerClient = new pg.Client(instance.getPostgresOptions('wicked'));
+            instance._listenerClient.on('error', function (err, client) {
+                error(`Postgres Event listener threw an error: ${err.message}`);
+                error(err.toString());
+                instance._pgListenerErrors.inc();
+                return;
+            });
 
             instance._listenerClient.connect((err) => {
                 if (err)
@@ -140,11 +202,20 @@ class PgUtils {
      * transaction. In case everything is fine, `next(null)` is invoked.
      */
     withTransaction(payload, next) {
-        debug('withTransaction()');
+        const connectId = utils.createRandomId();
+        debug('withTransaction(): connectId = ' + connectId);
+        connectIds[connectId] = new Date().getTime();
         this.getPoolOrClient((err, pool) => {
             if (err)
                 return payload(err);
+
             pool.connect((err, client, release) => {
+                const releaseHook = release;
+                release = function () {
+                    releaseHook();
+                    debug(`withTransaction(): Released connect with id ${connectId}`);
+                    delete connectIds[connectId];
+                };
                 if (err) {
                     if (release)
                         release();
@@ -295,7 +366,7 @@ class PgUtils {
 
             async.parallel({
                 rows: function (callback) { instance.queryPostgres(poolOrClient, entity, queries.query, fieldValues, callback); },
-                countResult: function (callback) { instance.queryCount(poolOrClient, queries.countQuery, fieldValues, noCountCache, callback); }
+                countResult: function (callback) { instance.queryCount(poolOrClient, entity, queries.countQuery, fieldValues, noCountCache, callback); }
             }, function (err, results) {
                 if (err)
                     return callback(err);
@@ -314,25 +385,36 @@ class PgUtils {
     }
 
     // TODO: Put this in redis instead
-    queryCount(poolOrClient, countQuery, fieldValues, noCache, callback) {
+    queryCount(poolOrClient, entity, countQuery, fieldValues, noCache, callback) {
         debug(`countRecords()`);
+        this._pgCountTotal.inc();
         const cacheKey = JSON.stringify({ query: countQuery, fieldValues: fieldValues });
         const queryHash = crypto.createHash('sha1').update(cacheKey).digest('base64');
         const now = (new Date()).getTime();
         if (this._countCache[queryHash] && !noCache) {
             debug(`countRecords() - cache hit`);
+            this._pgCountCacheHit.inc();
             return callback(null, { count: this._countCache[queryHash].count, cached: true });
         }
+        this._pgCountCacheMiss.inc();
         const instance = this;
+        const labels = {
+            command: 'SELECT COUNT(*)',
+            entity: entity
+        };
+        const end = instance._pgQueryHistogram.startTimer(labels);
         poolOrClient.query(countQuery, fieldValues, (err, result) => {
-            if (err)
+            if (err) {
+                instance._pgQueryErrors.inc(labels);
                 return callback(err);
+            }
             if (result.rows.length !== 1)
                 return callback(utils.makeError(500, 'countRows: SELECT COUNT(*) did not return a single row.'));
             if (!noCache)
                 debug(`countRecords() - cache miss, adding record`);
             else
                 debug(`countRecords() - forced re-count`);
+            end();
             const count = result.rows[0].count;
             instance._countCache[queryHash] = {
                 count: count,
@@ -357,19 +439,35 @@ class PgUtils {
             }
             if (purgeCount > 0)
                 debug(`countRecords() - purged ${purgeCount} cache entries`);
+
+            for (let connectId in connectIds) {
+                const delta = now - connectIds[connectId];
+                if (delta > 1000)
+                    debug(`*** Open connect ID: ${connectId}`);
+            }
         }, 15000);
     }
 
     queryPostgres(poolOrClient, entity, query, fieldValues, callback) {
         debug(`queryPostgres()`);
         const instance = this;
+        const sqlCmd = extractCommand(query);
+        const labels = {
+            command: sqlCmd,
+            entity: entity
+        };
+        const end = instance._pgQueryHistogram.startTimer(labels);
         poolOrClient.query(query, fieldValues, (err, result) => {
-            if (err)
+            if (err) {
+                instance._pgQueryErrors.inc(labels);
                 return callback(err);
+            }
             try {
                 const normalizedResult = instance.normalizeResult(entity, result);
+                end();
                 return callback(null, normalizedResult);
             } catch (err) {
+                instance._pgNormalizeErrors.inc(labels);
                 debug('normalizeResult failed: ' + err.message);
                 debug(query);
                 debug(fieldValues);
@@ -497,9 +595,17 @@ class PgUtils {
             const sql = `INSERT INTO wicked.${entity} (${fieldNamesString}) VALUES(${placeholdersString}) ON CONFLICT (id) DO UPDATE SET ${updatesString}`;
             debug(sql);
 
+            const labels = {
+                command: 'INSERT',
+                entity: entity
+            };
+            const end = instance._pgQueryHistogram.startTimer(labels);
             client.query(sql, fieldValues, (err, result) => {
-                if (err)
+                if (err) {
+                    instance._pgQueryErrors.inc(labels);
                     return callback(err);
+                }
+                end();
                 debug('upsert finished succesfully.');
                 return callback(null, data);
             });
@@ -536,9 +642,17 @@ class PgUtils {
             sql += ` WHERE ${instance.resolveFieldName(entity, '', fieldNames[0])} = $1`;
             for (let i = 1; i < fieldNames.length; ++i)
                 sql += ` AND ${instance.resolveFieldName(entity, '', fieldNames[i])} = \$${i + 1} `;
+            const labels = {
+                command: 'DELETE',
+                entity: entity
+            };
+            const end = instance._pgQueryHistogram.startTimer(labels);
             client.query(sql, fieldValues, (err, result) => {
-                if (err)
+                if (err) {
+                    instance._pgQueryErrors.inc(labels);
                     return callback(err);
+                }
+                end();
                 return callback(null);
             });
         });
@@ -556,13 +670,22 @@ class PgUtils {
 
     count(entity, clientOrCallback, callback) {
         debug(`countRows(${entity}) `);
+        const instance = this;
         this.sortOutClientAndCallback(clientOrCallback, callback, (client, callback) => {
             const sql = `SELECT COUNT(*) as count FROM wicked.${entity} `;
+            const labels = {
+                command: 'SELECT COUNT(*)',
+                entity: entity
+            };
+            const end = instance._pgQueryHistogram.startTimer(labels);
             client.query(sql, (err, result) => {
-                if (err)
+                if (err) {
+                    instance._pgQueryErrors.inc(labels);
                     return callback(err);
+                }
                 if (result.rows.length !== 1)
                     return callback(utils.makeError(500, 'countRows: SELECT COUNT(*) did not return a single row.'));
+                end();
                 return callback(null, result.rows[0].count);
             });
         });
@@ -572,13 +695,28 @@ class PgUtils {
     // Auxiliary functions
     // ================================================
 
+    resolveDatabase(dbName, postgresOptions) {
+        let pgDatabase = 'wicked';
+        if (dbName === 'postgres')
+            pgDatabase = dbName;
+        else if (postgresOptions) {
+            if (postgresOptions.pgDatabase)
+                pgDatabase = postgresOptions.pgDatabase;
+        }
+        debug(`resolveDatabase(${dbName}) resolves to: ${pgDatabase}`);
+        return pgDatabase;
+    }
+
     getPostgresOptions(dbName) {
         debug('getPostgresOptions()');
         // Needs to get things from globals.json
         let options = null;
         if (this.postgresOptions) {
             options = utils.clone(this.postgresOptions);
-            options.database = dbName;
+            if (dbName === 'postgres')
+                options.database = this.resolveDatabase(dbName, options);
+            options.max = POSTGRES_MAX_CLIENTS;
+            options.connectionTimeoutMillis = POSTGRES_CONNECT_TIMEOUT;
         } else {
             const glob = utils.loadGlobals();
             options = {
@@ -586,7 +724,9 @@ class PgUtils {
                 port: glob.storage.pgPort,
                 user: glob.storage.pgUser,
                 password: glob.storage.pgPassword,
-                database: dbName
+                database: this.resolveDatabase(dbName, glob.storage),
+                max: POSTGRES_MAX_CLIENTS,
+                connectionTimeoutMillis: POSTGRES_CONNECT_TIMEOUT
             };
         }
         debug(options);
@@ -623,9 +763,21 @@ class PgUtils {
 
         const pgOptions = this.getPostgresOptions('wicked');
         const pool = new pg.Pool(pgOptions);
+        // Hook up an error handler; otherwise, the application might get crashed
+        // due to unhandled errors (says the documentation):
+        // https://node-postgres.com/api/pool#-code-pool-on-39-error-39-err-error-client-client-gt-void-gt-void-code-
+        const instance = this;
+        pool.on('error', function (err, client) {
+            if (err) {
+                // We can't actually do anything with this, but we want to log it.
+                error(`Postgres Pool emitted an error: ${err.message}`);
+                error(err.toString());
+                instance._pgPoolErrors.inc();
+                return;
+            }
+        });
         // Try to connect to wicked database
         debug('getPoolOrClient: Trying to connect');
-        const instance = this;
         pool.connect((err, client, release) => {
             if (client && release)
                 release();
@@ -698,13 +850,13 @@ class PgUtils {
                 return callback(err);
             }
             if (results.rows.length === 0) {
-                warn('Database "wicked" was present, but did not have schems "wicked".');
+                warn('Database was present, but did not have schema "wicked".');
                 // We have the DB, but not the schema. We have seen this
                 // issue with Azure Postgres, so let's create the schema then.
                 return callback(null, false);
             } else {
                 // All's good
-                info('Found database "wicked" and schema "wicked"');
+                info('Found configured database and schema "wicked"');
                 return callback(null, true);
             }
         });
@@ -720,8 +872,11 @@ class PgUtils {
                 debug('createWickedDatabase: Failed to connect to "postgres" database.');
                 return callback(err);
             }
-            debug('createWickedDatabase: Creating database "wicked"');
-            client.query('CREATE DATABASE wicked;', callback);
+            const glob = utils.loadGlobals();
+            const pgDatabase = glob.storage.pgDatabase;
+            debug(`createWickedDatabase: Creating database "${pgDatabase}"`);
+            // TODO: Release client? client.end()
+            client.query(`CREATE DATABASE "${pgDatabase}";`, callback);
         });
     }
 
@@ -979,6 +1134,13 @@ class PgUtils {
             }
         });
     }
+}
+
+function extractCommand(sqlQuery) {
+    const trimSql = sqlQuery.trim();
+    const spacePos = trimSql.indexOf(' ');
+    const cmd = trimSql.substring(0, spacePos).toUpperCase();
+    return cmd;
 }
 
 module.exports = PgUtils;

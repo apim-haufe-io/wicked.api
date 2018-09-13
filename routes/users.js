@@ -75,7 +75,9 @@ users.delete('/:userId/password', verifyWriteScope, function (req, res, next) {
 
 users.BAD_PASSWORD = 'Password has to be at least 6 characters long, and less than 24 characters.';
 
-users.isGoodPassword = function (password) {
+users.isGoodPassword = function (password, passwordIsHashed) {
+    if (passwordIsHashed)
+        return true;
     if (password.length < 6)
         return false;
     if (password.length > 24)
@@ -237,7 +239,7 @@ function createUserImpl(app, res, userCreateInfo) {
     if (!userCreateInfo.email && !userCreateInfo.customId)
         return res.status(400).jsonp({ message: 'Bad request. User needs email address.' });
     if (userCreateInfo.password &&
-        !users.isGoodPassword(userCreateInfo.password))
+        !users.isGoodPassword(userCreateInfo.password, userCreateInfo.passwordIsHashed))
         return res.status(400).jsonp({ message: users.BAD_PASSWORD });
     if (userCreateInfo.email)
         userCreateInfo.email = userCreateInfo.email.toLowerCase();
@@ -403,9 +405,10 @@ function comparePasswords(password, userInfo, callback) {
             }
             return callback(null);
         });
+    } else {
+        debug('comparePasswords(): Failed, passwords do not match.');
+        return callback(new Error('Could not verify password.'));
     }
-    debug('comparePasswords(): Failed, passwords do not match.');
-    return callback(new Error('Could not verify password.'));
 }
 
 users.getUserByEmailAndPassword = function (app, res, loggedInUserId, email, password) {
@@ -441,7 +444,7 @@ users.patchUser = function (app, res, loggedInUserId, userId, userInfo) {
         if (!isAllowed)
             return utils.fail(res, 403, 'Not allowed');
         if (userInfo.password &&
-            !users.isGoodPassword(userInfo.password) &&
+            !users.isGoodPassword(userInfo.password, userInfo.passwordIsHashed) &&
             !userInfo.forcePasswordUpdate)
             return utils.fail(res, 400, users.BAD_PASSWORD);
         delete userInfo.forcePasswordUpdate;
@@ -474,8 +477,13 @@ users.patchUser = function (app, res, loggedInUserId, userId, userInfo) {
                 return utils.fail(res, 403, 'Not allowed. Only admins can change a user\'s validated email status.');
             if (userInfo.hasOwnProperty('validated'))
                 user.validated = userInfo.validated;
-            if (userInfo.password)
-                user.password = makePasswordHash(userInfo.password);
+            if (userInfo.password) {
+                // If password is already hashed, leave as is.
+                if (!userInfo.passwordIsHashed)
+                    user.password = makePasswordHash(userInfo.password);
+                else
+                    user.password = userInfo.password;
+            }
 
             dao.users.save(user, loggedInUserId, (err) => {
                 if (err)
