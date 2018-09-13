@@ -383,7 +383,7 @@ apis.getApiDesc = function (app, res, loggedInUserId, apiId) {
 //     }
 // }    
 const _swaggerMap = {};
-function resolveSwagger(globalSettings, apiInfo, requestPath, fileName, callback) {
+function resolveSwagger(globalSettings, apiInfo, requestPaths, fileName, callback) {
     debug('resolveSwagger(' + fileName + ')');
     const FIVE_MINUTES = 5 * 60 * 1000;
     if (_swaggerMap[apiInfo.id]) {
@@ -403,8 +403,8 @@ function resolveSwagger(globalSettings, apiInfo, requestPath, fileName, callback
             return callback(new Error('API does not have an authMethods setting.'));
 
         swaggerJson = (swaggerJson.openapi) ?
-            swaggerUtils.injectOpenAPIAuth(swaggerJson, globalSettings, apiInfo, requestPath) ://Open API 3.0
-            swaggerUtils.injectSwaggerAuth(swaggerJson, globalSettings, apiInfo, requestPath); //Version 2.0
+            swaggerUtils.injectOpenAPIAuth(swaggerJson, globalSettings, apiInfo, requestPaths) ://Open API 3.0
+            swaggerUtils.injectSwaggerAuth(swaggerJson, globalSettings, apiInfo, requestPaths); //Version 2.0
 
         // Cache it for a while
         _swaggerMap[apiInfo.id] = {
@@ -478,7 +478,7 @@ apis.getSwagger = function (app, res, loggedInUserId, apiId) {
 
         if (!configJson || !configJson.api || !configJson.api.uris || !configJson.api.uris.length)
             return res.status(500).jsonp({ message: 'Invalid API configuration; does not contain uris array.' });
-        var requestPath = configJson.api.uris[0];
+        var requestPaths = configJson.api.uris;
 
         var apiList = utils.loadApis(app);
         var apiInfo = apiList.apis.find(function (anApi) { return anApi.id == apiId; });
@@ -486,7 +486,7 @@ apis.getSwagger = function (app, res, loggedInUserId, apiId) {
         // Read it, we want to do stuff with it.
         // resolveSwagger might read directly from the swagger file, or, if the
         // swagger JSON contains a href property, get it from a remote location.
-        resolveSwagger(globalSettings, apiInfo, requestPath, swaggerFileName, (err, swaggerJson) => {
+        resolveSwagger(globalSettings, apiInfo, requestPaths, swaggerFileName, (err, swaggerJson) => {
             if (err) {
                 error(err);
                 return res.status(500).json({

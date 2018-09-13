@@ -8,7 +8,7 @@ const { debug, info, warn, error } = require('portal-env').Logger('portal-api:sw
 
 const swaggerUtils = function () { };
 
-swaggerUtils.injectOpenAPIAuth = function (swaggerJson, globalSettings, apiInfo, requestPath) {
+swaggerUtils.injectOpenAPIAuth = function (swaggerJson, globalSettings, apiInfo, requestPaths) {
     if (!apiInfo.auth || apiInfo.auth == "key-auth") {
         const apikeyParam = [{ key: [] }];
         const securitySchemesParam = {
@@ -65,13 +65,20 @@ swaggerUtils.injectOpenAPIAuth = function (swaggerJson, globalSettings, apiInfo,
         deleteEmptySecurityProperties(swaggerJson);
         debug('Injecting OAuth2');
     }
-    swaggerJson.host = globalSettings.network.apiHost;
-    swaggerJson.basePath = requestPath;
-    swaggerJson.schemes = [globalSettings.network.schema];
+    // OpenAPI 3 uses "servers" instead of a basePath, host and schema
+    swaggerJson.servers = [];
+    for (let i=0; i<requestPaths.length; ++i) {
+        const p = requestPaths[i];
+        swaggerJson.servers.push({
+            url: `${globalSettings.network.schema}://${globalSettings.network.apiHost}${p}`
+        });
+    }
     return swaggerJson;
 };
 
-swaggerUtils.injectSwaggerAuth = function (swaggerJson, globalSettings, apiInfo, requestPath) {
+swaggerUtils.injectSwaggerAuth = function (swaggerJson, globalSettings, apiInfo, requestPaths) {
+    // Swagger 2.0 doesn't support multiple paths, pick first
+    const requestPath = requestPaths[0];
     if (!apiInfo.auth || apiInfo.auth == "key-auth") {
         const apikeyParam = [{ key: [] }];
         const securityDefinitionParam = {
