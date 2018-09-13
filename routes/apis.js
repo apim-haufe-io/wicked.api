@@ -431,10 +431,15 @@ function resolveSwagger(globalSettings, apiInfo, requestPath, fileName, callback
             }, (err, apiRes, apiBody) => {
                 if (err)
                     return callback(err);
+                if (apiRes.statusCode !== 200) {
+                    error(apiBody);
+                    return callback(new Error(`Getting remote Swagger from ${rawSwagger.href} returned an unexpected status code: ${apiRes.statusCode}`));
+                }
                 try {
                     const rawSwaggerRemote = utils.getJson(apiBody);
                     return injectAuthAndReturn(rawSwaggerRemote);
                 } catch (err) {
+                    error(err);
                     return callback(new Error('Could not parse remote Swagger from ' + rawSwagger.href));
                 }
             });
