@@ -2,6 +2,7 @@
 
 var path = require('path');
 var fs = require('fs');
+var mustache = require('mustache');
 var { debug, info, warn, error } = require('portal-env').Logger('portal-api:content');
 var users = require('./users');
 var utils = require('./utils');
@@ -186,6 +187,26 @@ content.getContentType = function (uriName) {
     return "text/markdown";
 };
 
+content.allowMustache = function (uriName) {
+    if (uriName.endsWith('css'))
+        return true;
+    return false;
+};
+
+// Ahem. Don't use too large files here.
+const _mustacheCache = {};
+function mustacheFile(filePath) {
+    if (_mustacheCache[filePath])
+        return _mustacheCache[filePath];
+    const template = fs.readFileSync(filePath + '.mustache', 'utf8');
+    const glob = utils.loadGlobals();
+    const viewModel = {
+        portalUrl: `${glob.network.schema}://${glob.network.portalHost}`,
+        apiUrl: `${glob.network.schema}://${glob.network.apiHost}`
+    };
+    return mustache.render(template, viewModel);
+}
+
 content.getContent = function (app, res, loggedInUserId, pathUri) {
     debug('getContent(): ' + pathUri);
     if (!/^[a-zA-Z0-9\-_\/\.]+$/.test(pathUri))
@@ -200,14 +221,21 @@ content.getContent = function (app, res, loggedInUserId, pathUri) {
     var filePath = path.join(staticDir, 'content', contentPath);
 
     if (content.isPublic(filePath.toLowerCase())) {
-        if (!fs.existsSync(filePath))
-            return res.status(404).jsonp({ message: 'Not found.: ' + pathUri });
         let contentType = content.getContentType(filePath);
-        // Just serve it
-        fs.readFile(filePath, function (err, content) {
+        if (content.allowMustache(pathUri) && fs.existsSync(filePath + '.mustache')) {
+            // Mustache it
+            const templatedContent = mustacheFile(filePath);
             res.setHeader('Content-Type', contentType);
-            res.send(content);
-        });
+            res.send(templatedContent);
+        } else if (!fs.existsSync(filePath)) {
+            return res.status(404).jsonp({ message: 'Not found.: ' + pathUri });
+        } else {
+            // Just serve it
+            fs.readFile(filePath, function (err, content) {
+                res.setHeader('Content-Type', contentType);
+                res.send(content);
+            });
+        }
         return;
     }
 
