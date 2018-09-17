@@ -4,6 +4,7 @@ var utils = require('./utils');
 var fs = require('fs');
 var path = require('path');
 var { debug, info, warn, error } = require('portal-env').Logger('portal-api:users');
+var passwordValidator = require('portal-env').PasswordValidator;
 var bcrypt = require('bcrypt-nodejs');
 var crypto = require('crypto');
 var webhooks = require('./webhooks');
@@ -73,16 +74,20 @@ users.delete('/:userId/password', verifyWriteScope, function (req, res, next) {
 
 // ===== IMPLEMENTATION =====
 
-users.BAD_PASSWORD = 'Password has to be at least 6 characters long, and less than 24 characters.';
-
-users.isGoodPassword = function (password, passwordIsHashed) {
+/** Returns
+ * {
+ *   valid: boolean,
+ *   message: string
+ * }
+ * 
+ * Checks globals.json for selected password validation strategy.
+ */
+users.validatePassword = function (password, passwordIsHashed) {
     if (passwordIsHashed)
         return true;
-    if (password.length < 6)
-        return false;
-    if (password.length > 24)
-        return false;
-    return true;
+    const glob = utils.loadGlobals();
+    const passwordStrategy = glob.passwordStrategy;
+    return passwordValidator.validatePassword(password, passwordStrategy);
 };
 
 users.isUserIdAdmin = function (app, userId, callback) {
@@ -238,9 +243,11 @@ function createUserImpl(app, res, userCreateInfo) {
     debug(userCreateInfo);
     if (!userCreateInfo.email && !userCreateInfo.customId)
         return res.status(400).jsonp({ message: 'Bad request. User needs email address.' });
-    if (userCreateInfo.password &&
-        !users.isGoodPassword(userCreateInfo.password, userCreateInfo.passwordIsHashed))
-        return res.status(400).jsonp({ message: users.BAD_PASSWORD });
+    if (userCreateInfo.password) {
+        const passwordResult = users.validatePassword(userCreateInfo.password, userCreateInfo.passwordIsHashed);
+        if (!passwordResult.valid)
+            return res.status(400).jsonp({ message: passwordResult.message });
+    }
     if (userCreateInfo.email)
         userCreateInfo.email = userCreateInfo.email.toLowerCase();
 
@@ -257,7 +264,7 @@ function createUserImpl(app, res, userCreateInfo) {
         if (userCreateInfo.passwordIsHashed)
             password = userCreateInfo.password;
         else
-            password = makePasswordHash(userCreateInfo.password);
+            password = utils.makePasswordHash(userCreateInfo.password);
     }
     if (!userCreateInfo.groups)
         userCreateInfo.groups = [];
@@ -383,10 +390,6 @@ users.getUserByEmail = function (app, res, email) {
     });
 };
 
-function makePasswordHash(password) {
-    return bcrypt.hashSync(password);
-}
-
 function comparePasswords(password, userInfo, callback) {
     debug(`comparePasswords()`);
     if (bcrypt.compareSync(password, userInfo.password))
@@ -397,7 +400,7 @@ function comparePasswords(password, userInfo, callback) {
     const passwordSha256 = hash.update(password).digest('hex');
     if (bcrypt.compareSync(passwordSha256, userInfo.password)) {
         debug('comparePasswords(): Meteor style password matching succeeded; updating user.');
-        userInfo.password = makePasswordHash(password);
+        userInfo.password = utils.makePasswordHash(password);
         dao.users.save(userInfo, userInfo.id, function (err) {
             if (err) {
                 error(`comparePasswords(): Did not manage to update user password of user with id ${userInfo.id} (${userInfo.email})`);
@@ -444,9 +447,12 @@ users.patchUser = function (app, res, loggedInUserId, userId, userInfo) {
         if (!isAllowed)
             return utils.fail(res, 403, 'Not allowed');
         if (userInfo.password &&
-            !users.isGoodPassword(userInfo.password, userInfo.passwordIsHashed) &&
-            !userInfo.forcePasswordUpdate)
-            return utils.fail(res, 400, users.BAD_PASSWORD);
+            !userInfo.forcePasswordUpdate) {
+
+            const passwordResult = users.validatePassword(userInfo.password, userInfo.passwordIsHashed);
+            if (!passwordResult.valid)
+                return utils.fail(res, 400, passwordResult.message);
+        }
         delete userInfo.forcePasswordUpdate;
 
         users.loadUser(app, userId, (err, user) => {
@@ -480,7 +486,7 @@ users.patchUser = function (app, res, loggedInUserId, userId, userInfo) {
             if (userInfo.password) {
                 // If password is already hashed, leave as is.
                 if (!userInfo.passwordIsHashed)
-                    user.password = makePasswordHash(userInfo.password);
+                    user.password = utils.makePasswordHash(userInfo.password);
                 else
                     user.password = userInfo.password;
             }

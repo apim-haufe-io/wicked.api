@@ -3,6 +3,7 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
+const bcrypt = require('bcrypt-nodejs');
 const { debug, info, warn, error } = require('portal-env').Logger('portal-api:utils');
 
 const utils = function () { };
@@ -40,6 +41,10 @@ utils.isMigrationMode = function () {
 
 utils.createRandomId = function () {
     return crypto.randomBytes(20).toString('hex');
+};
+
+utils.makePasswordHash = function (password) {
+    return bcrypt.hashSync(password);
 };
 
 utils.getUtc = function () {
