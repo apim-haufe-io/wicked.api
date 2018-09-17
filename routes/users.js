@@ -260,11 +260,13 @@ function createUserImpl(app, res, userCreateInfo) {
 
     const newId = userCreateInfo.id || utils.createRandomId();
     let password = null;
+    let mustChangePassword = false;
     if (userCreateInfo.password) {
         if (userCreateInfo.passwordIsHashed)
             password = userCreateInfo.password;
         else
             password = utils.makePasswordHash(userCreateInfo.password);
+        mustChangePassword = userCreateInfo.mustChangePassword;
     }
     if (!userCreateInfo.groups)
         userCreateInfo.groups = [];
@@ -279,6 +281,7 @@ function createUserImpl(app, res, userCreateInfo) {
         validated: userCreateInfo.validated,
         email: userCreateInfo.email,
         password: password,
+        mustChangePassword: mustChangePassword,
         groups: userCreateInfo.groups
     };
 
@@ -489,6 +492,11 @@ users.patchUser = function (app, res, loggedInUserId, userId, userInfo) {
                     user.password = utils.makePasswordHash(userInfo.password);
                 else
                     user.password = userInfo.password;
+            }
+            if (userInfo.hasOwnProperty('mustChangePassword')) {
+                if (!loggedInUserInfo.admin)
+                    return utils.fail(res, 403, 'Not allowed. Only admins can update the "mustChangePassword" property.');
+                user.mustChangePassword = userInfo.mustChangePassword;
             }
 
             dao.users.save(user, loggedInUserId, (err) => {
