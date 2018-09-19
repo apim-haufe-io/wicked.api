@@ -1,17 +1,14 @@
 'use strict';
 
-var fs = require('fs');
-var path = require('path');
+/* global URL */
+
 var { debug, info, warn, error } = require('portal-env').Logger('portal-api:applications');
-var async = require('async');
 var utils = require('./utils');
 var users = require('./users');
 var subscriptions = require('./subscriptions');
-var approvals = require('./approvals');
 var ownerRoles = require('./ownerRoles');
 var webhooks = require('./webhooks');
 var dao = require('../dao/dao');
-var daoUtils = require('../dao/dao-utils');
 
 var applications = require('express').Router();
 
@@ -114,15 +111,40 @@ var accessFlags = {
 };
 
 applications.isValidRedirectUri = function (redirectUri) {
-    return redirectUri &&
-        (redirectUri.indexOf('#') < 0) &&
+    if (!redirectUri)
+        return false;
+    let url = null;
+    try {
+        url = new URL(redirectUri);
+    } catch (ex) {
+        error(ex);
+        return false;
+    }
+    // Must not contain fragment
+    if (redirectUri.indexOf('#') >= 0)
+        return false;
+
+    if ((redirectUri.indexOf('#') < 0) &&
         (
             (redirectUri.startsWith('https://') && (redirectUri !== 'https://')) ||
             (redirectUri.startsWith('http://localhost')) ||
             (redirectUri.startsWith('http://127.0.0.1')) ||
             (redirectUri.startsWith('http://portal.local')) ||
             (redirectUri.startsWith('http://') && process.env.NODE_ENV.indexOf('local') >= 0) // Allow unsafe redirects for local development
-        );
+        )
+    ) {
+        return true;
+    }
+
+    // Now let's check if we have something weird
+    if (url.protocol !== 'https:' &&
+        url.protocol !== 'http:') {
+        // Custom scheme; Kong NEEDS a host (https://github.com/Kong/kong/issues/3790)
+        if (!url.host)
+            return false;
+        return true;
+    }
+    return false;
 };
 
 applications.getAllowedAccess = function (app, appInfo, userInfo) {
@@ -258,7 +280,7 @@ applications.createApplication = function (app, res, loggedInUserId, appCreateIn
         if (!userInfo.validated)
             return utils.fail(res, 403, 'Not allowed. Email address not validated.');
         if (redirectUri && !applications.isValidRedirectUri(redirectUri))
-            return utils.fail(res, 400, 'redirectUri must be a https URI');
+            return utils.fail(res, 400, 'redirectUri is not valid');
         if (!appCreateInfo.name || appCreateInfo.name.length < 1)
             return utils.fail(res, 400, 'Friendly name of application cannot be empty.');
         if (!utils.isValidApplicationId(appId))
@@ -273,9 +295,9 @@ applications.createApplication = function (app, res, loggedInUserId, appCreateIn
             confidential: !!appCreateInfo.confidential,
             mainUrl: appCreateInfo.mainUrl
         };
-        if(appCreateInfo.description)
+        if (appCreateInfo.description)
             newAppInfo.description = appCreateInfo.description.substring(0, APP_MAX_LENGTH_DESCRIPTION);
-       
+
         dao.applications.create(newAppInfo, userInfo.id, (err, createdAppInfo) => {
             if (err)
                 return utils.fail(res, 500, 'createApplication: DAO create failed', err);
@@ -317,12 +339,12 @@ applications.patchApplication = function (app, res, loggedInUserId, appId, appPa
                 return utils.fail(res, 400, 'Changing application ID is not allowed. Sorry.');
             const redirectUri = appPatchInfo.redirectUri;
             if (redirectUri && !applications.isValidRedirectUri(redirectUri))
-                return utils.fail(res, 400, 'redirectUri must be a https URI');
+                return utils.fail(res, 400, 'redirectUri is not valid');
 
             // Update app
             if (appPatchInfo.name)
                 appInfo.name = appPatchInfo.name.substring(0, 128);
-            if(appPatchInfo.description)
+            if (appPatchInfo.description)
                 appInfo.description = appPatchInfo.description.substring(0, APP_MAX_LENGTH_DESCRIPTION);
             if (redirectUri)
                 appInfo.redirectUri = redirectUri;
