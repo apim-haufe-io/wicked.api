@@ -116,6 +116,7 @@ utils.loadApis = function () {
         _apis = require(apisFile);
         const internalApisFile = path.join(__dirname, 'internal_apis', 'apis.json');
         const internalApis = require(internalApisFile);
+        injectRequiredGroups(internalApis);
         injectAuthMethods(internalApis);
         _apis.apis.push.apply(_apis.apis, internalApis.apis);
         utils.replaceEnvVars(_apis);
@@ -210,6 +211,23 @@ utils.isValidApplicationId = (appId) => {
 utils.invalidApplicationIdMessage = () => {
     return 'Invalid application ID, allowed chars are: a-z, 0-9, - and _';
 };
+
+function injectRequiredGroups(apis) {
+    debug('injectRequiredGroups()');
+    const globals = utils.loadGlobals();
+    if (!globals.api) {
+        warn('injectRequiredGroups: globals.json does not contain an "api" property.');
+        return;
+    }
+    const portalApi = apis.apis.find(api => api.id === 'portal-api');
+    if (!portalApi)
+        throw utils.makeError(500, 'injectAuthMethods: Internal API portal-api not found in internal APIs list');
+    portalApi.requiredGroup = globals.api.apiUserGroup;
+    const echoApi = apis.apis.find(api => api.id === 'echo');
+    if (!echoApi)
+        throw utils.makeError(500, 'injectAuthMethods: Internal API echo not found in internal APIs list');
+    echoApi.requiredGroup = globals.api.echoUserGroup;    
+}
 
 function injectAuthMethods(apis) {
     debug('injectAuthMethods()');
