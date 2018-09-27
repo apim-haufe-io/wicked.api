@@ -98,7 +98,7 @@ swaggerUtils.injectSwaggerAuth = function (swaggerJson, globalSettings, apiInfo,
         swaggerJson.security = apikeyParam; // Apply globally
     } else if (apiInfo.auth == "oauth2") {
         // securityDefinitions is specific for Swagger 2.0
-        const origSecurityDefinitions = utils.clone(swaggerJson.securityDefinitions);
+        const origSecurityDefinitions = swaggerJson.securityDefinitions ? utils.clone(swaggerJson.securityDefinitions) : {};
         // We will override the security definitions with our own ones
         swaggerJson.securityDefinitions = {};
 
