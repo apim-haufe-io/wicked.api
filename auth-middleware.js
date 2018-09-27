@@ -20,7 +20,9 @@ authMiddleware.fillUserId = function (req, res, next) {
             req.apiUserId = authenticatedUserId.substring(4);
             debug(`fillUserId: Authenticated User Id: ${req.apiUserId}`);
         } else {
-            warn(`fillUserId: Unexpected format of x-authenticated-userid, expected "sub=<user id>" (${authenticatedUserId})`);
+            const msg = `Unexpected format of x-authenticated-userid, expected "sub=<user id>" (${authenticatedUserId})`;
+            error(`fillUserId: ${msg}`);
+            return res.status(400).json({ message: msg });
         }
     }
     const scope = req.get('x-authenticated-scope');

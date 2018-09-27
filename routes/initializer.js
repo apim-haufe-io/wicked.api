@@ -108,8 +108,13 @@ function addInitialUsers(glob, callback) {
                 error('Initial user with ID ' + thisUser.id + ' has both password and customId; password NOT added.');
                 delete thisUser.password;
             }
-            if (thisUser.password)
-                thisUser.password = bcrypt.hashSync(thisUser.password);
+            if (thisUser.password) {
+                // Please note that this code does explicitly NOT check that the initial password is
+                // actually compliant with the selected password strategy. I cannot quite make up my
+                // mind whether this is a good or bad thing. But it's definitely the most backwards-
+                // compatible thing.
+                thisUser.password = utils.makePasswordHash(thisUser.password);
+            }
             thisUser.applications = [];
             thisUser.validated = true;
             thisUser.email = thisUser.email.toLowerCase();

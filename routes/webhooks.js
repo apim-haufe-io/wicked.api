@@ -267,13 +267,14 @@ webhooks.checkAndFireHooks = function (callback) {
         debug(`checkAndFireHooks(): Current instance is not the principal instance, not firing webhooks`);
         return callback(null);
     }
-    info('Checking and firing web hook events.');
+    info('checkAndFireHooks: Checking and firing web hook events.');
 
     dao.webhooks.listeners.getAll((err, listenerInfos) => {
         if (err) {
             error('*** COULD NOT GET WEBHOOKS');
             return callback(err);
         }
+        debug('checkAndFireHooks: Retrieved listeners.');
 
         async.map(listenerInfos, (listener, callback) => {
             var listenerId = listener.id;
@@ -284,7 +285,7 @@ webhooks.checkAndFireHooks = function (callback) {
                     return callback(err);
 
                 if (listenerEvents.length > 0) {
-                    debug('Posting events to ' + listenerId);
+                    debug(`checkAndFireHooks: Posting ${listenerEvents.length} events to ${listenerId}`);
                     request.post({
                         url: listenerUrl,
                         json: true,
@@ -297,6 +298,7 @@ webhooks.checkAndFireHooks = function (callback) {
                             err2.status = apiResponse.statusCode;
                             return callback(err);
                         }
+                        debug(`checkAndFireWebhooks: Succeeded posting ${listenerEvents.length} events to ${listenerId}`);
                         callback(null, apiBody);
                     });
                 }
