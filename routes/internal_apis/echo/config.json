@@ -3,7 +3,7 @@
     "name": "echo",
     "upstream_url": "${PORTAL_ECHO_URL}",
     "uris": [
-      "/echo/v1"
+      "/wicked-echo/v1"
     ],
     "strip_uri": true
   },

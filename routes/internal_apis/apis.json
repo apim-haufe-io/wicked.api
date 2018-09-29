@@ -1,18 +1,6 @@
 {
     "apis": [
         {
-            "id": "portal-health",
-            "name": "Portal Health API",
-            "desc": "This is the internal Health API of this API Portal. Use this for monitoring purposes.",
-            "auth": "key-auth",
-            "tags": [],
-            "requiredGroup": "admin",
-            "plans": [
-                "__internal_health"
-            ],
-            "internal": true
-        },
-        {
             "id": "portal-api",
             "name": "Portal API",
             "desc": "This is the API for wicked, which is used to store the entire state of the portal. Can e.g. be used for automation.",
@@ -149,6 +137,6 @@
                 "__internal_api_unlimited"
             ],
             "internal": true
-        }       
+        }
     ]
 }
