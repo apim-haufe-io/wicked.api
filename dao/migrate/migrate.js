@@ -60,7 +60,7 @@ class DaoMigrator {
     migrateImpl(callback) {
         debug('migrateImpl()');
         info('Starting Migration');
-        utils.setMigrationMode(true);
+        utils.setMigrationMode(true, this._config);
         async.series({
             source: callback => this.createDao(this._config.source, false, false, callback),
             target: callback => this.createDao(this._config.target, this._config.wipeTarget, true, callback)
@@ -477,6 +477,11 @@ class DaoMigrator {
             throw new Error('Postgres configuration does not contain a "config.user" property.');
         if (!c.config.password)
             throw new Error('Postgres configuration does not contain a "config.password" property.');
+        if (!c.config.database) {
+            warn('Using default database name "wicked".');
+            c.config.database = 'wicked';
+        }
+
     }
 
     createDaoByType(config, isTarget, callback) {

@@ -869,12 +869,23 @@ class PgUtils {
         const instance = this;
         client.connect((err) => {
             if (err) {
-                debug('createWickedDatabase: Failed to connect to "postgres" database.');
+                error('createWickedDatabase: Failed to connect to "postgres" database.');
                 return callback(err);
             }
-            const glob = utils.loadGlobals();
-            const pgDatabase = glob.storage.pgDatabase;
-            debug(`createWickedDatabase: Creating database "${pgDatabase}"`);
+            let pgDatabase = 'wicked';
+            if (!utils.isMigrationMode()) {
+                const glob = utils.loadGlobals();
+                pgDatabase = glob.storage.pgDatabase;
+            } else {
+                // Migration mode, read from migration config
+                const migrationConfig = utils.getMigrationConfig();
+                if (migrationConfig.target &&
+                    migrationConfig.target.config &&
+                    migrationConfig.target.config.database) {
+                    pgDatabase = migrationConfig.target.config.database;
+                }
+            }
+            info(`Creating database "${pgDatabase}"`);
             // TODO: Release client? client.end()
             client.query(`CREATE DATABASE "${pgDatabase}";`, callback);
         });
