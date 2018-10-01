@@ -238,6 +238,7 @@ users.createUser = function (app, res, loggedInUserId, userCreateInfo, isMachine
     }
 };
 
+const emailRegex = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
 function createUserImpl(app, res, userCreateInfo) {
     debug('createUserImpl(), user create info:');
     debug(userCreateInfo);
@@ -250,6 +251,8 @@ function createUserImpl(app, res, userCreateInfo) {
     }
     if (userCreateInfo.email)
         userCreateInfo.email = userCreateInfo.email.toLowerCase();
+    if (!emailRegex.test(userCreateInfo.email))
+        return res.status(400).json({ message: 'Email address invalid (not RFC 5322 compliant)' });
 
     // Name is no longer part of the user, this goes into registrations!
     delete userCreateInfo.name;

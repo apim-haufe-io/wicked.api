@@ -9,16 +9,16 @@ const fs = require('fs');
 if (process.argv.length < 3) {
     console.log('Usage: node bin/migrate [--write-sample-config] <migration_config.json>');
     console.log('   The migration tool needs a migration configuration; the command line switch --write-sample-config');
-    console.log('   can be used to write a sample migration configuration as ./migration_config.json.');
+    console.log('   can be used to write a sample migration configuration to stdout.');
     process.exit(1);
 }
 
 // =====================================================
 
 if (process.argv[2] === '--write-sample-config') {
-    console.log('Writing sample configuration to ./migration_config.json. Note that this can also be used to convert');
-    console.log('to and from Postgres and to and from JSON, also for non-legacy data, by specifying either "json" or');
-    console.log('"postgres" sources or targets.');
+    console.error('Writing sample configuration to stdout. Note that this can also be used to convert');
+    console.error('to and from Postgres and to and from JSON, also for non-legacy data, by specifying either "json" or');
+    console.error('"postgres" sources or targets.');
 
     const sampleConfig = {
         wipeTarget: true,
@@ -34,7 +34,8 @@ if (process.argv[2] === '--write-sample-config') {
                 host: 'localhost',
                 port: 5432,
                 user: 'kong',
-                password: 'kong'
+                password: 'kong',
+                database: 'wicked'
             }
         },
         customIdMappings: {
@@ -45,7 +46,7 @@ if (process.argv[2] === '--write-sample-config') {
             }
         }
     };
-    fs.writeFileSync('./migration_config.json', JSON.stringify(sampleConfig, null, 2), 'utf8');
+    console.log(JSON.stringify(sampleConfig, null, 2));
     process.exit(0);
 }
 

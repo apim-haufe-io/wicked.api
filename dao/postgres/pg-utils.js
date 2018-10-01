@@ -23,6 +23,50 @@ const COUNT_CACHE_TIMEOUT = 1 * 60 * 1000; // 1 minute
 
 const connectIds = {};
 
+const prom = {};
+
+function initPrometheus() {
+    info('initPrometheus()');
+    prom._pgPoolErrors = new promClient.Counter({
+        name: 'wicked_api_pg_pool_errors',
+        help: 'Number of errors emitted by the Postgres Pool'
+    });
+    prom._pgListenerErrors = new promClient.Counter({
+        name: 'wicked_api_pg_listener_errors',
+        help: 'Number of errors emitted by the Postgres event listener'
+    });
+    prom._pgQueryErrors = new promClient.Counter({
+        name: 'wicked_api_pg_query_errors',
+        help: 'Number of errors emitted by the normal Postgres queries',
+        labelNames: ['command', 'entity']
+    });
+    prom._pgQueryHistogram = new promClient.Histogram({
+        name: 'wicked_api_pg_response_times',
+        help: 'Postgres query response time histogram',
+        labelNames: ['command', 'entity'],
+        buckets: [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.0]
+    });
+    prom._pgNormalizeErrors = new promClient.Counter({
+        name: 'wicked_api_pg_normalize_errors',
+        help: 'Number of errors occurring when translating Postgres responses',
+        labelNames: ['command', 'entity']
+    });
+    prom._pgCountTotal = new promClient.Counter({
+        name: 'wicked_api_pg_count_total',
+        help: 'Number of performed count queries'
+    });
+    prom._pgCountCacheHit = new promClient.Counter({
+        name: 'wicked_api_pg_count_cache_hits',
+        help: 'Number of cached count queries'
+    });
+    prom._pgCountCacheMiss = new promClient.Counter({
+        name: 'wicked_api_pg_count_cache_misses',
+        help: 'Number of uncached count queries'
+    });
+}
+
+initPrometheus();
+
 class PgUtils {
     constructor(postgresOptions) {
         this.postgresOptions = postgresOptions;
@@ -32,47 +76,6 @@ class PgUtils {
         this._pool = null;
 
         this.setupCountCachePurging();
-        this.initPrometheus();
-    }
-
-    initPrometheus() {
-        info('initPrometheus()');
-        this._pgPoolErrors = new promClient.Counter({
-            name: 'wicked_api_pg_pool_errors',
-            help: 'Number of errors emitted by the Postgres Pool'
-        });
-        this._pgListenerErrors = new promClient.Counter({
-            name: 'wicked_api_pg_listener_errors',
-            help: 'Number of errors emitted by the Postgres event listener'
-        });
-        this._pgQueryErrors = new promClient.Counter({
-            name: 'wicked_api_pg_query_errors',
-            help: 'Number of errors emitted by the normal Postgres queries',
-            labelNames: ['command', 'entity']
-        });
-        this._pgQueryHistogram = new promClient.Histogram({
-            name: 'wicked_api_pg_response_times',
-            help: 'Postgres query response time histogram',
-            labelNames: ['command', 'entity'],
-            buckets: [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.0]
-        });
-        this._pgNormalizeErrors = new promClient.Counter({
-            name: 'wicked_api_pg_normalize_errors',
-            help: 'Number of errors occurring when translating Postgres responses',
-            labelNames: ['command', 'entity']
-        });
-        this._pgCountTotal = new promClient.Counter({
-            name: 'wicked_api_pg_count_total',
-            help: 'Number of performed count queries'
-        });
-        this._pgCountCacheHit = new promClient.Counter({
-            name: 'wicked_api_pg_count_cache_hits',
-            help: 'Number of cached count queries'
-        });
-        this._pgCountCacheMiss = new promClient.Counter({
-            name: 'wicked_api_pg_count_cache_misses',
-            help: 'Number of uncached count queries'
-        });
     }
 
     runSql(sqlFileName, callback) {
@@ -102,10 +105,10 @@ class PgUtils {
                 command: 'SELECT',
                 entity: 'meta'
             };
-            const end = instance._pgQueryHistogram.startTimer(labels);
+            const end = prom._pgQueryHistogram.startTimer(labels);
             client.query('SELECT * FROM wicked.meta WHERE id = 1;', (err, results) => {
                 if (err) {
-                    instance._pgQueryErrors.inc(labels);
+                    prom._pgQueryErrors.inc(labels);
                     return callback(err);
                 }
                 if (results.rows.length !== 1)
@@ -164,7 +167,7 @@ class PgUtils {
             instance._listenerClient.on('error', function (err, client) {
                 error(`Postgres Event listener threw an error: ${err.message}`);
                 error(err.toString());
-                instance._pgListenerErrors.inc();
+                prom._pgListenerErrors.inc();
                 return;
             });
 
@@ -387,25 +390,25 @@ class PgUtils {
     // TODO: Put this in redis instead
     queryCount(poolOrClient, entity, countQuery, fieldValues, noCache, callback) {
         debug(`countRecords()`);
-        this._pgCountTotal.inc();
+        prom._pgCountTotal.inc();
         const cacheKey = JSON.stringify({ query: countQuery, fieldValues: fieldValues });
         const queryHash = crypto.createHash('sha1').update(cacheKey).digest('base64');
         const now = (new Date()).getTime();
         if (this._countCache[queryHash] && !noCache) {
             debug(`countRecords() - cache hit`);
-            this._pgCountCacheHit.inc();
+            prom._pgCountCacheHit.inc();
             return callback(null, { count: this._countCache[queryHash].count, cached: true });
         }
-        this._pgCountCacheMiss.inc();
+        prom._pgCountCacheMiss.inc();
         const instance = this;
         const labels = {
             command: 'SELECT COUNT(*)',
             entity: entity
         };
-        const end = instance._pgQueryHistogram.startTimer(labels);
+        const end = prom._pgQueryHistogram.startTimer(labels);
         poolOrClient.query(countQuery, fieldValues, (err, result) => {
             if (err) {
-                instance._pgQueryErrors.inc(labels);
+                prom._pgQueryErrors.inc(labels);
                 return callback(err);
             }
             if (result.rows.length !== 1)
@@ -456,10 +459,10 @@ class PgUtils {
             command: sqlCmd,
             entity: entity
         };
-        const end = instance._pgQueryHistogram.startTimer(labels);
+        const end = prom._pgQueryHistogram.startTimer(labels);
         poolOrClient.query(query, fieldValues, (err, result) => {
             if (err) {
-                instance._pgQueryErrors.inc(labels);
+                prom._pgQueryErrors.inc(labels);
                 return callback(err);
             }
             try {
@@ -467,7 +470,7 @@ class PgUtils {
                 end();
                 return callback(null, normalizedResult);
             } catch (err) {
-                instance._pgNormalizeErrors.inc(labels);
+                prom._pgNormalizeErrors.inc(labels);
                 debug('normalizeResult failed: ' + err.message);
                 debug(query);
                 debug(fieldValues);
@@ -599,10 +602,10 @@ class PgUtils {
                 command: 'INSERT',
                 entity: entity
             };
-            const end = instance._pgQueryHistogram.startTimer(labels);
+            const end = prom._pgQueryHistogram.startTimer(labels);
             client.query(sql, fieldValues, (err, result) => {
                 if (err) {
-                    instance._pgQueryErrors.inc(labels);
+                    prom._pgQueryErrors.inc(labels);
                     return callback(err);
                 }
                 end();
@@ -646,10 +649,10 @@ class PgUtils {
                 command: 'DELETE',
                 entity: entity
             };
-            const end = instance._pgQueryHistogram.startTimer(labels);
+            const end = prom._pgQueryHistogram.startTimer(labels);
             client.query(sql, fieldValues, (err, result) => {
                 if (err) {
-                    instance._pgQueryErrors.inc(labels);
+                    prom._pgQueryErrors.inc(labels);
                     return callback(err);
                 }
                 end();
@@ -677,10 +680,10 @@ class PgUtils {
                 command: 'SELECT COUNT(*)',
                 entity: entity
             };
-            const end = instance._pgQueryHistogram.startTimer(labels);
+            const end = prom._pgQueryHistogram.startTimer(labels);
             client.query(sql, (err, result) => {
                 if (err) {
-                    instance._pgQueryErrors.inc(labels);
+                    prom._pgQueryErrors.inc(labels);
                     return callback(err);
                 }
                 if (result.rows.length !== 1)
@@ -772,7 +775,7 @@ class PgUtils {
                 // We can't actually do anything with this, but we want to log it.
                 error(`Postgres Pool emitted an error: ${err.message}`);
                 error(err.toString());
-                instance._pgPoolErrors.inc();
+                prom._pgPoolErrors.inc();
                 return;
             }
         });
@@ -869,12 +872,23 @@ class PgUtils {
         const instance = this;
         client.connect((err) => {
             if (err) {
-                debug('createWickedDatabase: Failed to connect to "postgres" database.');
+                error('createWickedDatabase: Failed to connect to "postgres" database.');
                 return callback(err);
             }
-            const glob = utils.loadGlobals();
-            const pgDatabase = glob.storage.pgDatabase;
-            debug(`createWickedDatabase: Creating database "${pgDatabase}"`);
+            let pgDatabase = 'wicked';
+            if (!utils.isMigrationMode()) {
+                const glob = utils.loadGlobals();
+                pgDatabase = glob.storage.pgDatabase;
+            } else {
+                // Migration mode, read from migration config
+                const migrationConfig = utils.getMigrationConfig();
+                if (migrationConfig.target &&
+                    migrationConfig.target.config &&
+                    migrationConfig.target.config.database) {
+                    pgDatabase = migrationConfig.target.config.database;
+                }
+            }
+            info(`Creating database "${pgDatabase}"`);
             // TODO: Release client? client.end()
             client.query(`CREATE DATABASE "${pgDatabase}";`, callback);
         });

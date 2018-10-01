@@ -2,7 +2,7 @@
   "api": {
     "name": "portal-api",
     "upstream_url": "${PORTAL_API_URL}",
-    "uris": ["/api/v1"],
+    "uris": ["/wicked/v1"],
     "strip_uri": true
   },
   "plugins": [

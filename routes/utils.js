@@ -30,13 +30,19 @@ utils.getInitialConfigDir = function () {
 };
 
 utils._migrationMode = false;
-utils.setMigrationMode = function (value) {
+utils._migrationConfig = null;
+utils.setMigrationMode = function (value, config) {
     debug(`setMigrationMode(${value})`);
     utils._migrationMode = value;
+    utils._migrationConfig = config;
 };
 
 utils.isMigrationMode = function () {
     return utils._migrationMode;
+};
+
+utils.getMigrationConfig = function () {
+    return utils._migrationConfig;
 };
 
 utils.createRandomId = function () {
