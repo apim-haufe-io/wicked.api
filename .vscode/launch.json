@@ -34,6 +34,7 @@
             "request": "launch",
             "name": "Migrate",
             "program": "${workspaceFolder}/bin/migrate",
+            "args": "/Users/martind/Projects/wicked.github/tmp/migrate/migration_config_local.json",
             "env": {
                 // "PORTAL_CONFIG_BASE": "../wicked-sample-config",
                 // "DEBUG": "*",
