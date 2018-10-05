@@ -1101,7 +1101,11 @@ class PgUtils {
     tryConnectToWickedDatabase(callback) {
         debug('tryConnectToWickedDatabase()');
         const instance = this;
-        const pgOptions = instance.getPostgresOptions('wicked');
+        const dbName = instance.resolveDatabase('wicked', instance.postgresOptions);
+        debug('postgresOptions:');
+        debug(instance.postgresOptions);
+        debug(`tryConnectToWickedDatabase: dbName = ${dbName}`);
+        const pgOptions = instance.getPostgresOptions(dbName);
         const client = new pg.Client(pgOptions);
         client.connect((err) => {
             client.end();
@@ -1124,26 +1128,30 @@ class PgUtils {
         if (instance._pool)
             return callback(utils.makeError(500, 'Cannot wipe database when already connected.'));
 
+        const dbName = instance.resolveDatabase('wicked', instance.postgresOptions);
+        info(`Attempting to drop database ${dbName}.`);
+
         this.tryConnectToWickedDatabase((err, wickedExists) => {
             if (err)
                 return callback(err);
             if (wickedExists) {
-                debug('dropWickedDatabase(): Database "wicked" exists, dropping it...');
+                debug(`dropWickedDatabase(): Database "${dbName}" exists, dropping it...`);
                 const pgOptions = instance.getPostgresOptions('postgres');
                 const client = new pg.Client(pgOptions);
                 client.connect((err) => {
                     if (err)
                         return callback(null);
-                    const dropSql = 'DROP DATABASE wicked;';
+                    const dropSql = `DROP DATABASE "${dbName}";`;
                     client.query(dropSql, (err) => {
                         client.end();
                         if (err)
                             return callback(err);
+                        info(`Successfully dropped database "${dbName}".`);
                         return callback(null);
                     });
                 });
             } else {
-                debug('dropWickedDatabase(): Could connect, but database "wicked" does not exist. Not doing anything.');
+                debug(`dropWickedDatabase(): Could connect, but database "${dbName}" does not exist. Not doing anything.`);
                 return callback(null);
             }
         });

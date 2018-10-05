@@ -481,6 +481,9 @@ class DaoMigrator {
             warn('Using default database name "wicked".');
             c.config.database = 'wicked';
         }
+        if (!c.config.pgDatabase) {
+            c.config.pgDatabase = c.config.database;
+        }
 
     }
 
