@@ -58,6 +58,8 @@ subscriptions.getSubscriptions = function (app, res, applications, loggedInUserI
             dao.subscriptions.getByAppId(appId, (err, subs) => {
                 if (err)
                     return utils.fail(res, 500, 'getSubscriptions: DAO get subscription failed', err);
+                for (let i = 0; i < subs.length; ++i)
+                    checkScopeSettings(subs[i]);
                 // Add some links if admin or collaborator
                 if (adminOrCollab) {
                     for (var i = 0; i < subs.length; ++i) {
@@ -226,6 +228,27 @@ subscriptions.addSubscription = function (app, res, applications, loggedInUserId
                     debug('Subscription needs approval.');
                 }
 
+                let allowedScopesMode = null;
+                let allowedScopes = null;
+                // Default scope settings, see https://github.com/Haufe-Lexware/wicked.haufe.io/issues/138
+                // Only for OAuth2, of course.
+                if (authMethod == 'oauth2') {
+                    allowedScopesMode = 'none';
+                    allowedScopes = [];
+                    // Which flows are allowed? If not only client credentials flow, specify "all"
+                    if (selectedApi.settings) {
+                        if (selectedApi.settings.enable_authorization_code ||
+                            selectedApi.settings.enable_implicit_grant ||
+                            selectedApi.settings.enable_password_grant) {
+                            allowedScopesMode = 'all';
+                        }
+                    }
+                    // If trusted, then completely trusted. Trusted overrides "allowedScopesMode".
+                    if (isTrusted) {
+                        allowedScopesMode = 'all';
+                    }
+                }
+
                 const newSubscription = {
                     id: utils.createRandomId(),
                     application: subsCreateInfo.application,
@@ -360,6 +383,9 @@ subscriptions.getSubscription = function (app, res, applications, loggedInUserId
                 // Did we find it?    
                 if (!appSub)
                     return utils.fail(res, 404, 'API subscription not found for application. App: ' + appId + ', API: ' + apiId);
+
+                checkScopeSettings(appSub);
+
                 // var appSub = appSubs[subsIndex];
                 if (adminOrCollab) {
                     if (!appSub._links)
@@ -473,7 +499,7 @@ subscriptions.patchSubscription = function (app, res, applications, loggedInUser
         if (!userInfo)
             return utils.fail(res, 403, 'Not allowed.');
         if (!userInfo.admin && !userInfo.approver)
-            return utils.fail(res, 403, 'Not allowed. Only admins can patch a subscription.');
+            return utils.fail(res, 403, 'Not allowed. Only admins and approvers can patch a subscription.');
         dao.subscriptions.getByAppId(appId, (err, appSubs) => {
             if (err)
                 return utils.fail(res, 500, 'patchSubscription: DAO load app subscriptions failed', err);
@@ -481,7 +507,19 @@ subscriptions.patchSubscription = function (app, res, applications, loggedInUser
             if (subsIndex < 0)
                 return utils.fail(res, 404, 'Not found. Subscription to API "' + apiId + '" does not exist: ' + appId);
 
-            if (patchBody.approved || patchBody.hasOwnProperty('trusted')) {
+            let allowPatch = false;
+            if (patchBody.approved)
+                allowPatch = true;
+            if (patchBody.hasOwnProperty('trusted'))
+                allowPatch = true;
+            let allowScopePatch = false;
+            if (userInfo.admin) {
+                if (patchBody.hasOwnProperty('allowedScopesMode') ||
+                    patchBody.hasOwnProperty('allowedScopes'))
+                    allowScopePatch = true;
+            }
+
+            if (allowPatch || allowScopePatch) {
                 var thisSubs = appSubs[subsIndex];
                 // In case a clientId is created, we need to temporary store it here, too,
                 // as saveSubscriptions encrypts the ID.
@@ -489,7 +527,7 @@ subscriptions.patchSubscription = function (app, res, applications, loggedInUser
                 let tempClientSecret = null;
                 let tempApiKey = null;
 
-                if (patchBody.approved) {
+                if (allowPatch && patchBody.approved) {
 
                     // Now set to approved
                     thisSubs.approved = true;
@@ -507,13 +545,34 @@ subscriptions.patchSubscription = function (app, res, applications, loggedInUser
                     }
                 }
 
-                if (patchBody.hasOwnProperty('trusted')) {
+                if (allowPatch && patchBody.hasOwnProperty('trusted')) {
                     // This can go both ways
                     thisSubs.trusted = !!patchBody.trusted;
                 }
 
+                if (allowScopePatch) {
+                    // Check that this is right
+                    if (patchBody.allowedScopesMode) {
+                        if (!isValidAllowedScopesMode(patchBody.allowedScopesMode))
+                            return utils.fail(res, 400, 'patchSubscription: Invalid allowedScopesMode, must be "all", "none", or "select"');
+                        thisSubs.allowedScopesMode = patchBody.allowedScopesMode;
+                        if (thisSubs.allowedScopesMode === 'select' && !thisSubs.allowedScopes)
+                            thisSubs.allowedScopes = []; // Default, in case not specified
+                    }
+                    if (patchBody.allowedScopes) {
+                        if (!isValidAllowedScopes(patchBody.allowedScopes))
+                            return utils.fail(res, 400, 'patchSubscription: Invalid allowedScopes property, must be array of strings.');
+                        thisSubs.allowedScopes = patchBody.allowedScopes;
+                    }
+                    if (thisSubs.trusted) {
+                        thisSubs.allowedScopesMode = 'all';
+                        thisSubs.allowedScopes = [];
+                    }
+                }
+
                 thisSubs.changedBy = loggedInUserId;
                 thisSubs.changedDate = utils.getUtc();
+                checkScopeSettings(thisSubs);
 
                 // And persist the subscriptions
                 dao.subscriptions.patch(appId, thisSubs, loggedInUserId, (err, updatedSubsInfo) => {
@@ -534,6 +593,7 @@ subscriptions.patchSubscription = function (app, res, applications, loggedInUser
                             updatedSubsInfo.apikey = tempApiKey;
                         }
 
+
                         res.json(updatedSubsInfo);
 
                         webhooks.logEvent(app, {
@@ -550,11 +610,37 @@ subscriptions.patchSubscription = function (app, res, applications, loggedInUser
                 });
             } else {
                 // No-op
-                return utils.fail(res, 400, 'Bad request. Patching subscriptions can only be used to approve of subscriptions.');
+                return utils.fail(res, 400, 'Bad request. Patching subscriptions can only be used to approve of subscriptions, or to patch scopes.');
             }
         });
     });
 };
+
+function isValidAllowedScopesMode(allowedScopesMode) {
+    switch (allowedScopesMode) {
+        case 'none':
+        case 'all':
+        case 'select':
+            return true;
+    }
+    return false;
+}
+
+function isValidAllowedScopes(allowedScopes) {
+    if (!Array.isArray(allowedScopes)) {
+        warn('isValidAllowedScopes: Not an array');
+        warn(allowedScopes);
+        return false;
+    }
+    for (let i = 0; i < allowedScopes.length; ++i) {
+        if (typeof (allowedScopes[i]) !== 'string') {
+            warn('isValidAllowedScopes: One array entry is not a string.');
+            warn(allowedScopes);
+            return false;
+        }
+    }
+    return true;
+}
 
 subscriptions.getSubscriptionByClientId = function (app, res, applications, loggedInUserId, clientId) {
     debug('getSubscriptionByClientId()');
@@ -579,6 +665,9 @@ subscriptions.getSubscriptionByClientId = function (app, res, applications, logg
                     error("getSubscriptionByClientId(): " + errorMessage);
                     return utils.fail(res, 500, errorMessage);
                 }
+
+                checkScopeSettings(subsInfo);
+
                 return res.json({
                     subscription: subsInfo,
                     application: appInfo
@@ -587,5 +676,40 @@ subscriptions.getSubscriptionByClientId = function (app, res, applications, logg
         });
     });
 };
+
+function checkScopeSettings(appSub) {
+    debug('checkScopeSettings()');
+    console.log(appSub);
+    try {
+        // Default settings for scopes, see https://github.com/Haufe-Lexware/wicked.haufe.io/issues/138
+        if (appSub.auth !== 'oauth2')
+            return;
+        if (!appSub.allowedScopesMode) {
+            appSub.allowedScopesMode = 'none';
+            appSub.allowedScopes = [];
+            const apiInfo = utils.getApi(appSub.api);
+            // For APIs which support other OAuth2 flows than the client credentials flow, the default is "all";
+            // usually the resource owner will be asked to grant access anyway, or a trusted subscription is 
+            // needed (in case of the resource owner password grant).
+            if (apiInfo.settings) {
+                if (apiInfo.settings.enable_authorization_code ||
+                    apiInfo.settings.enable_implicit_grant ||
+                    apiInfo.settings.enable_password_grant) {
+                    appSub.allowedScopesMode = 'all';
+                    appSub.allowedScopes = [];
+                }
+            }
+            if (appSub.trusted) {
+                appSub.allowedScopesMode = 'all';
+                appSub.allowedScopes = [];
+            }
+        }
+    } catch (err) {
+        error('checkScopeSettings() failed: ' + err.message);
+        error(err);
+        appSub.allowedScopesMode = 'none';
+        appSub.allowedScopes = [];
+    }
+}
 
 module.exports = subscriptions;
