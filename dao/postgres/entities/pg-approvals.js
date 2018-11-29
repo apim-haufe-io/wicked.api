@@ -51,6 +51,7 @@ class PgApprovals {
             } else {
                 // Not found, ignore
                 debug('deleteByAppAndApiImpl() did not find any matching approvals.');
+                return callback(null);
             }
         });
     }
