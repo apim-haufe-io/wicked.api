@@ -559,10 +559,12 @@ subscriptions.patchSubscription = function (app, res, applications, loggedInUser
                         if (thisSubs.allowedScopesMode === 'select' && !thisSubs.allowedScopes)
                             thisSubs.allowedScopes = []; // Default, in case not specified
                     }
-                    if (patchBody.allowedScopes) {
+                    if (patchBody.allowedScopes && thisSubs.allowedScopesMode === 'select') {
                         if (!isValidAllowedScopes(patchBody.allowedScopes))
                             return utils.fail(res, 400, 'patchSubscription: Invalid allowedScopes property, must be array of strings.');
                         thisSubs.allowedScopes = patchBody.allowedScopes;
+                    } else if (thisSubs.allowedScopesMode !== 'select') {
+                        thisSubs.allowedScopes = [];
                     }
                     if (thisSubs.trusted) {
                         thisSubs.allowedScopesMode = 'all';
