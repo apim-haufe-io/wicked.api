@@ -9,10 +9,59 @@ var ownerRoles = require('./ownerRoles');
 var approvals = require('./approvals');
 var webhooks = require('./webhooks');
 
+var subscriptions = require('express').Router();
 var dao = require('../dao/dao');
 var daoUtils = require('../dao/dao-utils');
 
-var subscriptions = function () { };
+const READ_SUBSCRIPTIONS = 'read_subscriptions';
+const verifySubscriptionsReadScope = utils.verifyScope(READ_SUBSCRIPTIONS);
+
+// ===== ENDPOINTS =====
+subscriptions.get('/', verifySubscriptionsReadScope, function (req, res, next) {
+    const { offset, limit } = utils.getOffsetLimit(req);
+    const filter = utils.getFilter(req);
+    const orderBy = utils.getOrderBy(req);
+    const noCountCache = utils.getNoCountCache(req);
+    const embed = utils.getEmbed(req);
+    subscriptions.getAllSubscriptions(req.app, res, req.apiUserId, filter, orderBy, offset, limit, noCountCache, embed);
+});
+
+subscriptions.getAllSubscriptions = function (app, res, loggedInUserId, filter, orderBy, offset, limit, noCountCache, embed) {
+    debug('getAllSubscriptions()');
+    users.loadUser(app, loggedInUserId, (err, userInfo) => {
+        if (err)
+            return utils.fail(res, 500, 'getAllSubscriptions: Could not load user.', err);
+        if (!userInfo)
+            return utils.fail(res, 403, 'Not allowed.');
+        if (!userInfo.admin && !userInfo.approver)
+            return utils.fail(res, 403, 'Not allowed. This is admin/approver land.');
+        if (embed) {
+            dao.subscriptions.getAll(filter, orderBy, offset, limit, noCountCache, (err, subsIndex, countResult) => {
+                if (err)
+                    return utils.fail(res, 500, 'getAllSubscriptions: getAll failed', err);
+                res.json({
+                    items: subsIndex,
+                    count: countResult.count,
+                    count_cached: countResult.cached,
+                    offset: offset,
+                    limit: limit
+                });
+            });
+        } else {
+            dao.subscriptions.getIndex(offset, limit, (err, subsIndex, countResult) => {
+                if (err)
+                    return utils.fail(res, 500, 'getAllSubscriptions: getIndex failed', err);
+                res.json({
+                    items: subsIndex,
+                    count: countResult.count,
+                    count_cached: countResult.cached,
+                    offset: offset,
+                    limit: limit
+                });
+            });
+        }
+    });
+};
 
 subscriptions.getOwnerRole = function (appInfo, userInfo) {
     debug('getOwnerRole()');
@@ -711,5 +760,6 @@ function checkScopeSettings(appSub) {
         appSub.allowedScopes = [];
     }
 }
+
 
 module.exports = subscriptions;
