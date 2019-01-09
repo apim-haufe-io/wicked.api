@@ -32,7 +32,7 @@ echo "============================================"
 
 export BUILD_ALPINE=""
 perl -pe 's;(\\*)(\$([a-zA-Z_][a-zA-Z_0-9]*)|\$\{([a-zA-Z_][a-zA-Z_0-9]*)\})?;substr($1,0,int(length($1)/2)).($2&&length($1)%2?$2:$ENV{$3||$4});eg' Dockerfile.template > Dockerfile
-normalImageName="${DOCKER_PREFIX}portal-api:${DOCKER_TAG}"
+normalImageName="${DOCKER_PREFIX}api:${DOCKER_TAG}"
 docker build --pull -t ${normalImageName} .
 
 echo "============================================"
@@ -41,7 +41,7 @@ echo "============================================"
 
 export BUILD_ALPINE="-alpine"
 perl -pe 's;(\\*)(\$([a-zA-Z_][a-zA-Z_0-9]*)|\$\{([a-zA-Z_][a-zA-Z_0-9]*)\})?;substr($1,0,int(length($1)/2)).($2&&length($1)%2?$2:$ENV{$3||$4});eg' Dockerfile.template > Dockerfile-alpine
-alpineImageName="${DOCKER_PREFIX}portal-api:${DOCKER_TAG}-alpine"
+alpineImageName="${DOCKER_PREFIX}api:${DOCKER_TAG}-alpine"
 docker build --pull -f Dockerfile-alpine -t ${alpineImageName} .
 
 if [ "$1" = "--push" ]; then
