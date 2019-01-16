@@ -285,6 +285,9 @@ utils.loadGlobals = function () {
         utils.replaceEnvVars(_globalSettings);
         _globalSettings.configDate = getConfigDate();
         _globalSettings.lastCommit = getLastCommit();
+        // Return the used NODE_ENV, this is useful for debugging and error handling
+        // when checking the configuration.
+        _globalSettings.environment = process.env.NODE_ENV;
     }
     return _globalSettings;
 };
