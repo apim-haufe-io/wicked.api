@@ -368,7 +368,6 @@ class PgUtils {
             joinClause = options.joinClause;
         if (options.joinedFields)
             joinedFields = options.joinedFields;
-
         const instance = this;
         this.getPoolOrClient(client, (err, poolOrClient) => {
             if (err)
@@ -387,12 +386,18 @@ class PgUtils {
         });
     }
 
+    
     addFilterOptions(filter, fields, values, operators) {
         debug(`addFilterOptions()`);
         for (let fieldName in filter) {
             fields.push(fieldName);
-            values.push(`%${filter[fieldName]}%`);
-            operators.push('ILIKE');
+            if(filter[fieldName].indexOf('|') > 0){ 
+                values.push(`%(${filter[fieldName]})%`);
+                operators.push('SIMILAR TO');
+            } else {
+                values.push(`%${filter[fieldName]}%`);
+                operators.push('ILIKE');
+            }
         }
     }
 
@@ -547,6 +552,7 @@ class PgUtils {
                     additionalFields += ` AS ${joinedFieldDef.as}`;
             }
         }
+
         let query = `SELECT ${mainPrefix}*${additionalFields} FROM wicked.${entity} ${tableName}`;
         if (joinClause)
             query += ` ${joinClause}`;

@@ -105,10 +105,15 @@ class PgSubscriptions {
         const values = [];
         const operators = [];
         const joinedFields = [
+           {
+                source: 'a.api_group',
+                as: 'api_group',
+                alias: 'apiGroup'
+            }, 
             {
-                source: 'b.application',
-                as: 'application',
-                alias: 'application'
+                source: 'b.application_name',
+                as: 'application_name',
+                alias: 'applicationName'
             },
             {
                 source: 'b.owner',
@@ -130,7 +135,7 @@ class PgSubscriptions {
             operators: operators,
             noCountCache: noCountCache,
             joinedFields: joinedFields,
-            joinClause: 'LEFT JOIN (SELECT string_agg(o.data->>\'email\', \', \') as owner, string_agg(r.name, \', \') as user, p.data-> \'name\' as application , p.id FROM wicked.applications p, wicked.owners o, wicked.registrations r WHERE o.applications_id = p.id AND o.users_id = r.users_id GROUP BY application, p.id) b ON b.id = a.applications_id'
+            joinClause: 'LEFT JOIN (SELECT string_agg(o.data->>\'email\', \', \') as owner, string_agg(r.name, \', \') as user, p.data->> \'name\' as application_name , p.id FROM wicked.applications p, wicked.owners o, wicked.registrations r WHERE o.applications_id = p.id AND o.users_id = r.users_id GROUP BY application_name, p.id) b ON b.id = a.applications_id'
         };
         
         return this.pgUtils.getBy('subscriptions', fields, values, options, (err, subsList, countResult) => {
