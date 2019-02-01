@@ -100,17 +100,39 @@ class PgSubscriptions {
 
     getAllImpl(filter, orderBy, offset, limit, noCountCache, callback) {
         debug(`getAll(filter: ${filter}, orderBy: ${orderBy}, offset: ${offset}, limit: ${limit})`);
+        //return callback(new Error('PG.getAllImpl: Not implemented.'));
         const fields = [];
         const values = [];
         const operators = [];
-        this.pgUtils.addFilterOptions(filter, fields, values, operators);
+        const joinedFields = [
+            {
+                source: 'b.application',
+                as: 'application',
+                alias: 'application'
+            },
+            {
+                source: 'b.owner',
+                as: 'owner',
+                alias: 'owner'
+            },
+            {
+                source: 'b.user',
+                as: 'user',
+                alias: 'user'
+            }
+        ];
+        this.pgUtils.addFilterOptions(filter, fields, values, operators, joinedFields);
+        // This may be one of the most complicated queries we have here...
         const options = {
             limit: limit,
             offset: offset,
             orderBy: orderBy ? orderBy : 'id ASC',
             operators: operators,
             noCountCache: noCountCache,
+            joinedFields: joinedFields,
+            joinClause: 'LEFT JOIN (SELECT string_agg(o.data->>\'email\', \', \') as owner, string_agg(r.name, \', \') as user, p.data-> \'name\' as application , p.id FROM wicked.applications p, wicked.owners o, wicked.registrations r WHERE o.applications_id = p.id AND o.users_id = r.users_id GROUP BY application, p.id) b ON b.id = a.applications_id'
         };
+        
         return this.pgUtils.getBy('subscriptions', fields, values, options, (err, subsList, countResult) => {
             if (err)
                 return callback(err);
@@ -118,6 +140,7 @@ class PgSubscriptions {
             return callback(null, subsList, countResult);
         });
     }
+
 
     getIndexImpl(offset, limit, callback) {
         debug(`getIndex(offset: ${offset}, limit: ${limit})`);

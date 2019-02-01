@@ -3,8 +3,9 @@
 const async = require('async');
 const { debug, info, warn, error } = require('portal-env').Logger('portal-api:dao:pg:meta');
 const path = require('path');
+const utils = require('../../routes/utils');
 
-const CURRENT_DATABASE_VERSION = 2;
+const CURRENT_DATABASE_VERSION = 3;
 
 class PgMeta {
     constructor(pgUtils) {
@@ -68,6 +69,13 @@ class PgMeta {
                         }
                         metadata.version = stepNumber;
                         instance.pgUtils.setMetadata(metadata, callback);
+                        const apis = utils.loadApis();
+                        for (let i = 0; i < apis.apis.length; ++i) {
+                            const api = apis.apis[i];
+                            const group = api.requiredGroup;
+                            const id = api.id;
+                            instance.pgUtils.populateSubscriptionApiGroup([id, group]);
+                        }
                     });
                 }, (err) => {
                     if (err)

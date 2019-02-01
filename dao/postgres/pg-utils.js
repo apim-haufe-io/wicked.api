@@ -119,6 +119,15 @@ class PgUtils {
         });
     }
 
+    populateSubscriptionApiGroup(parameters, callback) {
+        debug('populateSubscriptionApiGroup()');
+        this.getPoolOrClient((err, pool) => {
+            if (err)
+                return callback(err);
+            pool.query('UPDATE wicked.subscriptions SET api_group = $2 WHERE api_id = $1', parameters, callback);
+        });
+   }
+
     createMetadata(callback) {
         debug('createMetadata()');
         this.getPoolOrClient((err, pool) => {
