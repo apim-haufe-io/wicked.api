@@ -692,6 +692,17 @@ utils.getOrderBy = (req) => {
     return orderBy;
 };
 
+utils.concatUrl = (a, b) => {
+    if (a.endsWith('/') && b.startsWith('/'))
+        return a + b.substring(1);
+    if (a.endsWith('/') && !b.startsWith('/'))
+        return a + b;
+    // !a.endsWith('/')
+    if (b.startsWith('/'))
+        return a + b;
+    return a + '/' + b;
+}
+
 // Middleware to verify a scope
 utils.verifyScope = (requiredScope) => {
     return function (req, res, next) {

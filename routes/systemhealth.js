@@ -43,7 +43,8 @@ systemhealth.checkHealth = function (app) {
 
     // - Listeners
     // - Portal
-    // - Kong 
+    // - Kong
+    // - Auth Server
 
     // Use a correlation ID when calling
     const correlationId = uuid.v4();
@@ -66,6 +67,25 @@ systemhealth.checkHealth = function (app) {
             request.get(req, function (err, apiResult, apiBody) {
                 callback(null, makeHealthEntry('kong', kongUri, err, apiResult, apiBody));
             });
+        },
+        authPing: function (callback) {
+            try {
+                const authServer = utils.loadAuthServer('default');
+                if (authServer.exists && authServer.data && authServer.data.config && authServer.data.config.api && authServer.data.config.api.upstream_url) {
+                    const authUri = utils.concatUrl(authServer.data.config.api.upstream_url, 'ping');
+                    const req = { url: authUri, headers: { 'Correlation-Id': correlationId } };
+                    request.get(req, function (err, apiResult, apiBody) {
+                        callback(null, makeHealthEntry('auth', authUri, err, apiResult, apiBody));
+                    });
+                } else {
+                    error('Cannot query Auth Server for status - in default.json, config.api.upstream_url is not present.');
+                    return callback(null, null);
+                }
+            } catch (err) {
+                error(err);
+                // Don't bother
+                return callback(null, null);
+            }
         }
     }, function (err, results) {
         if (err) {
@@ -88,6 +108,8 @@ systemhealth.checkHealth = function (app) {
 
             h.push(results.portalPing);
             h.push(results.kongPing);
+            if (results.authPing)
+                h.push(results.authPing);
 
             // Check our webhook listeners
             // var listeners = webhooks.loadListeners(app);
