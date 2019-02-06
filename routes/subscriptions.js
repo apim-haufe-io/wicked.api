@@ -336,8 +336,7 @@ subscriptions.addSubscription = function (app, res, applications, loggedInUserId
                         persistedSubscription.apikey = apiKey;
                     }
 
-                    res.status(201).json(persistedSubscription);
-
+                    
                     // Webhook it, man
                     webhooks.logEvent(app, {
                         action: webhooks.ACTION_ADD,
@@ -350,8 +349,12 @@ subscriptions.addSubscription = function (app, res, applications, loggedInUserId
                             planId: apiPlan.id
                         }
                     });
-
-                    if (needsApproval) {
+                    
+                    if (!needsApproval) {
+                        // No approval needed, we can send the answer directly.
+                        res.status(201).json(persistedSubscription);
+                    } else {
+                        // First make sure the approval is persisted before we answer the request
                         const approvalInfo = {
                             id: utils.createRandomId(),
                             subscriptionId: persistedSubscription.id,
@@ -380,6 +383,11 @@ subscriptions.addSubscription = function (app, res, applications, loggedInUserId
                                 // This is very bad. Transaction?
                                 error(err);
                             }
+
+                            // Now answer the request
+                            res.status(201).json(persistedSubscription);
+
+                            // And create a web hook even for the approval entity
                             webhooks.logEvent(app, {
                                 action: webhooks.ACTION_ADD,
                                 entity: webhooks.ENTITY_APPROVAL,
@@ -733,7 +741,7 @@ subscriptions.getSubscriptionByClientId = function (app, res, applications, logg
 
 function checkScopeSettings(appSub) {
     debug('checkScopeSettings()');
-    console.log(appSub);
+    debug(appSub);
     try {
         // Default settings for scopes, see https://github.com/Haufe-Lexware/wicked.haufe.io/issues/138
         if (appSub.auth !== 'oauth2')

@@ -85,7 +85,6 @@ utils.fail = function (res, statusCode, message, err) {
 
 utils.failError = function (res, err) {
     if (err.stack) {
-        console.log(err.stack);
         error(err.stack);
     }
     return utils.fail(res, err.status || 500, err.message);
@@ -692,6 +691,17 @@ utils.getOrderBy = (req) => {
     }
     return orderBy;
 };
+
+utils.concatUrl = (a, b) => {
+    if (a.endsWith('/') && b.startsWith('/'))
+        return a + b.substring(1);
+    if (a.endsWith('/') && !b.startsWith('/'))
+        return a + b;
+    // !a.endsWith('/')
+    if (b.startsWith('/'))
+        return a + b;
+    return a + '/' + b;
+}
 
 // Middleware to verify a scope
 utils.verifyScope = (requiredScope) => {
