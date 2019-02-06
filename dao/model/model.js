@@ -49,7 +49,11 @@ const model = {
             client_id: {
                 optional: true,
                 property_name: 'clientId'
-            }
+            },
+            api_group: {
+                property_name: 'api_group',
+                optional: true
+            },
         },
     },
 
