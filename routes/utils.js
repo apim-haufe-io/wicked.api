@@ -85,7 +85,6 @@ utils.fail = function (res, statusCode, message, err) {
 
 utils.failError = function (res, err) {
     if (err.stack) {
-        console.log(err.stack);
         error(err.stack);
     }
     return utils.fail(res, err.status || 500, err.message);

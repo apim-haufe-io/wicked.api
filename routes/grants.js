@@ -134,7 +134,7 @@ function upsertGrants(app, res, loggedInUserId, userId, applicationId, apiId, ne
     try {
         // This may throw if the API is not available
         apiInfo = utils.getApi(apiId);
-        console.log(apiInfo);
+        debug(apiInfo);
     } catch (err) {
         return utils.failError(res, err);
     }

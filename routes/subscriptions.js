@@ -730,7 +730,7 @@ subscriptions.getSubscriptionByClientId = function (app, res, applications, logg
 
 function checkScopeSettings(appSub) {
     debug('checkScopeSettings()');
-    console.log(appSub);
+    debug(appSub);
     try {
         // Default settings for scopes, see https://github.com/Haufe-Lexware/wicked.haufe.io/issues/138
         if (appSub.auth !== 'oauth2')
