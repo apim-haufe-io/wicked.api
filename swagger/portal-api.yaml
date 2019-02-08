@@ -1966,6 +1966,12 @@ definitions:
         type: string
       confidential:
         type: boolean
+      clientType:
+        type: string
+        enum:
+          - public_spa
+          - confidential
+          - public_native
       owners:
         title: OwnerList
         type: array

@@ -2,15 +2,16 @@
 
 /* global URL */
 
-var { debug, info, warn, error } = require('portal-env').Logger('portal-api:applications');
-var utils = require('./utils');
-var users = require('./users');
-var subscriptions = require('./subscriptions');
-var ownerRoles = require('./ownerRoles');
-var webhooks = require('./webhooks');
-var dao = require('../dao/dao');
+const { debug, info, warn, error } = require('portal-env').Logger('portal-api:applications');
+const utils = require('./utils');
+const users = require('./users');
+const subscriptions = require('./subscriptions');
+const ownerRoles = require('./ownerRoles');
+const webhooks = require('./webhooks');
+const dao = require('../dao/dao');
+const daoUtils = require('../dao/dao-utils');
 
-var applications = require('express').Router();
+const applications = require('express').Router();
 
 // ===== SCOPES =====
 
@@ -146,6 +147,24 @@ applications.isValidRedirectUri = function (redirectUri) {
     }
     return false;
 };
+
+applications.checkValidClientType = function (appInfo) {
+    if (appInfo.clientType) {
+        switch (appInfo.clientType) {
+            case daoUtils.ClientType.Confidential:
+            case daoUtils.ClientType.Public_SPA:
+            case daoUtils.ClientType.Public_Native:
+                // The client type is valid, so the value of "confidential" will be calculated
+                // cased on this.
+                return true;
+        }
+    } else {
+        // This will default to either a 'confidential' or a 'public_spa' client type,
+        // depending on the value of the clientType (see above).
+        return true;
+    }
+    return false;
+}
 
 applications.getAllowedAccess = function (app, appInfo, userInfo) {
     debug('getAllowedAccess()');
@@ -287,12 +306,15 @@ applications.createApplication = function (app, res, loggedInUserId, appCreateIn
             return utils.fail(res, 400, utils.invalidApplicationIdMessage());
         if (appId.length < 4 || appId.length > 50)
             return utils.fail(res, 400, 'Invalid application ID, must have at least 4, max 50 characters.');
+        if (!applications.checkValidClientType(appCreateInfo))
+            return utils.fail(res, 400, `Invalid clientType, must be one of "${daoUtils.ClientType.Confidential}", "${daoUtils.ClientType.Public_SPA}" or "${daoUtils.ClientType.Public_Native}"`);
 
         const newAppInfo = {
             id: appId,
             name: appCreateInfo.name.substring(0, 128),
             redirectUri: appCreateInfo.redirectUri,
             confidential: !!appCreateInfo.confidential,
+            clientType: appCreateInfo.clientType,
             mainUrl: appCreateInfo.mainUrl
         };
         if (appCreateInfo.description)
@@ -350,6 +372,10 @@ applications.patchApplication = function (app, res, loggedInUserId, appId, appPa
                 appInfo.redirectUri = redirectUri;
             if (appPatchInfo.hasOwnProperty('confidential'))
                 appInfo.confidential = !!appPatchInfo.confidential;
+            if (appPatchInfo.hasOwnProperty('clientType'))
+                appInfo.clientType = appPatchInfo.clientType;
+            if (!applications.checkValidClientType(appInfo))
+                return utils.fail(res, 400, `Invalid clientType, must be one of "${daoUtils.ClientType.Confidential}", "${daoUtils.ClientType.Public_SPA}" or "${daoUtils.ClientType.Public_Native}"`);
 
             // And persist
             dao.applications.save(appInfo, loggedInUserId, (err, updatedAppInfo) => {
