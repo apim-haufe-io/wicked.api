@@ -87,6 +87,9 @@
                     },
                     "write_grants": {
                         "description": "Write user API/Application grants"
+                    },
+                    "restart_api": {
+                        "description": "Restart the API components"
                     }
                 }
             },

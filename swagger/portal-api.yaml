@@ -42,6 +42,7 @@ securityDefinitions:
       read_grants: Read user API grants
       write_grants: Write user API grants
       webhooks: Access and change webhooks
+      restart_api: Restart the API components
   
   implicit:
     type: oauth2

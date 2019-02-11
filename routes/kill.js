@@ -11,6 +11,7 @@ const verifyKillScope = utils.verifyScope('restart_api');
 // ===== ENDPOINTS =====
 
 kill.post('/', verifyKillScope, function (req, res, next) {
+    debug('POST /kill')
     kill.killApi(req.app, res, req.apiUserId);
 });
 
@@ -25,6 +26,7 @@ kill.killApi = function (app, res, loggedInUserId) {
             return utils.fail(res, 403, 'Not allowed.');
         if (!userInfo.admin && !userInfo.approver)
             return utils.fail(res, 403, 'Not allowed. This is admin land.');
+        warn('RESTARTING API DUE TO USER REQUEST');
         res.status(204).json({});
         setTimeout(function() {
             process.exit(0);
