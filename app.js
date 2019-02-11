@@ -93,7 +93,7 @@ app.use(bodyParser.urlencoded({ extended: false }));
 
 // ------ VERSION CHECKING ------
 
-app.get('/confighash', versionizer.getConfigHash);
+app.get('/confighash', versionizer.sendConfigHash);
 app.use(versionizer.checkVersions);
 
 // ------ OAUTH2.0 VIA KONG ------

@@ -72,14 +72,6 @@ else
     echo "Assuming /var/portal-api/static is prepopulated, not cloning configuration repo."
 fi
 
-echo "Calculating config hash..."
-
-pushd /var/portal-api/static
-tempMd5Hash=$(find . -type f -exec md5sum {} \; | sort -k 2 | md5sum)
-printf ${tempMd5Hash:0:32} > /var/portal-api/static/confighash
-echo "Hash: $(cat /var/portal-api/static/confighash)"
-popd
-
 echo "Setting owner of /var/portal-api to wicked:wicked"
 chown wicked:wicked $(find /var/portal-api | grep -v .snapshot)
 

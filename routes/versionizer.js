@@ -3,28 +3,57 @@
 const { debug, info, warn, error } = require('portal-env').Logger('portal-api:versionizer');
 const fs = require('fs');
 const path = require('path');
+const folderHash = require('folder-hash');
+
 const utils = require('./utils');
+const dao = require('../dao/dao');
 
 const versionizer = function () { };
 
 versionizer._configHash = null;
-versionizer.getConfigHash = function (req, res, next) {
+versionizer.sendConfigHash = function (req, res, next) {
     debug('getConfigHash()');
-    res.send(versionizer.retrieveConfigHash(req.app));
+    res.send(versionizer.getConfigHash());
 };
 
-versionizer.retrieveConfigHash = function (app) {
+versionizer.initConfigHash = function (callback) {
     if (null === versionizer._configHash) {
         const staticPath = utils.getStaticDir();
         const configTagFileName = path.join(staticPath, 'confighash');
-        if (fs.existsSync(configTagFileName)) {
-            versionizer._configHash = fs.readFileSync(configTagFileName, 'utf8');
-        } else {
-            versionizer._configHash = '0123456789abcdef0123456789abcdef';
-        }
+        folderHash.hashElement('.', staticPath, {}, (err, configHash) => {
+            if (err)
+                return callback(err);
+            // See https://github.com/marc136/node-folder-hash
+            versionizer._configHash = configHash.hash;
+            return callback(null, versionizer._configHash);
+        });
+    } else {
+        return callback(null, versionizer._configHash);
     }
-    return versionizer._configHash;
 };
+
+versionizer.writeConfigHashToMetadata = function (callback) {
+    debug('writeConfigHashToMetadata()');
+    dao.meta.setMetadata('config_hash', { hash: versionizer.getConfigHash() }, (err) => {
+        dao.meta.getMetadata('config_hash', (err, persistedConfigHash) => {
+            if (err)
+                return callback(err);
+            info(`Persisted config hash: ${persistedConfigHash.hash}`);
+            return callback(null);
+        });
+    });
+};
+
+versionizer.getConfigHashMetadata = function (callback) {
+    debug('getConfigHashMetadata()');
+    dao.meta.getMetadata('config_hash', callback);
+};
+
+versionizer.getConfigHash = function () {
+    if (!versionizer._configHash)
+        throw new Error('Config hash retrieved without being initialized.');
+    return versionizer._configHash;
+}
 
 versionizer.checkVersions = function (req, res, next) {
     debug('checkVersions()');
@@ -43,7 +72,7 @@ versionizer.checkVersions = function (req, res, next) {
 };
 
 function isConfigHashValid(app, configHash) {
-    return (versionizer.retrieveConfigHash(app) === configHash);
+    return (versionizer.getConfigHash() === configHash);
 }
 
 function isUserAgentValid(userAgent) {

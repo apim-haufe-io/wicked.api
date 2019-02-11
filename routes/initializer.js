@@ -12,6 +12,7 @@ const users = require('./users');
 const applications = require('./applications');
 const subscriptions = require('./subscriptions');
 const principal = require('./principal');
+const versionizer = require('./versionizer');
 
 const dao = require('../dao/dao');
 
@@ -26,9 +27,10 @@ initializer.checkDynamicConfig = (callback) => {
     const daoChecks = dao.meta.getInitChecks();
 
     const checks = [];
+    checks.push(checkConfigHash);
     for (let i = 0; i < daoChecks.length; ++i)
         checks.push(daoChecks[i]);
-
+    
     checks.push(addInitialUsers);
     checks.push(checkApiPlans);
     checks.push(checkSubscriptions);
@@ -87,12 +89,22 @@ initializer.writeSwaggerJsonFiles = function () {
     }
 };
 
+function checkConfigHash(glob, callback) {
+    debug('checkConfigHash()');
+    versionizer.initConfigHash((err, configHash) => {
+        if (err)
+            return callback(err);
+        info(`Calculated config hash for this instance: ${configHash}`)
+        return callback(null);
+    });
+}
+
 function addInitialUsers(glob, callback) {
     debug('addInitialUsers()');
     let error = null;
     if (!glob.initialUsers) {
         debug('Global config does not contain initial users.');
-        return;
+        return callback(null);
     }
 
     async.mapSeries(glob.initialUsers, (thisUser, callback) => {
@@ -298,9 +310,11 @@ function thatApiIndexIsWritten(apis, plans, sub) {
 function initializationFinished(glob, callback) {
     debug('initializationFinished()');
     dao.initFinished();
-    // Principal/follower election triggering
-    principal.initialElection();
-    callback(null);
+    versionizer.writeConfigHashToMetadata(() => {
+        // Principal/follower election triggering
+        principal.initialElection();
+        callback(null);
+    });
 }
 
 module.exports = initializer;

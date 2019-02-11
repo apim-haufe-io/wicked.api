@@ -4,6 +4,7 @@ const { debug, info, warn, error } = require('portal-env').Logger('portal-api:pr
 
 const dao = require('../dao/dao');
 const utils = require('./utils');
+const versionizer = require('./versionizer');
 
 const principal = () => { };
 
@@ -24,8 +25,16 @@ principal.initialElection = () => {
     if (!dao.isReady())
         setTimeout(principal.initialElection, 500);
     electPrincipal();
-    setInterval(electPrincipal, ELECTION_INTERVAL * 1000);
+    setInterval(houseKeeping, ELECTION_INTERVAL * 1000);
 };
+
+function houseKeeping() {
+    checkConfigHash((err) => {
+        if (err)
+            error(err);
+        electPrincipal();
+    });
+}
 
 function electPrincipal() {
     debug(`electPrincipal()`);
@@ -78,6 +87,30 @@ function electPrincipal() {
             }
         }
     });
+}
+
+function checkConfigHash(callback) {
+    debug('checkConfigHash()');
+    const ourConfigHash = versionizer.getConfigHash();
+    versionizer.getConfigHashMetadata(function (err, persistedConfigHash) {
+        if (err) {
+            error('COULD NOT RETRIEVE CONFIG HASH METADATA, EXITING.');
+            return forceQuitApi();
+        }
+        if (ourConfigHash !== persistedConfigHash.hash) {
+            warn(`Detected an updated config hash in the database, exiting: ${ourConfigHash} !== ${persistedConfigHash.hash}`);
+            return forceQuitApi();
+        }
+        debug('Persisted config hash matches our config hash. Nothing to do.');
+        return callback(null);
+    });
+}
+
+function forceQuitApi() {
+    error('Force Quit API');
+    setTimeout(() => {
+        process.exit(0);
+    }, 1000);
 }
 
 module.exports = principal;
