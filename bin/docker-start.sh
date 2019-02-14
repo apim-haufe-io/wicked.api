@@ -85,5 +85,10 @@ chown -R wicked:wicked /usr/src/app/routes/internal_apis
 
 echo "Starting API, running as user 'wicked'..."
 
-# Use gosu to start node as the user "wicked"
-gosu wicked node bin/api
+# Use gosu/su-exec to start node as the user "wicked"
+gosu_command="gosu"
+if [[ -z "$(which gosu)" ]]; then
+    gosu_command="su-exec"
+fi
+
+${gosu_command} wicked node bin/api
