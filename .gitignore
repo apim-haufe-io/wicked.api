@@ -8,3 +8,4 @@ git_*
 wicked_migration*
 migration_config.json
 package-lock.json
+build_date
