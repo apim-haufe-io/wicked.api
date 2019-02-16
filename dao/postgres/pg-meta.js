@@ -37,7 +37,7 @@ class PgMeta {
     }
 
     setMetadata(propName, propValue, callback) {
-        debug(`setMetadata(${propName}, ${propValue}`);
+        debug(`setMetadata(${propName}, ${propValue})`);
         return this.setMetadataImpl(propName, propValue, callback);
     }
 
@@ -103,7 +103,7 @@ class PgMeta {
     }
 
     setMetadataImpl(propName, propValue, callback) {
-        debug(`setMetadataImpl(${propName}, ${propValue}`);
+        debug(`setMetadataImpl(${propName}, ${propValue})`);
         const instance = this;
         instance.pgUtils.withTransaction((err, client, callback) => {
             if (err)

@@ -1,33 +1,37 @@
 'use strict';
 
-var utils = require('./utils');
-var { debug, info, warn, error } = require('portal-env').Logger('portal-api:kill');
+const utils = require('./utils');
+const users = require('./users');
 
-var kill = require('express').Router();
+const { debug, info, warn, error } = require('portal-env').Logger('portal-api:kill');
+const kill = require('express').Router();
 
-// ===== MIDDLEWARE =====
-
-kill.use(function (req, res, next) {
-    if (!process.env.ALLOW_KILL) {
-        return res.status(403).json({});
-    }
-    next();
-});
+const verifyKillScope = utils.verifyScope('restart_api');
 
 // ===== ENDPOINTS =====
 
-kill.post('/', function (req, res, next) {
-    kill.killApi(req.app, res);
+kill.post('/', verifyKillScope, function (req, res, next) {
+    debug('POST /kill')
+    kill.killApi(req.app, res, req.apiUserId);
 });
 
 // ===== IMPLEMENTATION =====
 
-kill.killApi = function (app, res) {
+kill.killApi = function (app, res, loggedInUserId) {
     debug('killApi()');
-    res.status(204).json({});
-    setTimeout(function() {
-        process.exit(0);
-    }, 1000);
+    users.loadUser(app, loggedInUserId, (err, userInfo) => {
+        if (err)
+            return utils.fail(res, 500, 'getApplications: Could not load user.', err);
+        if (!userInfo)
+            return utils.fail(res, 403, 'Not allowed.');
+        if (!userInfo.admin && !userInfo.approver)
+            return utils.fail(res, 403, 'Not allowed. This is admin land.');
+        warn('RESTARTING API DUE TO USER REQUEST');
+        res.status(204).json({});
+        setTimeout(function() {
+            process.exit(0);
+        }, 1000);
+    });
 };
 
 module.exports = kill;

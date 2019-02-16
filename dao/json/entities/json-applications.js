@@ -5,6 +5,7 @@ const fs = require('fs');
 const path = require('path');
 
 const utils = require('../../../routes/utils');
+const daoUtils = require('../../dao-utils');
 const ownerRoles = require('../../../routes/ownerRoles');
 const APP_MAX_LENGTH_DESCRIPTION = 1024;
 
@@ -248,6 +249,7 @@ class JsonApplications {
                 name: appCreateInfo.name.substring(0, 128),
                 redirectUri: appCreateInfo.redirectUri,
                 confidential: !!appCreateInfo.confidential,
+                clientType: appCreateInfo.clientType,
                 mainUrl: appCreateInfo.mainUrl,
                 owners: ownerList,
                 _links: {
@@ -257,6 +259,7 @@ class JsonApplications {
             
             if(appCreateInfo.description)
                 newApp.description = appCreateInfo.description.substring(0, APP_MAX_LENGTH_DESCRIPTION);
+            daoUtils.migrateApplicationData(newApp);
            
             if (userInfo) {
                 // Push new application to user
@@ -500,7 +503,9 @@ class JsonApplications {
         if (!fs.existsSync(appsFileName))
             return null;
         //throw "applications.loadApplication - Application not found: " + appId;
-        return JSON.parse(fs.readFileSync(appsFileName, 'utf8'));
+        const appInfo = JSON.parse(fs.readFileSync(appsFileName, 'utf8'));
+        daoUtils.migrateApplicationData(appInfo);
+        return appInfo;
     }
 
     saveApplication(appInfo, userId) {
@@ -513,6 +518,7 @@ class JsonApplications {
         else if (appInfo.changedBy)
             delete appInfo.changedBy;
         appInfo.changedDate = utils.getUtc();
+        daoUtils.migrateApplicationData(appInfo);
         fs.writeFileSync(appsFileName, JSON.stringify(appInfo, null, 2), 'utf8');
     }
 }

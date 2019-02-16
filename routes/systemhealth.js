@@ -59,10 +59,15 @@ systemhealth.checkHealth = function (app) {
             });
         },
         kongPing: function (callback) {
-            const kongUri = glob.network.schema + '://' + glob.network.apiHost + '/ping-portal';
+            let kongUri = glob.network.schema + '://' + glob.network.apiHost + '/ping-portal';
+            if (glob.network.kongProxyUrl && glob.network.kongProxyUrl !== '' && glob.network.kongProxyUrl !== '/') {
+                // Ping via the internal proxy URL instead
+                kongUri = utils.concatUrl(glob.network.kongProxyUrl, '/ping-portal');
+            }
+            const kongUrl = new URL(kongUri);
             const req = { url: kongUri, headers: { 'Correlation-Id': correlationId } };
             // We'll only inject the "insecure" agent if we really need it.
-            if ("https" == glob.network.schema)
+            if ("https:" == kongUrl.protocol)
                 req.agent = portalAgent;
             request.get(req, function (err, apiResult, apiBody) {
                 callback(null, makeHealthEntry('kong', kongUri, err, apiResult, apiBody));

@@ -4,6 +4,7 @@ const async = require('async');
 const { debug, info, warn, error } = require('portal-env').Logger('portal-api:dao:pg:applications');
 
 const utils = require('../../../routes/utils');
+const daoUtils = require('../../dao-utils');
 const ownerRoles = require('../../../routes/ownerRoles');
 const APP_MAX_LENGTH_DESCRIPTION = 1024;
 
@@ -97,6 +98,7 @@ class PgApplications {
             instance.getOwnersImpl(appId, client, (err, ownerList) => {
                 if (err)
                     return callback(err);
+                daoUtils.migrateApplicationData(appInfo);
                 appInfo.owners = ownerList;
                 return callback(null, appInfo);
             });
@@ -136,17 +138,19 @@ class PgApplications {
                     name: appCreateInfo.name.substring(0, 128),
                     redirectUri: appCreateInfo.redirectUri,
                     confidential: !!appCreateInfo.confidential,
+                    clientType: appCreateInfo.clientType,
                     mainUrl: appCreateInfo.mainUrl
                 };
-                if(appCreateInfo.description)
+                if (appCreateInfo.description)
                     newApp.description = appCreateInfo.description.substring(0, APP_MAX_LENGTH_DESCRIPTION);
-             
+
                 let ownerInfo;
                 let upsertingUserId;
                 if (userInfo) {
                     ownerInfo = PgApplications.makeOwnerInfo(appId, userInfo, ownerRoles.OWNER);
                     upsertingUserId = userInfo.id;
                 }
+                daoUtils.migrateApplicationData(appCreateInfo);
 
                 let createdAppInfo = null;
                 // Use a transaction so that the state will remain consistent
@@ -190,6 +194,7 @@ class PgApplications {
         const tempApp = Object.assign({}, appInfo);
         if (tempApp.owners)
             delete tempApp.owners;
+        daoUtils.migrateApplicationData(appInfo);
         this.pgUtils.upsert('applications', appInfo, savingUserId, (err) => {
             if (err)
                 return callback(err);
@@ -231,6 +236,7 @@ class PgApplications {
                 return callback(err);
             // Map owner_user_id and owner_email to nicer properties
             for (let i = 0; i < rows.length; ++i) {
+                daoUtils.migrateApplicationData(rows[i]);
                 rows[i].ownerUserId = rows[i].owner_user_id;
                 delete rows[i].owner_user_id;
                 rows[i].ownerEmail = rows[i].owner_email;

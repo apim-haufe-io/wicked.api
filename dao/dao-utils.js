@@ -237,4 +237,34 @@ daoUtils.mergeGrantData = (prevGrants, nextGrants) => {
     }
 };
 
+daoUtils.ClientType = {
+    Confidential: 'confidential',
+    Public_SPA: 'public_spa',
+    Public_Native: 'public_native'
+};
+
+// Data on the fly migration utilities; this function is used both on read and write
+// to write default settings on the application data, and enables on the fly conversion
+// of existing applications to a more specific client type.
+daoUtils.migrateApplicationData = (appInfo) => {
+    debug(`migrateApplicationOnRead(${appInfo.id})`);
+    if (appInfo.clientType) {
+        switch (appInfo.clientType) {
+            case daoUtils.ClientType.Confidential:
+                appInfo.confidential = true;
+                break;
+            default:
+                appInfo.confidential = false;
+                break;
+        }
+    } else {
+        if (appInfo.confidential) {
+            appInfo.clientType = daoUtils.ClientType.Confidential;
+        } else {
+            // Default to SPA type
+            appInfo.clientType = daoUtils.ClientType.Public_SPA;
+        }
+    }
+};
+
 module.exports = daoUtils;
