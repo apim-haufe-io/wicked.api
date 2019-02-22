@@ -97,7 +97,7 @@ class PgSubscriptions {
             return callback(null, subsList);
         });
     }
-
+  
     getAllImpl(filter, orderBy, offset, limit, noCountCache, callback) {
         debug(`getAll(filter: ${filter}, orderBy: ${orderBy}, offset: ${offset}, limit: ${limit})`);
         //return callback(new Error('PG.getAllImpl: Not implemented.'));
@@ -109,6 +109,11 @@ class PgSubscriptions {
                 source: 'a.api_group',
                 as: 'api_group',
                 alias: 'apiGroup'
+            },       
+            {
+                source: 'a.data->>\'approved\'',
+                as: 'approved',
+                alias: 'approved'
             }, 
             {
                 source: 'b.application_name',
@@ -124,7 +129,14 @@ class PgSubscriptions {
                 source: 'b.user',
                 as: 'user',
                 alias: 'user'
+            },
+            // might have to hyperlink owner email so keeping user id for now
+            {
+                source: 'b.userid',
+                as: 'userid',
+                alias: 'userid'
             }
+     
         ];
         this.pgUtils.addFilterOptions(filter, fields, values, operators, joinedFields);
         // This may be one of the most complicated queries we have here...
@@ -135,7 +147,7 @@ class PgSubscriptions {
             operators: operators,
             noCountCache: noCountCache,
             joinedFields: joinedFields,
-            joinClause: 'INNER JOIN (SELECT string_agg(o.data->>\'email\', \', \') as owner, string_agg(r.name, \', \') as user, p.data->> \'name\' as application_name , p.id FROM wicked.applications p, wicked.owners o, wicked.registrations r WHERE o.applications_id = p.id AND o.users_id = r.users_id GROUP BY application_name, p.id) b ON b.id = a.applications_id'
+            joinClause: 'INNER JOIN (SELECT string_agg(o.data->>\'email\', \', \') as owner, string_agg(r.name, \', \') as user, string_agg(r.users_id, \', \') as userid, p.data->> \'name\' as application_name , p.id FROM wicked.applications p, wicked.owners o, wicked.registrations r WHERE o.applications_id = p.id AND o.users_id = r.users_id GROUP BY application_name, p.id) b ON b.id = a.applications_id'
         };
         
         return this.pgUtils.getBy('subscriptions', fields, values, options, (err, subsList, countResult) => {
