@@ -130,7 +130,6 @@ class PgSubscriptions {
                 as: 'user',
                 alias: 'user'
             },
-            // might have to hyperlink owner email so keeping user id for now
             {
                 source: 'b.userid',
                 as: 'userid',
