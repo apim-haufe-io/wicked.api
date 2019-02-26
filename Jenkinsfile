@@ -11,12 +11,14 @@ pipeline {
 
     stages {
         stage('Checkout') {
-            checkout scm
+            steps {
+                checkout scm
+            }
         }
 
         stage('SonarQube analysis') {
             steps {
-
+                def dockerTag = env.BRANCH_NAME.replaceAll('/', '-')
                 if (dockerTag == 'next') {
                     // requires SonarQube Scanner 2.8+
                     def scannerHome = tool 'wicked-sonar';
@@ -34,7 +36,7 @@ pipeline {
                 withCredentials([
                     usernamePassword(credentialsId: 'dockerhub_wicked', usernameVariable: 'DOCKER_REGISTRY_USER', passwordVariable: 'DOCKER_REGISTRY_PASSWORD')
                 ]) {
-                    
+                    env.DOCKER_TAG = env.BRANCH_NAME.replaceAll('/', '-')
                     sh './build.sh --push'
 
                 }
