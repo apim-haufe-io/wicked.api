@@ -18,27 +18,31 @@ pipeline {
 
         stage('SonarQube analysis') {
             steps {
-                def dockerTag = env.BRANCH_NAME.replaceAll('/', '-')
-                if (dockerTag == 'next') {
-                    // requires SonarQube Scanner 2.8+
-                    def scannerHome = tool 'wicked-sonar';
-                    withSonarQubeEnv('sonar') {
-                        sh "${scannerHome}/bin/sonar-scanner"
+                script {
+                    def dockerTag = env.BRANCH_NAME.replaceAll('/', '-')
+                    if (dockerTag == 'next') {
+                        // requires SonarQube Scanner 2.8+
+                        def scannerHome = tool 'wicked-sonar';
+                        withSonarQubeEnv('sonar') {
+                            sh "${scannerHome}/bin/sonar-scanner"
+                        }
+                    } else {
+                        echo 'Skipping SonarQube, not "next" branch.'
                     }
-                } else {
-                    echo 'Skipping SonarQube, not "next" branch.'
                 }
             }
         }
 
         stage('Build and Push') {
             steps {
-                withCredentials([
-                    usernamePassword(credentialsId: 'dockerhub_wicked', usernameVariable: 'DOCKER_REGISTRY_USER', passwordVariable: 'DOCKER_REGISTRY_PASSWORD')
-                ]) {
-                    env.DOCKER_TAG = env.BRANCH_NAME.replaceAll('/', '-')
-                    sh './build.sh --push'
+                script {
+                    withCredentials([
+                        usernamePassword(credentialsId: 'dockerhub_wicked', usernameVariable: 'DOCKER_REGISTRY_USER', passwordVariable: 'DOCKER_REGISTRY_PASSWORD')
+                    ]) {
+                        env.DOCKER_TAG = env.BRANCH_NAME.replaceAll('/', '-')
+                        sh './build.sh --push'
 
+                    }
                 }
             }
         }
