@@ -19,7 +19,7 @@ node('docker') {
     stage('SonarQube analysis') {
         // requires SonarQube Scanner 2.8+
         def scannerHome = tool 'wicked-sonar';
-        withSonarQubeEnv('wicked-sonar') {
+        withSonarQubeEnv('sonar') {
             sh "${scannerHome}/bin/sonar-scanner"
         }
     }
