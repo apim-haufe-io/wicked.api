@@ -17,10 +17,14 @@ node('docker') {
     env.DOCKER_TAG = dockerTag
 
     stage('SonarQube analysis') {
-        // requires SonarQube Scanner 2.8+
-        def scannerHome = tool 'wicked-sonar';
-        withSonarQubeEnv('sonar') {
-            sh "${scannerHome}/bin/sonar-scanner"
+        if dockedTag == 'next' {
+            // requires SonarQube Scanner 2.8+
+            def scannerHome = tool 'wicked-sonar';
+            withSonarQubeEnv('sonar') {
+                sh "${scannerHome}/bin/sonar-scanner"
+            }
+        } else {
+            echo 'Skipping SonarQube, not "next" branch.'
         }
     }
 
