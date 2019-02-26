@@ -16,6 +16,14 @@ node('docker') {
     echo 'Building docker tag: ' + dockerTag
     env.DOCKER_TAG = dockerTag
 
+    stage('SonarQube analysis') {
+        // requires SonarQube Scanner 2.8+
+        def scannerHome = tool 'wicked-sonar';
+        withSonarQubeEnv('wicked-sonar') {
+            sh "${scannerHome}/bin/sonar-scanner"
+        }
+    }
+
     stage('Build and Push') {
         withCredentials([
             usernamePassword(credentialsId: 'dockerhub_wicked', usernameVariable: 'DOCKER_REGISTRY_USER', passwordVariable: 'DOCKER_REGISTRY_PASSWORD')
