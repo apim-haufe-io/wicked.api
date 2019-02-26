@@ -15,7 +15,8 @@ pipeline {
         }
 
         stage('SonarQube analysis') {
-            script {
+            steps {
+
                 if (dockerTag == 'next') {
                     // requires SonarQube Scanner 2.8+
                     def scannerHome = tool 'wicked-sonar';
@@ -29,7 +30,7 @@ pipeline {
         }
 
         stage('Build and Push') {
-            script {
+            steps {
                 withCredentials([
                     usernamePassword(credentialsId: 'dockerhub_wicked', usernameVariable: 'DOCKER_REGISTRY_USER', passwordVariable: 'DOCKER_REGISTRY_PASSWORD')
                 ]) {
