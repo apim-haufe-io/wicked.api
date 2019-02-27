@@ -90,14 +90,17 @@ class PgApplications {
         // First load the basic app information
         const instance = this;
         this.pgUtils.getById('applications', appId, options, (err, appInfo) => {
-            if (err)
+            if (err) {
                 return callback(err);
-            if (!appInfo)
+            }
+            if (!appInfo) {
                 return callback(null, null);
+            }
             // Then load the owners, so that we can add them
             instance.getOwnersImpl(appId, client, (err, ownerList) => {
-                if (err)
+                if (err) {
                     return callback(err);
+                }
                 daoUtils.migrateApplicationData(appInfo);
                 appInfo.owners = ownerList;
                 return callback(null, appInfo);
@@ -111,8 +114,9 @@ class PgApplications {
             return callback(null, null);
         }
         this.pgUsers.getById(userId, function (err, userInfo) {
-            if (err)
+            if (err) {
                 return callback(err);
+            }
             return callback(null, userInfo);
         });
     }
@@ -124,13 +128,16 @@ class PgApplications {
         const instance = this;
         // Check for Dupe
         this.pgUtils.getById('applications', appId, (err, existingApp) => {
-            if (err)
+            if (err) {
                 return callback(err);
-            if (existingApp)
+            }
+            if (existingApp) {
                 return callback(utils.makeError(409, 'Application ID "' + appId + '" already exists.'));
+            }
             instance.getUserInfo(creatingUserId, (err, userInfo) => {
-                if (err)
+                if (err) {
                     return callback(err);
+                }
                 // Note: userInfo can be null
                 // Now we can add the application
                 const newApp = {
@@ -141,8 +148,9 @@ class PgApplications {
                     clientType: appCreateInfo.clientType,
                     mainUrl: appCreateInfo.mainUrl
                 };
-                if (appCreateInfo.description)
+                if (appCreateInfo.description) {
                     newApp.description = appCreateInfo.description.substring(0, APP_MAX_LENGTH_DESCRIPTION);
+                }
 
                 let ownerInfo;
                 let upsertingUserId;
@@ -155,22 +163,25 @@ class PgApplications {
                 let createdAppInfo = null;
                 // Use a transaction so that the state will remain consistent
                 instance.pgUtils.withTransaction((err, client, callback) => {
-                    if (err)
+                    if (err) {
                         return callback(err);
+                    }
                     async.series({
                         // Create the application
                         createApp: callback => instance.pgUtils.upsert('applications', newApp, upsertingUserId, client, callback),
                         // ... and add an owner record for the current user for it
                         createOwner: callback => {
-                            if (ownerInfo)
+                            if (ownerInfo) {
                                 return instance.pgUtils.upsert('owners', ownerInfo, upsertingUserId, client, callback);
+                            }
                             return callback(null);
                         },
                         // And reload the structure to get what the DAO contract wants
                         getApp: callback => instance.getByIdImpl(appId, client, callback)
                     }, (err, results) => {
-                        if (err)
+                        if (err) {
                             return callback(err);
+                        }
                         debug('createImpl: Successfully created application');
                         // We want to return this, so we need to save it from here and pass it
                         // back to the calling function from below. This callback is the callback
@@ -179,8 +190,9 @@ class PgApplications {
                         return callback(null);
                     });
                 }, (err) => {
-                    if (err)
+                    if (err) {
                         return callback(err);
+                    }
                     debug('Created application info:');
                     debug(createdAppInfo);
                     return callback(null, createdAppInfo);
@@ -192,12 +204,14 @@ class PgApplications {
     saveImpl(appInfo, savingUserId, callback) {
         debug('saveImpl()');
         const tempApp = Object.assign({}, appInfo);
-        if (tempApp.owners)
+        if (tempApp.owners) {
             delete tempApp.owners;
+        }
         daoUtils.migrateApplicationData(appInfo);
         this.pgUtils.upsert('applications', appInfo, savingUserId, (err) => {
-            if (err)
+            if (err) {
                 return callback(err);
+            }
             return callback(null, appInfo);
         });
     }
@@ -232,8 +246,9 @@ class PgApplications {
             joinClause: 'LEFT JOIN wicked.owners b ON a.id = b.applications_id AND b.id = (SELECT id FROM wicked.owners c WHERE c.applications_id = a.id AND c.data->>\'role\' = \'owner\' LIMIT 1)'
         };
         return this.pgUtils.getBy('applications', fields, values, options, (err, rows, countResult) => {
-            if (err)
+            if (err) {
                 return callback(err);
+            }
             // Map owner_user_id and owner_email to nicer properties
             for (let i = 0; i < rows.length; ++i) {
                 daoUtils.migrateApplicationData(rows[i]);
@@ -249,8 +264,9 @@ class PgApplications {
     getIndexImpl(offset, limit, callback) {
         debug(`getIndex(offset: ${offset}, limit: ${limit})`);
         this.pgUtils.getBy('applications', [], [], { orderBy: 'id ASC' }, (err, appList, countResult) => {
-            if (err)
+            if (err) {
                 return callback(err);
+            }
             const appIdList = appList.map(app => { return { id: app.id }; });
             return callback(null, appIdList, countResult);
         });
@@ -260,8 +276,9 @@ class PgApplications {
         debug(`getOwners(${appId})`);
         const options = client ? { client: client } : null;
         this.pgUtils.getBy('owners', ['applications_id'], [appId], options, (err, ownerList) => {
-            if (err)
+            if (err) {
                 return callback(err);
+            }
             const owners = ownerList.map(owner => {
                 // Strip the index fields, not needed here
                 return {
@@ -281,14 +298,17 @@ class PgApplications {
 
         const instance = this;
         this.getUserInfo(addUserId, (err, userInfo) => {
-            if (err)
+            if (err) {
                 return callback(err);
-            if (!userInfo)
+            }
+            if (!userInfo) {
                 return callback(utils.makeError(500, `addOwnerImpl(): Could not load user to add as owner.`));
+            }
             const ownerInfo = PgApplications.makeOwnerInfo(appId, userInfo, role);
             instance.pgUtils.upsert('owners', ownerInfo, addingUserId, (err) => {
-                if (err)
+                if (err) {
                     return callback(err);
+                }
                 // Return the appInfo as a result
                 return this.getByIdImpl(appId, null, callback);
             });
@@ -299,8 +319,9 @@ class PgApplications {
         debug(`deleteOwnerImpl(${appId}, ${deleteUserId}`);
         const instance = this;
         this.pgUtils.deleteBy('owners', ['appId', 'userId'], [appId, deleteUserId], (err) => {
-            if (err)
+            if (err) {
                 return callback(err);
+            }
             // Return the updated appInfo as a result
             return this.getByIdImpl(appId, null, callback);
         });

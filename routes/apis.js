@@ -75,19 +75,22 @@ apis.getApis = function (app, res, loggedInUserId) {
 
     function injectAndReturn(anApiList) {
         checkAndInjectScopes(anApiList.apis, function (err) {
-            if (err)
+            if (err) {
                 return utils.failError(res, err);
+            }
             return res.json(anApiList);
         });
     }
 
     if (loggedInUserId) {
         users.loadUser(app, loggedInUserId, (err, userInfo) => {
-            if (!userInfo)
+            if (!userInfo) {
                 return res.status(403).jsonp({ message: 'Not allowed. User unknown.' });
+            }
             isAdmin = daoUtils.isUserAdmin(userInfo);
-            if (!isAdmin)
+            if (!isAdmin) {
                 userGroups = userInfo.groups;
+            }
             return injectAndReturn(filterApiList(isAdmin, userGroups, apiList));
         });
     } else {
@@ -96,8 +99,9 @@ apis.getApis = function (app, res, loggedInUserId) {
 };
 
 function filterApiList(isAdmin, userGroups, apiList) {
-    if (isAdmin)
+    if (isAdmin) {
         return apiList;
+    }
 
     const groupDict = {};
     for (let i = 0; i < userGroups.length; ++i) {
@@ -110,13 +114,15 @@ function filterApiList(isAdmin, userGroups, apiList) {
         const api = apiList.apis[i];
 
         let addApi = false;
-        if (!api.requiredGroup || api.partner)
+        if (!api.requiredGroup || api.partner) {
             addApi = true;
-        else if (groupDict[api.requiredGroup])
+        } else if (groupDict[api.requiredGroup]) {
             addApi = true;
+        }
 
-        if (addApi)
+        if (addApi) {
             filteredApiList.push(api);
+        }
     }
 
     return { apis: filteredApiList };
@@ -128,8 +134,9 @@ apis.getDesc = function (app, res) {
     const apisDir = path.join(staticDir, 'apis');
     const descFileName = path.join(apisDir, 'desc.md');
 
-    if (!fs.existsSync(descFileName))
+    if (!fs.existsSync(descFileName)) {
         return res.status(404).jsonp({ message: 'Not found.' });
+    }
     fs.readFile(descFileName, 'utf8', function (err, content) {
         if (!err) {
             res.setHeader('Content-Type', 'text/markdown');
@@ -171,30 +178,34 @@ apis.checkAccess = function (app, res, userId, apiId, callback) {
     }
     // Check for the user
     users.loadUser(app, userId, (err, userInfo) => {
-        if (err)
+        if (err) {
             return callback(err);
+        }
         if (userId) {
             if (!userInfo) {
                 return callback(utils.makeError(403, 'Not allowed. Invalid user.'));
             }
         }
         const selectedApi = apiList.apis[apiIndex];
-        if (!selectedApi.requiredGroup || selectedApi.partner) // Public or Partner
+        if (!selectedApi.requiredGroup || selectedApi.partner) {
+            // Public or Partner
             return callback(null, true);
-
+        }
         // If we didn't have a logged in user, we're out
         if (!userInfo) {
             return callback(utils.makeError(403, 'Not allowed. API is restricted.'));
         }
 
         for (let i = 0; i < userInfo.groups.length; ++i) {
-            if (userInfo.groups[i] == selectedApi.requiredGroup)
+            if (userInfo.groups[i] == selectedApi.requiredGroup) {
                 return callback(null, true);
+            }
         }
 
         // We're still here... Admin the last resort
-        if (daoUtils.isUserAdmin(userInfo))
+        if (daoUtils.isUserAdmin(userInfo)) {
             return callback(null, true);
+        }
 
         // Nope. Not allowed.
         return callback(utils.makeError(403, 'Not allowed. Insufficient rights.'));
@@ -202,8 +213,9 @@ apis.checkAccess = function (app, res, userId, apiId, callback) {
 };
 
 function assignScope(apiDef, scopes) {
-    if (!apiDef.settings)
+    if (!apiDef.settings) {
         apiDef.settings = {};
+    }
     apiDef.settings.scopes = scopes;
 }
 
@@ -212,8 +224,9 @@ function checkAndInjectScopes(apiList, callback) {
     debug(`checkAndInjectScopes()`);
     async.each(apiList, function (apiDef, callback) {
         // Do we need to look up a scope definition?
-        if (!apiDef.scopeLookupUrl)
+        if (!apiDef.scopeLookupUrl) {
             return callback(null);
+        }
 
         const now = (new Date()).getTime();
         if (_scopeMap[apiDef.id]) {
@@ -225,8 +238,9 @@ function checkAndInjectScopes(apiList, callback) {
             }
         }
         let scopeUrl = apiDef.scopeLookupUrl;
-        if (!scopeUrl.endsWith('/'))
+        if (!scopeUrl.endsWith('/')) {
             scopeUrl += '/';
+        }
 
         async.retry({ times: 10, interval: 1000 }, function (callback) {
             const url = `${scopeUrl}${apiDef.id}`;
@@ -235,14 +249,17 @@ function checkAndInjectScopes(apiList, callback) {
                 url: url,
                 timeout: 10000
             }, function (err, res, body) {
-                if (err)
+                if (err) {
                     return callback(err);
-                if (res.statusCode !== 200)
+                }
+                if (res.statusCode !== 200) {
                     return callback(new Error(`checkAndInjectScopes: GET ${url} return unexpected status code ${res.statusCode} (expected 200)`));
+                }
                 debug(`checkAndInjectScope: Succeeded gettings scopes from external URL.`);
                 const jsonBody = utils.getJson(body);
-                if (!apiDef.settings)
+                if (!apiDef.settings) {
                     apiDef.settings = {};
+                }
                 apiDef.settings.scopes = jsonBody;
                 _scopeMap[apiDef.id] = {
                     timestamp: now,
@@ -257,14 +274,16 @@ function checkAndInjectScopes(apiList, callback) {
 apis.getApi = function (app, res, loggedInUserId, apiId) {
     debug('getApi(): ' + apiId);
     apis.checkAccess(app, res, loggedInUserId, apiId, (err) => {
-        if (err)
+        if (err) {
             return utils.fail(res, 403, 'Access denied', err);
+        }
         const apiList = utils.loadApis(app);
         const apiIndex = apiList.apis.findIndex(a => a.id === apiId);
         const apiInfo = apiList.apis[apiIndex];
         checkAndInjectScopes([apiInfo], function (err) {
-            if (err)
+            if (err) {
                 return utils.failError(res, err);
+            }
             res.json(apiInfo);
         });
     });
@@ -273,27 +292,32 @@ apis.getApi = function (app, res, loggedInUserId, apiId) {
 apis.getApiPlans = function (app, res, loggedInUserId, apiId) {
     debug('getApiPlans(): ' + apiId);
     apis.checkAccess(app, res, loggedInUserId, apiId, (err) => {
-        if (err)
+        if (err) {
             return utils.fail(res, 403, 'Access denied', err);
+        }
         const apiList = utils.loadApis(app);
         let apiIndex = apiList.apis.findIndex(a => a.id === apiId);
-        if (apiIndex < 0)
+        if (apiIndex < 0) {
             return res.status(404).jsonp({ message: 'API not found:' + apiId });
+        }
         const selectedApi = apiList.apis[apiIndex];
         const allPlans = utils.loadPlans(app);
         const planMap = {};
-        for (let i = 0; i < allPlans.plans.length; ++i)
+        for (let i = 0; i < allPlans.plans.length; ++i) {
             planMap[allPlans.plans[i].id] = allPlans.plans[i];
+        }
         const apiPlans = [];
         users.loadUser(app, loggedInUserId, (err, userInfo) => {
-            if (err)
+            if (err) {
                 return utils.fail(res, 500, 'could not load user', err);
+            }
             if (userInfo) {
                 for (let i = 0; i < selectedApi.plans.length; ++i) {
                     const plan = planMap[selectedApi.plans[i]];
                     if (!plan.requiredGroup ||
-                        (plan.requiredGroup && users.hasUserGroup(app, userInfo, plan.requiredGroup)))
+                        (plan.requiredGroup && users.hasUserGroup(app, userInfo, plan.requiredGroup))) {
                         apiPlans.push(plan);
+                    }
                 }
                 res.json(apiPlans);
             } else {
@@ -310,13 +334,15 @@ function loadApiConfig(app, apiId) {
     let configFileName = path.join(staticDir, 'apis', apiId, 'config.json');
     // Default to empty but valid json.
     let configJson = {};
-    if (fs.existsSync(configFileName))
+    if (fs.existsSync(configFileName)) {
         configJson = JSON.parse(fs.readFileSync(configFileName, 'utf8'));
+    }
     else {
         // Check if it's an internal API
         configFileName = path.join(__dirname, 'internal_apis', apiId, 'config.json');
-        if (fs.existsSync(configFileName))
+        if (fs.existsSync(configFileName)) {
             configJson = JSON.parse(fs.readFileSync(configFileName, 'utf8'));
+        }
     }
     utils.replaceEnvVars(configJson);
     // Check upstream_url
@@ -332,11 +358,13 @@ function loadApiConfig(app, apiId) {
 apis.getConfig = function (app, res, loggedInUserId, apiId) {
     debug('getConfig(): ' + apiId);
     // Do we know this API?
-    if (!apis.isValidApi(app, apiId))
+    if (!apis.isValidApi(app, apiId)) {
         return utils.fail(res, 404, 'Not found: ' + apiId);
+    }
     apis.checkAccess(app, res, loggedInUserId, apiId, (err) => {
-        if (err)
+        if (err) {
             return utils.fail(res, 403, 'Access denied', err);
+        }
         const configJson = loadApiConfig(app, apiId);
         let configReturn = configJson;
         users.isUserIdAdmin(app, loggedInUserId, (err, isAdmin) => {
@@ -358,8 +386,9 @@ apis.getConfig = function (app, res, loggedInUserId, apiId) {
 apis.getApiDesc = function (app, res, loggedInUserId, apiId) {
     debug('getApiDesc(): ' + apiId);
     apis.checkAccess(app, res, loggedInUserId, apiId, (err) => {
-        if (err)
+        if (err) {
             return utils.fail(res, 403, 'Access denied', err);
+        }
         const staticDir = utils.getStaticDir();
         let descFileName = path.join(staticDir, 'apis', apiId, 'desc.md');
         res.setHeader('Content-Type', 'text/markdown');
@@ -367,8 +396,9 @@ apis.getApiDesc = function (app, res, loggedInUserId, apiId) {
         if (!fs.existsSync(descFileName)) {
             // Check internal APIs.
             descFileName = path.join(__dirname, 'internal_apis', apiId, 'desc.md');
-            if (!fs.existsSync(descFileName))
+            if (!fs.existsSync(descFileName)) {
                 return res.send('');
+            }
         }
         res.send(fs.readFileSync(descFileName, 'utf8'));
     });
@@ -390,8 +420,9 @@ function resolveSwagger(globalSettings, apiInfo, requestPaths, fileName, callbac
         const apiData = _swaggerMap[apiInfo.id];
         if ((new Date()) - apiData.date < FIVE_MINUTES) {
             // We'll return the cached data
-            if (apiData.valid)
+            if (apiData.valid) {
                 return callback(null, apiData.swagger);
+            }
             // Invalid cached data
             return callback(new Error('Invalid swagger data for API ' + apiInfo.id));
         }
@@ -399,8 +430,9 @@ function resolveSwagger(globalSettings, apiInfo, requestPaths, fileName, callbac
     }
 
     function injectAuthAndReturn(swaggerJson) {
-        if (apiInfo.auth == "oauth2" && (!apiInfo.authMethods))
+        if (apiInfo.auth == "oauth2" && (!apiInfo.authMethods)) {
             return callback(new Error('API does not have an authMethods setting.'));
+        }
 
         swaggerJson = (swaggerJson.openapi) ?
             swaggerUtils.injectOpenAPIAuth(swaggerJson, globalSettings, apiInfo, requestPaths) ://Open API 3.0
@@ -429,8 +461,9 @@ function resolveSwagger(globalSettings, apiInfo, requestPaths, fileName, callbac
             request.get({
                 url: rawSwagger.href
             }, (err, apiRes, apiBody) => {
-                if (err)
+                if (err) {
                     return callback(err);
+                }
                 if (apiRes.statusCode !== 200) {
                     error(apiBody);
                     return callback(new Error(`Getting remote Swagger from ${rawSwagger.href} returned an unexpected status code: ${apiRes.statusCode}`));
@@ -462,22 +495,25 @@ apis.getSwagger = function (app, res, loggedInUserId, apiId) {
     // if (apiId == '_portal')
     //     return getPortalSwagger(app, res);
     apis.checkAccess(app, res, loggedInUserId, apiId, (err) => {
-        if (err)
+        if (err) {
             return utils.fail(res, 403, 'Access denied', err);
+        }
         const staticDir = utils.getStaticDir();
         let swaggerFileName = path.join(staticDir, 'apis', apiId, 'swagger.json');
         if (!fs.existsSync(swaggerFileName)) {
             // Check internal APIs
             swaggerFileName = path.join(__dirname, 'internal_apis', apiId, 'swagger.json');
-            if (!fs.existsSync(swaggerFileName))
+            if (!fs.existsSync(swaggerFileName)) {
                 return res.status(404).jsonp({ message: 'Not found. This is a bad sign; the Swagger definition must be there!' });
+            }
         }
 
         const globalSettings = utils.loadGlobals(app);
         const configJson = loadApiConfig(app, apiId);
 
-        if (!configJson || !configJson.api || !configJson.api.uris || !configJson.api.uris.length)
+        if (!configJson || !configJson.api || !configJson.api.uris || !configJson.api.uris.length) {
             return res.status(500).jsonp({ message: 'Invalid API configuration; does not contain uris array.' });
+        }
         const requestPaths = configJson.api.uris;
 
         const apiList = utils.loadApis(app);
@@ -502,15 +538,17 @@ apis.getSwagger = function (app, res, loggedInUserId, apiId) {
 apis.getSubscriptions = function (app, res, loggedInUserId, apiId, offset, limit) {
     debug('getSubscriptions() ' + apiId);
     users.loadUser(app, loggedInUserId, (err, userInfo) => {
-        if (err)
+        if (err) {
             return utils.fail(res, 500, 'getSubscriptions: Could not load user', err);
+        }
         if (!userInfo ||
             !userInfo.admin) {
             return utils.fail(res, 403, 'Not Allowed. Only Admins can get subscriptions for an API.');
         }
         dao.subscriptions.getByApi(apiId, offset, limit, (err, apiSubs, countResult) => {
-            if (err)
+            if (err) {
                 return utils.fail(res, 500, 'api.getSubscriptions: DAO failed to get subscriptions per API', err);
+            }
             if (apiSubs) {
                 return res.json({
                     items: apiSubs,

@@ -22,16 +22,18 @@ principal.isInstancePrincipal = () => {
 
 principal.initialElection = () => {
     debug('initialElection()');
-    if (!dao.isReady())
+    if (!dao.isReady()) {
         setTimeout(principal.initialElection, 500);
+    }
     electPrincipal();
     setInterval(houseKeeping, ELECTION_INTERVAL * 1000);
 };
 
 function houseKeeping() {
     checkConfigHash((err) => {
-        if (err)
+        if (err) {
             error(err);
+        }
         electPrincipal();
     });
 }

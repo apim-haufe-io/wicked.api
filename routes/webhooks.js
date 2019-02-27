@@ -99,10 +99,12 @@ function retryLog(app, triesLeft, eventData, callback) {
 webhooks.logEvent = function (app, eventData, callback) {
     debug('logEvent()');
     debug(eventData);
-    if (!eventData.action)
+    if (!eventData.action) {
         throw new Error("Webhook event data must contain 'action'.");
-    if (!eventData.entity)
+    }
+    if (!eventData.entity) {
         throw new Error("Webhook event data must contain 'entity'.");
+    }
 
     eventData.id = utils.createRandomId();
     eventData.utc = utils.getUtc();
@@ -119,8 +121,9 @@ webhooks.logEvent = function (app, eventData, callback) {
             error(err);
         }
 
-        if (callback)
+        if (callback) {
             return callback(err);
+        }
     });
 };
 
@@ -130,31 +133,38 @@ webhooks.putListener = function (app, res, users, loggedInUserId, listenerId, bo
     debug('putListener(): ' + listenerId);
     debug(body);
     users.loadUser(app, loggedInUserId, (err, userInfo) => {
-        if (err)
+        if (err) {
             return utils.fail(res, 500, 'putListener: loadUser failed', err);
+        }
         if (!userInfo ||
-            !userInfo.admin)
+            !userInfo.admin) {
             return utils.fail(res, 403, 'Not allowed. Only Admins may do this.');
+        }
         // Validate listenerId
         const regex = /^[a-zA-Z0-9\-_]+$/;
 
-        if (!regex.test(listenerId))
+        if (!regex.test(listenerId)) {
             return utils.fail(res, 400, 'Invalid webhook listener ID, allowed chars are: a-z, A-Z, -, _');
-        if (listenerId.length < 4 || listenerId.length > 20)
+        }
+        if (listenerId.length < 4 || listenerId.length > 20) {
             return utils.fail(res, 400, 'Invalid webhook listener ID, must have at least 4, max 20 characters.');
+        }
 
-        if (body.id != listenerId)
+        if (body.id != listenerId) {
             return utils.fail(res, 400, 'Listener ID in path must be the same as id in body.');
-        if (!body.url)
+        }
+        if (!body.url) {
             return utils.fail(res, 400, 'Mandatory body property "url" is missing.');
+        }
 
         const upsertListener = {
             id: listenerId,
             url: body.url
         };
         dao.webhooks.listeners.upsert(upsertListener, (err) => {
-            if (err)
+            if (err) {
                 return utils.fail(res, 500, 'putListener: DAO upsert listener failed', err);
+            }
 
             res.json(upsertListener);
         });
@@ -164,15 +174,18 @@ webhooks.putListener = function (app, res, users, loggedInUserId, listenerId, bo
 webhooks.deleteListener = function (app, res, users, loggedInUserId, listenerId) {
     debug('deleteListener(): ' + listenerId);
     users.loadUser(app, loggedInUserId, (err, userInfo) => {
-        if (err)
+        if (err) {
             return utils.fail(res, 500, 'deleteListener: loadUser failed', err);
+        }
         if (!userInfo ||
-            !userInfo.admin)
+            !userInfo.admin) {
             return utils.fail(res, 403, 'Not allowed. Only Admins may do this.');
+        }
 
         dao.webhooks.listeners.delete(listenerId, (err, deletedListenerInfo) => {
-            if (err)
+            if (err) {
                 return utils.fail(res, 500, 'deleteListener: DAO delete listener failed', err);
+            }
             res.status(204).json(deletedListenerInfo);
         });
     });
@@ -181,14 +194,17 @@ webhooks.deleteListener = function (app, res, users, loggedInUserId, listenerId)
 webhooks.getListeners = function (app, res, users, loggedInUserId) {
     debug('getListeners()');
     users.loadUser(app, loggedInUserId, (err, userInfo) => {
-        if (err)
+        if (err) {
             return utils.fail(res, 500, 'getListener: loadUser failed', err);
+        }
         if (!userInfo ||
-            !userInfo.admin)
+            !userInfo.admin) {
             return utils.fail(res, 403, 'Not allowed. Only Admins may do this.');
+        }
         dao.webhooks.listeners.getAll((err, listenerInfos) => {
-            if (err)
+            if (err) {
                 return utils.fail(res, 500, 'getListeners: DAO get listeners failed', err);
+            }
             res.json(listenerInfos);
         });
     });
@@ -197,14 +213,17 @@ webhooks.getListeners = function (app, res, users, loggedInUserId) {
 webhooks.getEvents = function (app, res, users, loggedInUserId, listenerId) {
     debug('getEvents(): ' + listenerId);
     users.loadUser(app, loggedInUserId, (err, userInfo) => {
-        if (err)
+        if (err) {
             return utils.fail(res, 500, 'getEvents: loadUser failed', err);
+        }
         if (!userInfo ||
-            !userInfo.admin)
+            !userInfo.admin) {
             return utils.fail(res, 403, 'Not allowed. Only Admins may do this.');
+        }
         dao.webhooks.events.getByListener(listenerId, (err, events) => {
-            if (err)
+            if (err) {
                 return utils.fail(res, 500, 'getEvents: DAO get events failed', err);
+            }
             res.json(events);
         });
     });
@@ -213,15 +232,18 @@ webhooks.getEvents = function (app, res, users, loggedInUserId, listenerId) {
 webhooks.flushEvents = function (app, res, users, loggedInUserId, listenerId) {
     debug('flushEvents(): ' + listenerId);
     users.loadUser(app, loggedInUserId, (err, userInfo) => {
-        if (err)
+        if (err) {
             return utils.fail(res, 500, 'flushEvents: loadUser failed', err);
+        }
         if (!userInfo ||
-            !userInfo.admin)
+            !userInfo.admin) {
             return utils.fail(res, 403, 'Not allowed. Only Admins may do this.');
+        }
 
         dao.webhooks.events.flush(listenerId, (err) => {
-            if (err)
+            if (err) {
                 return utils.fail(res, 500, 'flushEvents: DAO flush failed', err);
+            }
 
             res.status(204).send('');
         });
@@ -231,15 +253,18 @@ webhooks.flushEvents = function (app, res, users, loggedInUserId, listenerId) {
 webhooks.deleteEvent = function (app, res, users, loggedInUserId, listenerId, eventId) {
     debug('deleteEvent(): ' + listenerId + ', eventId: ' + eventId);
     users.loadUser(app, loggedInUserId, (err, userInfo) => {
-        if (err)
+        if (err) {
             return utils.fail(res, 500, 'deleteEvent: loadUser failed', err);
+        }
         if (!userInfo ||
-            !userInfo.admin)
+            !userInfo.admin) {
             return utils.fail(res, 403, 'Not allowed. Only Admins may do this.');
+        }
 
         dao.webhooks.events.delete(listenerId, eventId, (err) => {
-            if (err)
+            if (err) {
                 return utils.fail(res, 500, 'deleteEvent: DAO delete failed');
+            }
             res.status(204).send('');
         });
     });
@@ -260,8 +285,9 @@ webhooks.setupHooks = function () {
 };
 
 webhooks.checkAndFireHooks = function (callback) {
-    if (!callback)
+    if (!callback) {
         throw new Error('checkAndFireHooks: callback is null');
+    }
     debug('checkAndFireHooks()');
     if (!principal.isInstancePrincipal()) {
         debug(`checkAndFireHooks(): Current instance is not the principal instance, not firing webhooks`);
@@ -281,8 +307,8 @@ webhooks.checkAndFireHooks = function (callback) {
             const listenerUrl = listener.url;
 
             dao.webhooks.events.getByListener(listenerId, (err, listenerEvents) => {
-                if (err)
-                    return callback(err);
+                if (err){
+                    return callback(err);}
 
                 if (listenerEvents.length > 0) {
                     debug(`checkAndFireHooks: Posting ${listenerEvents.length} events to ${listenerId}`);
@@ -291,8 +317,9 @@ webhooks.checkAndFireHooks = function (callback) {
                         json: true,
                         body: listenerEvents,
                     }, function (err, apiResponse, apiBody) {
-                        if (err)
+                        if (err) {
                             return callback(err);
+                        }
                         if (200 != apiResponse.statusCode) {
                             const err2 = new Error('Calling the web hook "' + listenerId + '" failed.');
                             err2.status = apiResponse.statusCode;

@@ -112,8 +112,9 @@ const accessFlags = {
 };
 
 applications.isValidRedirectUri = function (redirectUri) {
-    if (!redirectUri)
+    if (!redirectUri) {
         return false;
+    }
     let url = null;
     try {
         url = new URL(redirectUri);
@@ -122,8 +123,9 @@ applications.isValidRedirectUri = function (redirectUri) {
         return false;
     }
     // Must not contain fragment
-    if (redirectUri.indexOf('#') >= 0)
+    if (redirectUri.indexOf('#') >= 0) {
         return false;
+    }
 
     if ((redirectUri.indexOf('#') < 0) &&
         (
@@ -141,8 +143,9 @@ applications.isValidRedirectUri = function (redirectUri) {
     if (url.protocol !== 'https:' &&
         url.protocol !== 'http:') {
         // Custom scheme; Kong NEEDS a host (https://github.com/Kong/kong/issues/3790)
-        if (!url.host)
+        if (!url.host) {
             return false;
+        }
         return true;
     }
     return false;
@@ -168,20 +171,23 @@ applications.checkValidClientType = function (appInfo) {
 
 applications.getAllowedAccess = function (app, appInfo, userInfo) {
     debug('getAllowedAccess()');
-    if (userInfo.admin)
+    if (userInfo.admin) {
         return accessFlags.ADMIN;
+    }
     // Check roles
     for (let i = 0; i < appInfo.owners.length; ++i) {
         const owner = appInfo.owners[i];
-        if (owner.userId != userInfo.id)
+        if (owner.userId != userInfo.id) {
             continue;
+        }
 
-        if (ownerRoles.OWNER == owner.role)
+        if (ownerRoles.OWNER == owner.role) {
             return accessFlags.ADMIN;
-        else if (ownerRoles.COLLABORATOR == owner.role)
+        } else if (ownerRoles.COLLABORATOR == owner.role) {
             return accessFlags.COLLABORATOR;
-        else if (ownerRoles.READER == owner.role)
+        } else if (ownerRoles.READER == owner.role) {
             return accessFlags.READER;
+        }
     }
 
     return accessFlags.NONE;
@@ -190,17 +196,21 @@ applications.getAllowedAccess = function (app, appInfo, userInfo) {
 applications.getApplications = function (app, res, loggedInUserId, filter, orderBy, offset, limit, noCountCache, embed) {
     debug('getApplications()');
     users.loadUser(app, loggedInUserId, (err, userInfo) => {
-        if (err)
+        if (err) {
             return utils.fail(res, 500, 'getApplications: Could not load user.', err);
-        if (!userInfo)
+        }
+        if (!userInfo) {
             return utils.fail(res, 403, 'Not allowed.');
-        if (!userInfo.admin && !userInfo.approver)
+        }
+        if (!userInfo.admin && !userInfo.approver) {
             return utils.fail(res, 403, 'Not allowed. This is admin land.');
+        }
 
         if (embed) {
             dao.applications.getAll(filter, orderBy, offset, limit, noCountCache, (err, appsIndex, countResult) => {
-                if (err)
+                if (err) {
                     return utils.fail(res, 500, 'getApplications: getAll failed', err);
+                }
                 res.json({
                     items: appsIndex,
                     count: countResult.count,
@@ -211,8 +221,9 @@ applications.getApplications = function (app, res, loggedInUserId, filter, order
             });
         } else {
             dao.applications.getIndex(offset, limit, (err, appsIndex, countResult) => {
-                if (err)
+                if (err) {
                     return utils.fail(res, 500, 'getApplications: getIndex failed', err);
+                }
                 res.json({
                     items: appsIndex,
                     count: countResult.count,
@@ -228,20 +239,25 @@ applications.getApplications = function (app, res, loggedInUserId, filter, order
 applications.getApplication = function (app, res, loggedInUserId, appId) {
     debug('getApplication(): ' + appId);
     users.loadUser(app, loggedInUserId, (err, userInfo) => {
-        if (err)
+        if (err) {
             return utils.fail(res, 500, 'getApplication: Could not load user.', err);
-        if (!userInfo)
+        }
+        if (!userInfo) {
             return utils.fail(res, 403, 'Not allowed. User invalid.');
+        }
         dao.applications.getById(appId, (err, appInfo) => {
-            if (err)
+            if (err) {
                 return utils.fail(res, 500, 'getApplication: Loading application failed', err);
-            if (!appInfo)
+            }
+            if (!appInfo) {
                 return utils.fail(res, 404, 'Not found: ' + appId);
+            }
 
             const access = applications.getAllowedAccess(app, appInfo, userInfo);
 
-            if (access == accessFlags.NONE)
+            if (access == accessFlags.NONE) {
                 return utils.fail(res, 403, 'Not allowed.');
+            }
             appInfo._links = {
                 self: { href: `/applications/${appId}` }
             };
@@ -261,14 +277,16 @@ applications.getApplication = function (app, res, loggedInUserId, appId) {
                     // More than one with role "owner"?
                     let ownerCount = 0;
                     for (let i = 0; i < appInfo.owners.length; ++i) {
-                        if (ownerRoles.OWNER == appInfo.owners[i].role)
+                        if (ownerRoles.OWNER == appInfo.owners[i].role) {
                             ownerCount++;
+                        }
                     }
                     for (let i = 0; i < appInfo.owners.length; ++i) {
                         if (appInfo.owners[i].role != ownerRoles.OWNER ||
                             ownerCount > 1) {
-                            if (!appInfo.owners[i]._links)
+                            if (!appInfo.owners[i]._links) {
                                 appInfo.owners[i]._links = {};
+                            }
                             appInfo.owners[i]._links.deleteOwner = {
                                 href: '/applications/' + appId + '/owners', method: 'DELETE'
                             };
@@ -292,22 +310,30 @@ applications.createApplication = function (app, res, loggedInUserId, appCreateIn
     const redirectUri = appCreateInfo.redirectUri;
     // Load user information
     users.loadUser(app, loggedInUserId, (err, userInfo) => {
-        if (err)
+        if (err) {
             return utils.fail(res, 500, 'createApplication: Could not load user.', err);
-        if (!userInfo)
+        }
+        if (!userInfo) {
             return utils.fail(res, 403, 'Not allowed. User invalid.');
-        if (!userInfo.validated)
+        }
+        if (!userInfo.validated) {
             return utils.fail(res, 403, 'Not allowed. Email address not validated.');
-        if (redirectUri && !applications.isValidRedirectUri(redirectUri))
+        }
+        if (redirectUri && !applications.isValidRedirectUri(redirectUri)) {
             return utils.fail(res, 400, 'redirectUri is not valid');
-        if (!appCreateInfo.name || appCreateInfo.name.length < 1)
+        }
+        if (!appCreateInfo.name || appCreateInfo.name.length < 1) {
             return utils.fail(res, 400, 'Friendly name of application cannot be empty.');
-        if (!utils.isValidApplicationId(appId))
+        }
+        if (!utils.isValidApplicationId(appId)) {
             return utils.fail(res, 400, utils.invalidApplicationIdMessage());
-        if (appId.length < 4 || appId.length > 50)
+        }
+        if (appId.length < 4 || appId.length > 50) {
             return utils.fail(res, 400, 'Invalid application ID, must have at least 4, max 50 characters.');
-        if (!applications.checkValidClientType(appCreateInfo))
+        }
+        if (!applications.checkValidClientType(appCreateInfo)) {
             return utils.fail(res, 400, `Invalid clientType, must be one of "${daoUtils.ClientType.Confidential}", "${daoUtils.ClientType.Public_SPA}" or "${daoUtils.ClientType.Public_Native}"`);
+        }
 
         const newAppInfo = {
             id: appId,
@@ -317,12 +343,14 @@ applications.createApplication = function (app, res, loggedInUserId, appCreateIn
             clientType: appCreateInfo.clientType,
             mainUrl: appCreateInfo.mainUrl
         };
-        if (appCreateInfo.description)
+        if (appCreateInfo.description) {
             newAppInfo.description = appCreateInfo.description.substring(0, APP_MAX_LENGTH_DESCRIPTION);
+        }
 
         dao.applications.create(newAppInfo, userInfo.id, (err, createdAppInfo) => {
-            if (err)
+            if (err) {
                 return utils.fail(res, 500, 'createApplication: DAO create failed', err);
+            }
 
             res.status(201).json(createdAppInfo);
 
@@ -344,43 +372,57 @@ applications.patchApplication = function (app, res, loggedInUserId, appId, appPa
     debug(appPatchInfo);
 
     dao.applications.getById(appId, (err, appInfo) => {
-        if (err)
+        if (err) {
             return utils.fail(res, 500, 'patchApplication: Loading app failed', err);
-        if (!appInfo)
+        }
+        if (!appInfo) {
             return utils.fail(res, 404, 'Not found: ' + appId);
+        }
         users.loadUser(app, loggedInUserId, (err, userInfo) => {
-            if (err)
+            if (err) {
                 return utils.fail(res, 500, 'patchApplication: Could not load user.', err);
-            if (!userInfo)
+            }
+            if (!userInfo) {
                 return utils.fail(res, 403, 'Not allowed. User invalid.');
+            }
 
             const access = applications.getAllowedAccess(app, appInfo, userInfo);
-            if (!((accessFlags.ADMIN & access) || (accessFlags.COLLABORATOR & access)))
+            if (!((accessFlags.ADMIN & access) || (accessFlags.COLLABORATOR & access))) {
                 return utils.fail(res, 403, 'Not allowed, not sufficient rights to application.');
-            if (appId != appPatchInfo.id)
+            }
+            if (appId != appPatchInfo.id) {
                 return utils.fail(res, 400, 'Changing application ID is not allowed. Sorry.');
+            }
             const redirectUri = appPatchInfo.redirectUri;
-            if (redirectUri && !applications.isValidRedirectUri(redirectUri))
+            if (redirectUri && !applications.isValidRedirectUri(redirectUri)) {
                 return utils.fail(res, 400, 'redirectUri is not valid');
+            }
 
             // Update app
-            if (appPatchInfo.name)
+            if (appPatchInfo.name) {
                 appInfo.name = appPatchInfo.name.substring(0, 128);
-            if (appPatchInfo.description)
+            }
+            if (appPatchInfo.description) {
                 appInfo.description = appPatchInfo.description.substring(0, APP_MAX_LENGTH_DESCRIPTION);
-            if (redirectUri)
+            }
+            if (redirectUri) {
                 appInfo.redirectUri = redirectUri;
-            if (appPatchInfo.hasOwnProperty('confidential'))
+            }
+            if (appPatchInfo.hasOwnProperty('confidential')) {
                 appInfo.confidential = !!appPatchInfo.confidential;
-            if (appPatchInfo.hasOwnProperty('clientType'))
+            }
+            if (appPatchInfo.hasOwnProperty('clientType')) {
                 appInfo.clientType = appPatchInfo.clientType;
-            if (!applications.checkValidClientType(appInfo))
+            }
+            if (!applications.checkValidClientType(appInfo)) {
                 return utils.fail(res, 400, `Invalid clientType, must be one of "${daoUtils.ClientType.Confidential}", "${daoUtils.ClientType.Public_SPA}" or "${daoUtils.ClientType.Public_Native}"`);
+            }
 
             // And persist
             dao.applications.save(appInfo, loggedInUserId, (err, updatedAppInfo) => {
-                if (err)
+                if (err) {
                     return utils.fail(res, 500, 'patchApplication: DAO save failed', err);
+                }
                 res.json(updatedAppInfo);
 
                 // Fire off webhook
@@ -401,29 +443,36 @@ applications.patchApplication = function (app, res, loggedInUserId, appId, appPa
 applications.deleteApplication = function (app, res, loggedInUserId, appId) {
     debug('deleteApplication(): ' + appId);
     dao.applications.getById(appId, (err, appInfo) => {
-        if (err)
+        if (err) {
             return utils.fail(res, 500, 'deleteApplication: Loading app failed', err);
-        if (!appInfo)
+        }
+        if (!appInfo) {
             return res.status(404).jsonp({ message: 'Not found: ' + appId });
+        }
         users.loadUser(app, loggedInUserId, (err, userInfo) => {
-            if (err)
+            if (err) {
                 return utils.fail(res, 500, 'deleteApplication: Could not load user.', err);
-            if (!userInfo)
+            }
+            if (!userInfo) {
                 return utils.fail(res, 403, 'Not allowed. User invalid.');
+            }
 
             const access = applications.getAllowedAccess(app, appInfo, userInfo);
 
             // Only let Owners and Admins do that
-            if (!(accessFlags.ADMIN & access))
+            if (!(accessFlags.ADMIN & access)) {
                 return utils.fail(res, 403, 'Not allowed. Only Owners and Admins can delete an Application.');
+            }
 
             dao.subscriptions.getByAppId(appId, (err, appSubs) => {
-                if (err)
+                if (err) {
                     return utils.fail(res, 500, 'deleteApplication: DAO get subscriptions failed', err);
+                }
 
                 dao.applications.delete(appId, loggedInUserId, (err) => {
-                    if (err)
+                    if (err) {
                         return utils.fail(res, 500, 'deleteApplication: Failed deleting application.', err);
+                    }
 
                     res.status(204).jsonp({ message: 'Deleted.' });
 
@@ -446,43 +495,53 @@ applications.addOwner = function (app, res, loggedInUserId, appId, ownerCreateIn
     debug('addOwner()');
     debug(ownerCreateInfo);
     users.loadUser(app, loggedInUserId, (err, userInfo) => {
-        if (err)
+        if (err) {
             return utils.fail(res, 500, 'addOwner: Could not load user.', err);
-        if (!userInfo)
+        }
+        if (!userInfo) {
             return utils.fail(res, 403, 'Not allowed. User invalid.');
+        }
         dao.applications.getById(appId, (err, appInfo) => {
-            if (err)
+            if (err) {
                 return utils.fail(res, 500, 'addOwner: Loading app failed', err);
-            if (!appInfo)
+            }
+            if (!appInfo) {
                 return res.status(404).jsonp({ message: 'Not found: ' + appId });
+            }
 
             const access = applications.getAllowedAccess(app, appInfo, userInfo);
             // We want Admin Access for this
-            if (!(accessFlags.ADMIN & access))
+            if (!(accessFlags.ADMIN & access)) {
                 return utils.fail(res, 403, 'Not allowed. Only Owners and Admins may add owners.');
+            }
 
             const email = ownerCreateInfo.email;
             const role = ownerCreateInfo.role;
 
             users.loadUserByEmail(app, email, (err, userToAdd) => {
-                if (err)
+                if (err) {
                     return utils.fail(res, 500, 'addOwner: loadUserByEmail failed.', err);
-                if (!userToAdd)
+                }
+                if (!userToAdd) {
                     return utils.fail(res, 400, 'Bad request. User with email "' + email + '" not found.');
+                }
                 if (!(ownerRoles.OWNER == role ||
                     ownerRoles.COLLABORATOR == role ||
-                    ownerRoles.READER == role))
+                    ownerRoles.READER == role)) {
                     return utils.fail(res, 400, 'Bad request. Unknown role "' + role + '".');
+                }
 
                 // Does this user already know this application?
                 for (let i = 0; i < userToAdd.applications.length; ++i) {
-                    if (userToAdd.applications[i].id == appId)
+                    if (userToAdd.applications[i].id == appId) {
                         return utils.fail(res, 409, 'Bad request. Owner is already registered for this application.');
+                    }
                 }
 
                 dao.applications.addOwner(appId, userToAdd.id, role, loggedInUserId, (err, updatedAppInfo) => {
-                    if (err)
+                    if (err) {
                         return utils.fail(res, 500, 'addOwner: DAO addOwner failed', err);
+                    }
 
                     // Return updated appInfo
                     res.status(201).json(updatedAppInfo);
@@ -507,26 +566,33 @@ applications.addOwner = function (app, res, loggedInUserId, appId, ownerCreateIn
 applications.deleteOwner = function (app, res, loggedInUserId, appId, userEmail) {
     debug('deleteOwner(): ' + appId + ', email: ' + userEmail);
     dao.applications.getById(appId, (err, appInfo) => {
-        if (err)
+        if (err) {
             return utils.fail(res, 500, 'deleteOwner: Loading app failed', err);
-        if (!appInfo)
+        }
+        if (!appInfo) {
             return res.status(404).jsonp({ message: 'Not found: ' + appId });
+        }
         users.loadUser(app, loggedInUserId, (err, userInfo) => {
-            if (err)
+            if (err) {
                 return utils.fail(res, 500, 'deleteOwner: loadUser failed.', err);
-            if (!userInfo)
+            }
+            if (!userInfo) {
                 return res.status(403).jsonp({ message: 'Not allowed. User invalid.' });
+            }
 
             const access = applications.getAllowedAccess(app, appInfo, userInfo);
             // We want Admin Access for this
-            if (!(accessFlags.ADMIN & access))
+            if (!(accessFlags.ADMIN & access)) {
                 return res.status(403).jsonp({ message: 'Not allowed. Only Owners and Admins may delete owners.' });
+            }
 
             users.loadUserByEmail(app, userEmail, (err, userToDelete) => {
-                if (err)
+                if (err) {
                     return utils.fail(res, 500, 'deleteOwner: loadUserByEmail failed', err);
-                if (!userToDelete)
+                }
+                if (!userToDelete) {
                     return res.status(400).jsonp({ message: 'Bad request. User with email "' + userEmail + '" not found."' });
+                }
                 // Does this user know this application?
                 let index = -1;
                 for (let i = 0; i < userToDelete.applications.length; ++i) {
@@ -543,12 +609,13 @@ applications.deleteOwner = function (app, res, loggedInUserId, appId, userEmail)
                 }
 
                 // Is it the last owner?
-                if (appInfo.owners.length == 1)
+                if (appInfo.owners.length == 1) {
                     return utils.fail(res, 409, 'Conflict. Can not delete last owner of application.');
+                }
 
                 dao.applications.deleteOwner(appId, userToDelete.id, loggedInUserId, (err, updatedAppInfo) => {
-                    if (err)
-                        return utils.fail(res, 500, 'deleteOwner: DAO deleteOwner failed', err);
+                    if (err){
+                        return utils.fail(res, 500, 'deleteOwner: DAO deleteOwner failed', err);}
                     res.json(updatedAppInfo);
 
                     // Webhook

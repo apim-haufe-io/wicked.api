@@ -41,8 +41,9 @@ content.setup = function (app) {
     addContentToToc(app, content._toc);
 
     content._toc.sort(function (a, b) {
-        if (a.category == b.category)
+        if (a.category == b.category) {
             return (a.title.localeCompare(b.title));
+        }
         return a.category.localeCompare(b.category);
     });
 };
@@ -81,8 +82,9 @@ function addContentDirToToc(app, dir, uriPart, toc) {
     const fileNames = fs.readdirSync(dir);
     for (let i = 0; i < fileNames.length; ++i) {
         const fileName = fileNames[i];
-        if (fileName.toLowerCase().endsWith('.json'))
+        if (fileName.toLowerCase().endsWith('.json')) {
             continue;
+        }
 
         const stat = fs.statSync(path.join(dir, fileName));
         if (stat.isDirectory()) {
@@ -93,13 +95,16 @@ function addContentDirToToc(app, dir, uriPart, toc) {
 
         const isJadeFile = fileName.toLowerCase().endsWith('.jade');
         const isMarkdownFile = fileName.toLowerCase().endsWith('.md');
-        if (!isJadeFile && !isMarkdownFile)
+        if (!isJadeFile && !isMarkdownFile) {
             continue;
+        }
         let strippedFileName = null;
-        if (isJadeFile)
+        if (isJadeFile) {
             strippedFileName = fileName.substring(0, fileName.length - 5);
-        if (isMarkdownFile)
+        }
+        if (isMarkdownFile) {
             strippedFileName = fileName.substring(0, fileName.length - 3);
+        }
         const jsonFileName = path.join(dir, strippedFileName + '.json');
         if (!fs.existsSync(jsonFileName)) {
             debug('JADE or MD file without companion JSON file: ' + fileName);
@@ -120,8 +125,9 @@ function addContentDirToToc(app, dir, uriPart, toc) {
 
 content.getToc = function (app, res, loggedInUserId) {
     debug('getToc()');
-    if (!content._toc)
+    if (!content._toc) {
         return res.status(500).json({ message: 'Internal Server Error. Table of Content not initialized.' });
+    }
 
     // This is fairly expensive. TODO: This should be cached.
     const groups = utils.loadGroups(app);
@@ -132,10 +138,12 @@ content.getToc = function (app, res, loggedInUserId) {
     }
     if (loggedInUserId) {
         users.loadUser(app, loggedInUserId, (err, userInfo) => {
-            if (err)
+            if (err) {
                 return utils.fail(res, 500, 'getToc: loadUser failed', err);
-            if (!userInfo)
+            }
+            if (!userInfo) {
                 return utils.fail(res, 400, 'Bad Request. Unknown User ID.');
+            }
             if (userInfo.groups) {
                 for (let i = 0; i < groups.groups.length; ++i) {
                     const groupId = groups.groups[i].id;
@@ -155,13 +163,15 @@ function filterToc(groupRights) {
     for (let i = 0; i < content._toc.length; ++i) {
         const tocEntry = content._toc[i];
         let addThis = false;
-        if (!tocEntry.requiredGroup)
+        if (!tocEntry.requiredGroup) {
             addThis = true;
-        if (!addThis && groupRights[tocEntry.requiredGroup])
+        }
+        if (!addThis && groupRights[tocEntry.requiredGroup]) {
             addThis = true;
-
-        if (addThis)
+        }
+        if (addThis) {
             userToc.push(tocEntry);
+        }
     }
     return userToc;
 }
@@ -176,28 +186,38 @@ content.isPublic = function (uriName) {
 
 content.getContentType = function (uriName) {
     if (uriName.endsWith('jpg') ||
-        uriName.endsWith('jpeg'))
+        uriName.endsWith('jpeg')) {
         return "image/jpeg";
-    if (uriName.endsWith('png'))
+    }
+    if (uriName.endsWith('png')) {
         return "image/png";
-    if (uriName.endsWith('gif'))
+    }
+    if (uriName.endsWith('gif')) {
         return "image/gif";
-    if (uriName.endsWith('css'))
+    }
+    if (uriName.endsWith('css')) {
         return "text/css";
+    }
+    if (uriName.endsWith('js')) {
+        return "text/javascript";
+    }
+
     return "text/markdown";
 };
 
 content.allowMustache = function (uriName) {
-    if (uriName.endsWith('css'))
+    if (uriName.endsWith('css')) {
         return true;
+    }
     return false;
 };
 
 // Ahem. Don't use too large files here.
 const _mustacheCache = {};
 function mustacheFile(filePath) {
-    if (_mustacheCache[filePath])
+    if (_mustacheCache[filePath]) {
         return _mustacheCache[filePath];
+    }
     const template = fs.readFileSync(filePath + '.mustache', 'utf8');
     const glob = utils.loadGlobals();
     const viewModel = {
@@ -209,10 +229,12 @@ function mustacheFile(filePath) {
 
 content.getContent = function (app, res, loggedInUserId, pathUri) {
     debug('getContent(): ' + pathUri);
-    if (!/^[a-zA-Z0-9\-_\/\.]+$/.test(pathUri))
+    if (!/^[a-zA-Z0-9\-_\/\.]+$/.test(pathUri)) {
         return res.status(404).jsonp({ message: "Not found: " + pathUri });
-    if (/\.\./.test(pathUri))
+    }
+    if (/\.\./.test(pathUri)) {
         return res.status(400).jsonp({ message: "Bad request. Baaad request." });
+    }
 
     // QUICK AND DIRTY?!
     const contentPath = pathUri.replace('/', path.sep);
@@ -240,8 +262,9 @@ content.getContent = function (app, res, loggedInUserId, pathUri) {
     }
 
     // Special case: index
-    if (pathUri == "/")
+    if (pathUri == "/") {
         filePath = path.join(staticDir, 'index');
+    }
 
     const mdFileName = filePath + '.md';
     const jadeFileName = filePath + '.jade';
@@ -249,8 +272,9 @@ content.getContent = function (app, res, loggedInUserId, pathUri) {
     const mdExists = fs.existsSync(mdFileName);
     const jadeExists = fs.existsSync(jadeFileName);
 
-    if (!mdExists && !jadeExists)
+    if (!mdExists && !jadeExists) {
         return res.status(404).jsonp({ message: 'Not found: ' + pathUri });
+    }
 
     let contentType;
     let fileName;
@@ -268,11 +292,13 @@ content.getContent = function (app, res, loggedInUserId, pathUri) {
     }
     if (metaInfo.requiredGroup) {
         users.loadUser(app, loggedInUserId, (err, userInfo) => {
-            if (err)
+            if (err) {
                 return utils.fail(res, 500, 'getContent: loadUser failed', err);
+            }
             if (!userInfo || // requiredGroup but no user, can't be right
-                !users.hasUserGroup(app, userInfo, metaInfo.requiredGroup))
+                !users.hasUserGroup(app, userInfo, metaInfo.requiredGroup)) {
                 return utils.fail(res, 403, 'Not allowed.');
+            }
             sendContent(res, metaInfo, fileName, contentType);
         });
     } else {
@@ -285,8 +311,9 @@ function sendContent(res, metaInfo, fileName, contentType) {
     // Yay! We're good!
     const metaInfo64 = new Buffer(JSON.stringify(metaInfo)).toString("base64");
     fs.readFile(fileName, function (err, content) {
-        if (err)
+        if (err) {
             return utils.fail(res, 500, 'Unexpected error', err);
+        }
         res.setHeader('X-MetaInfo', metaInfo64);
         res.setHeader('Content-Type', contentType);
         res.send(content);

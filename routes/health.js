@@ -9,15 +9,18 @@ const healthApi = require('express').Router();
 // ===== MIDDLEWARE =====
 
 healthApi.use(function (req, res, next) {
-    if (!req.get('x-consumer-id'))
+    if (!req.get('x-consumer-id')) {
         return res.status(403).json({ message: 'Not Allowed.' });
+    }
     const customId = req.get('x-consumer-custom-id');
     if (customId) {
         users.loadUser(req.app, customId, (err, userInfo) => {
-            if (err)
+            if (err) {
                 return utils.fail(res, 500, 'healthApi: loadUser failed', err);
-            if (userInfo)
+            }
+            if (userInfo) {
                 return res.status(404).json({ message: 'Not found.' });
+            }
             next();
         });
     } else {

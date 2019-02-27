@@ -93,8 +93,9 @@ class JsonMeta {
             const metadata = this.loadMetadata();
             if (!metadata.hasOwnProperty('dynamicVersion')) {
                 // Is this during migration?
-                if (!utils.isMigrationMode())
+                if (!utils.isMigrationMode()) {
                     throw new Error('Wicked >= 1.0.0 cannot operate on legacy dynamic data; it must be run through the migration process first.');
+                }
                 this._isLegacyData = true;
             }
         } catch (err) {
@@ -210,8 +211,9 @@ class JsonMeta {
         try {
             const dynDir = this.jsonUtils.getDynamicDir();
             this.cleanupDir(dynDir);
-            if (this.jsonUtils.hasGlobalLock())
+            if (this.jsonUtils.hasGlobalLock()) {
                 this.jsonUtils.globalUnlock();
+            }
             debug("checkForLocks() Done.");
         } catch (err) {
             error(err);
@@ -239,8 +241,9 @@ class JsonMeta {
         for (let i = 0; i < fileNames.length; ++i) {
             const fileName = path.join(dir, fileNames[i]);
             const stat = fs.statSync(fileName);
-            if (stat.isDirectory())
+            if (stat.isDirectory()) {
                 this.gatherLockFiles(fileName, fileList);
+            }
             if (stat.isFile()) {
                 if (fileName.endsWith('.lock') &&
                     !fileName.endsWith('global.lock')) {
@@ -252,8 +255,9 @@ class JsonMeta {
     }
 
     isExistingDir(dirPath) {
-        if (!fs.existsSync(dirPath))
+        if (!fs.existsSync(dirPath)) {
             return false;
+        }
         let dirStat = fs.statSync(dirPath);
         return dirStat.isDirectory();
     }
@@ -262,12 +266,13 @@ class JsonMeta {
         debug('cleanupDirectory(): ' + dirName);
         try {
             let dynamicDir = this.jsonUtils.getDynamicDir();
-            if (!this.isExistingDir(dynamicDir))
+            if (!this.isExistingDir(dynamicDir)) {
                 return callback(null); // We don't even have a dynamic dir yet; fine.
+            }
             let subIndexDir = path.join(dynamicDir, dirName);
-            if (!this.isExistingDir(subIndexDir))
+            if (!this.isExistingDir(subIndexDir)) {
                 return callback(null); // We don't have that directory yet, that's fine
-
+            }
             // Now we know we have a dirName directory.
             // Let's kill all files in there, as we'll rebuild this index anyway.
             let filenameList = fs.readdirSync(subIndexDir);
@@ -316,13 +321,16 @@ class JsonMeta {
                 error(`findMaxIndex(): Key ${key} could not be parsed as an int (Number.parseInt())`);
                 throw err;
             }
-            if (thisIndex === 0)
+            if (thisIndex === 0) {
                 throw new Error(`findMaxIndex(): Key ${key} was parsed to int value 0; this must not be correct.`);
-            if (thisIndex > maxIndex)
+            }
+            if (thisIndex > maxIndex) {
                 maxIndex = thisIndex;
+            }
         }
-        if (maxIndex === -1)
+        if (maxIndex === -1) {
             throw new Error('findMaxIndex: Given object does not contain any valid indexes');
+        }
         return maxIndex;
     }
 
@@ -346,8 +354,9 @@ class JsonMeta {
             for (let v = currentVersion + 1; v <= targetDynamicVersion; ++v) {
                 info(`Running dynamic migration to version ${v}`);
 
-                if (!migrations[v])
+                if (!migrations[v]) {
                     throw new Error(`Dynamic version migration step ${v} was not found.`);
+                }
 
                 const err = migrations[v]();
                 if (!err) {
@@ -381,8 +390,9 @@ class JsonMeta {
     loadMetadata() {
         debug(`loadMetadata()`);
         const fileName = this.getMetadataFileName();
-        if (!fs.existsSync(fileName))
+        if (!fs.existsSync(fileName)) {
             return {};
+        }
         return JSON.parse(fs.readFileSync(fileName, 'utf8'));
     }
 
@@ -395,8 +405,9 @@ class JsonMeta {
     getMetadataSync(propName) {
         debug(`getMetadataSync(${propName})`);
         const metadata = this.loadMetadata();
-        if (metadata.hasOwnProperty(propName))
+        if (metadata.hasOwnProperty(propName)) {
             return metadata[propName];
+        }
         return null;
     }
 
@@ -405,10 +416,11 @@ class JsonMeta {
         const instance = this;
         return this.jsonUtils.withLockedMetadata(function () {
             const metadata = instance.loadMetadata();
-            if (propValue)
+            if (propValue) {
                 metadata[propName] = propValue;
-            else
+            } else {
                 delete metadata[propName];
+            }
             instance.saveMetadata(metadata);
             return propValue;
         });

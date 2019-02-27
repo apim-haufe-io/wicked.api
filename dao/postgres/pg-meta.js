@@ -52,15 +52,17 @@ class PgMeta {
         // including adding the core schema.
         const instance = this;
         this.pgUtils.getMetadata((err, metadata) => {
-            if (err)
+            if (err) {
                 return callback(err);
+            }
             debug('runMigrations: Current version is ' + metadata.version);
             if (metadata.version < CURRENT_DATABASE_VERSION) {
                 debug('runMigrations: Desired version is ' + CURRENT_DATABASE_VERSION);
                 // We need to run migrations
                 const migrationSteps = [];
-                for (let i = metadata.version + 1; i <= CURRENT_DATABASE_VERSION; ++i)
+                for (let i = metadata.version + 1; i <= CURRENT_DATABASE_VERSION; ++i) {
                     migrationSteps.push(i);
+                }
                 async.mapSeries(migrationSteps, (stepNumber, callback) => {
                     const migrationSqlFile = path.join(__dirname, 'schemas', `migration-${stepNumber}.sql`);
                     instance.pgUtils.runSql(migrationSqlFile, (err) => {
@@ -72,8 +74,9 @@ class PgMeta {
                         instance.pgUtils.setMetadata(metadata, callback);
                     });
                 }, (err) => {
-                    if (err)
+                    if (err) {
                         return callback(err);
+                    }
                     debug('runMigrations successfully finished.');
                     return callback(null);
                 });
@@ -88,10 +91,12 @@ class PgMeta {
         debug(`getMetadataImpl(${propName})`);
         const instance = this;
         instance.pgUtils.getMetadata(function (err, metadata) {
-            if (err)
+            if (err) {
                 return callback(err);
-            if (metadata.hasOwnProperty(propName))
+            }
+            if (metadata.hasOwnProperty(propName)) {
                 return callback(null, metadata[propName]);
+            }
             return callback(null);
         });
     }
@@ -100,15 +105,18 @@ class PgMeta {
         debug(`setMetadataImpl(${propName}, ${propValue})`);
         const instance = this;
         instance.pgUtils.withTransaction((err, client, callback) => {
-            if (err)
+            if (err) {
                 return callback(err);
+            }
             instance.pgUtils.getMetadata(client, function (err, metadata) {
-                if (err)
+                if (err) {
                     return callback(err);
-                if (propValue)
+                }
+                if (propValue) {
                     metadata[propName] = propValue;
-                else 
+                } else {
                     delete metadata[propName];
+                }
                 instance.pgUtils.setMetadata(metadata, client, callback);
             });
         }, callback);

@@ -86,8 +86,9 @@ class PgUtils {
 
         this.withTransaction((err, client, callback) => {
             if (err) {
-                if (callback)
+                if (callback) {
                     return callback(err);
+                }
                 error(err);
                 return;
             }
@@ -113,8 +114,9 @@ class PgUtils {
                     prom._pgQueryErrors.inc(labels);
                     return callback(err);
                 }
-                if (results.rows.length !== 1)
+                if (results.rows.length !== 1) {
                     return callback(new Error('getMetadata: Unexpected row count ' + results.rows.length));
+                }
                 end();
                 return callback(null, results.rows[0].data);
             });
@@ -124,8 +126,9 @@ class PgUtils {
     createMetadata(callback) {
         debug('createMetadata()');
         this.getPoolOrClient((err, pool) => {
-            if (err)
+            if (err) {
                 return callback(err);
+            }
             const now = new Date();
             const metadata = {
                 version: 0,
@@ -141,8 +144,9 @@ class PgUtils {
         debug(metadata);
         this.sortOutClientAndCallback(clientOrCallback, callback, (client, callback) => {
             const now = new Date();
-            if (!metadata.create_date)
+            if (!metadata.create_date) {
                 metadata.create_date = now;
+            }
             metadata.last_update = now;
             client.query('UPDATE wicked.meta SET data = $1', [metadata], callback);
         });
@@ -174,8 +178,9 @@ class PgUtils {
             });
 
             instance._listenerClient.connect((err) => {
-                if (err)
+                if (err) {
                     return callback(err);
+                }
                 debug('listenToChannel - connect was successful');
                 instance._listenerClient.on('notification', (data) => {
                     const channel = data.channel;
@@ -211,8 +216,9 @@ class PgUtils {
         debug('withTransaction(): connectId = ' + connectId);
         connectIds[connectId] = new Date().getTime();
         this.getPoolOrClient((err, pool) => {
-            if (err)
+            if (err) {
                 return payload(err);
+            }
 
             pool.connect((err, client, release) => {
                 const releaseHook = release;
@@ -222,8 +228,9 @@ class PgUtils {
                     delete connectIds[connectId];
                 };
                 if (err) {
-                    if (release)
+                    if (release) {
                         release();
+                    }
                     return payload(err);
                 }
                 debug('withTransaction: Starting transaction');
@@ -247,16 +254,18 @@ class PgUtils {
                                     debug(rollbackErr);
                                 }
                                 release();
-                                if (next && typeof (next) === 'function')
+                                if (next && typeof (next) === 'function') {
                                     return next(err);
+                                }
                             });
                         } else {
                             debug('withTransaction: And succeeded, will commit');
                             // We'll commit
                             client.query('COMMIT;', (commitErr, result) => {
                                 release();
-                                if (next && typeof (next) === 'function')
+                                if (next && typeof (next) === 'function') {
                                     return next(commitErr);
+                                }
                             });
                         }
                     });
@@ -290,19 +299,23 @@ class PgUtils {
         }
 
         if ((Array.isArray(fieldNameOrNames) && !Array.isArray(fieldValueOrValues)) ||
-            (!Array.isArray(fieldNameOrNames) && Array.isArray(fieldValueOrValues)))
+            (!Array.isArray(fieldNameOrNames) && Array.isArray(fieldValueOrValues))) {
             return callback(utils.makeError(500, 'getSingleBy: Either both names and values have to arrays, or none'));
+        }
 
         const fieldNames = Array.isArray(fieldNameOrNames) ? fieldNameOrNames : [fieldNameOrNames];
         const fieldValues = Array.isArray(fieldValueOrValues) ? fieldValueOrValues : [fieldValueOrValues];
 
         this.getBy(entity, fieldNames, fieldValues, options, (err, resultList) => {
-            if (err)
+            if (err) {
                 return callback(err);
-            if (resultList.length === 0)
+            }
+            if (resultList.length === 0) {
                 return callback(null, null);
-            if (resultList.length === 1)
+            }
+            if (resultList.length === 1) {
                 return callback(null, resultList[0]);
+            }
             return callback(utils.makeError(500, 'pgUtils: getSingleBy: Returned ' + resultList.length + ' results, must only return a single result.'));
         });
     }
@@ -317,24 +330,30 @@ class PgUtils {
     // }
     getBy(entity, fieldNameOrNames, fieldValueOrValues, options, callback) {
         debug(`getBy(${entity}, ${fieldNameOrNames}, ${fieldValueOrValues})`);
-        if (!fieldNameOrNames)
+        if (!fieldNameOrNames) {
             fieldNameOrNames = [];
-        if (!fieldValueOrValues)
+        }
+        if (!fieldValueOrValues) {
             fieldValueOrValues = [];
+        }
         if ((Array.isArray(fieldNameOrNames) && !Array.isArray(fieldValueOrValues)) ||
-            (!Array.isArray(fieldNameOrNames) && Array.isArray(fieldValueOrValues)))
+            (!Array.isArray(fieldNameOrNames) && Array.isArray(fieldValueOrValues))) {
             return callback(utils.makeError(500, 'getBy: Either both names and values have to arrays, or none'));
+        }
 
         const fieldNames = Array.isArray(fieldNameOrNames) ? fieldNameOrNames : [fieldNameOrNames];
         const fieldValues = Array.isArray(fieldValueOrValues) ? fieldValueOrValues : [fieldValueOrValues];
 
-        if (fieldNames.length !== fieldValues.length)
+        if (fieldNames.length !== fieldValues.length) {
             return callback(utils.makeError(500, 'PG Utils: field names array length mismatches field value array length'));
+        }
 
-        if (typeof options === 'function')
+        if (typeof options === 'function') {
             return callback(utils.makeError('pgUtils.getBy: options is a function'));
-        if (!options)
+        }
+        if (!options) {
             options = {};
+        }
         let client = null;
         let offset = 0;
         let limit = 0;
@@ -344,31 +363,39 @@ class PgUtils {
         let joinClause = null;
         let joinedFields = null;
         fieldNames.forEach(f => operators.push('='));
-        if (options.client)
+        if (options.client) {
             client = options.client;
-        if (options.offset)
+        }
+        if (options.offset) {
             offset = options.offset;
-        if (options.limit)
+        }
+        if (options.limit) {
             limit = options.limit;
-        if (options.orderBy)
+        }
+        if (options.orderBy) {
             orderBy = options.orderBy;
+        }
         if (options.operators) {
             operators = options.operators;
             if (operators.length !== fieldNames.length) {
                 return callback(utils.makeError(500, `Querying ${entity}: Length of operators array does not match field names array.`));
             }
         }
-        if (options.noCountCache)
+        if (options.noCountCache) {
             noCountCache = options.noCountCache;
-        if (options.joinClause)
+        }
+        if (options.joinClause) {
             joinClause = options.joinClause;
-        if (options.joinedFields)
+        }
+        if (options.joinedFields) {
             joinedFields = options.joinedFields;
+        }
 
         const instance = this;
         this.getPoolOrClient(client, (err, poolOrClient) => {
-            if (err)
+            if (err) {
                 return callback(err);
+            }
             const queries = instance.makeSqlQuery(entity, fieldNames, operators, orderBy, offset, limit, joinedFields, joinClause);
             const query = queries.query;
 
@@ -376,8 +403,9 @@ class PgUtils {
                 rows: function (callback) { instance.queryPostgres(poolOrClient, entity, queries.query, fieldValues, callback); },
                 countResult: function (callback) { instance.queryCount(poolOrClient, entity, queries.countQuery, fieldValues, noCountCache, callback); }
             }, function (err, results) {
-                if (err)
+                if (err) {
                     return callback(err);
+                }
                 return callback(null, results.rows, results.countResult);
             });
         });
@@ -416,12 +444,14 @@ class PgUtils {
                 prom._pgQueryErrors.inc(labels);
                 return callback(err);
             }
-            if (result.rows.length !== 1)
+            if (result.rows.length !== 1) {
                 return callback(utils.makeError(500, 'countRows: SELECT COUNT(*) did not return a single row.'));
-            if (!noCache)
+            }
+            if (!noCache) {
                 debug(`countRecords() - cache miss, adding record`);
-            else
+            } else {
                 debug(`countRecords() - forced re-count`);
+            }
             end();
             const count = result.rows[0].count;
             instance._countCache[queryHash] = {
@@ -445,13 +475,15 @@ class PgUtils {
                     purgeCount++;
                 }
             }
-            if (purgeCount > 0)
+            if (purgeCount > 0) {
                 debug(`countRecords() - purged ${purgeCount} cache entries`);
+            }
 
             for (let connectId in connectIds) {
                 const delta = now - connectIds[connectId];
-                if (delta > 1000)
+                if (delta > 1000) {
                     debug(`*** Open connect ID: ${connectId}`);
+                }
             }
         }, 15000);
     }
@@ -489,30 +521,36 @@ class PgUtils {
     resolveFieldName(entity, mainPrefix, fieldName, joinedFields) {
         // The field 'id' is always present, just use it
         if (fieldName === 'id') {
-            if (mainPrefix)
+            if (mainPrefix) {
                 return `${mainPrefix}${fieldName}`;
+            }
             return fieldName;
         }
         // JOIN extra field with given table prefix?
-        if (mainPrefix && fieldName.indexOf('.') >= 0)
+        if (mainPrefix && fieldName.indexOf('.') >= 0) {
             return fieldName;
-        if (!model[entity])
+        }
+        if (!model[entity]) {
             throw new Error(`resolveFieldName: Unknown entity '${entity}'`);
+        }
         const entityModel = model[entity];
         const props = entityModel.properties;
         // Is this already the name of a database field?
-        if (props[fieldName])
+        if (props[fieldName]) {
             return fieldName;
+        }
         // Apparently not; iterate to see whether a "friendly name" was used,
         // i.e. if a property_name to use node-side was defined.
         for (let propName in props) {
             // Does this property have a friendly name?
             const dbPropName = props[propName].property_name;
-            if (!dbPropName)
+            if (!dbPropName) {
                 continue; // Nope, check the next
+            }
             // Yes, does it match?
-            if (dbPropName === fieldName)
+            if (dbPropName === fieldName) {
                 return propName; // Yes, return the database name
+            }
         }
         // Joined Fields are optional
         if (joinedFields) {
@@ -539,26 +577,31 @@ class PgUtils {
             for (let i = 0; i < joinedFields.length; ++i) {
                 const joinedFieldDef = joinedFields[i];
                 additionalFields += `, ${joinedFieldDef.source}`;
-                if (joinedFieldDef.as)
+                if (joinedFieldDef.as) {
                     additionalFields += ` AS ${joinedFieldDef.as}`;
+                }
             }
         }
         let query = `SELECT ${mainPrefix}*${additionalFields} FROM wicked.${entity} ${tableName}`;
-        if (joinClause)
+        if (joinClause) {
             query += ` ${joinClause}`;
+        }
         let countQuery = `SELECT COUNT(*) AS count FROM wicked.${entity} ${tableName}`;
-        if (joinClause)
+        if (joinClause) {
             countQuery += ` ${joinClause}`;
+        }
         let queryWhere = '';
         const processedFieldNames = [];
         for (let i = 0; i < fieldNames.length; ++i) {
             processedFieldNames.push(this.resolveFieldName(entity, mainPrefix, fieldNames[i], joinedFields));
         }
-        if (fieldNames.length > 0)
+        if (fieldNames.length > 0) {
             queryWhere += ` WHERE ${processedFieldNames[0]} ${operators[0]} $1`;
+        }
         // This may be an empty loop
-        for (let i = 1; i < fieldNames.length; ++i)
+        for (let i = 1; i < fieldNames.length; ++i) {
             queryWhere += ` AND ${processedFieldNames[i]} ${operators[i]} $${i + 1}`;
+        }
 
         countQuery += queryWhere;
 
@@ -568,8 +611,9 @@ class PgUtils {
             let orderField = this.resolveFieldName(entity, mainPrefix, tmp[0], joinedFields);
             queryWhere += ` ORDER BY ${orderField} ${direction}`;
         }
-        if (offset >= 0 && limit > 0)
+        if (offset >= 0 && limit > 0) {
             queryWhere += ` LIMIT ${limit} OFFSET ${offset}`;
+        }
 
         query += queryWhere;
 
@@ -627,29 +671,35 @@ class PgUtils {
 
     deleteBy(entity, fieldNameOrNames, fieldValueOrValues, clientOrCallback, callback) {
         debug(`deleteById(${entity}, ${fieldNameOrNames}, ${fieldValueOrValues}) `);
-        if (!fieldNameOrNames)
+        if (!fieldNameOrNames) {
             fieldNameOrNames = [];
-        if (!fieldValueOrValues)
+        }
+        if (!fieldValueOrValues) {
             fieldValueOrValues = [];
+        }
 
         if ((Array.isArray(fieldNameOrNames) && !Array.isArray(fieldValueOrValues)) ||
-            (!Array.isArray(fieldNameOrNames) && Array.isArray(fieldValueOrValues)))
+            (!Array.isArray(fieldNameOrNames) && Array.isArray(fieldValueOrValues))) {
             return callback(utils.makeError(500, 'deleteBy: Either both names and values have to arrays, or none'));
+        }
 
         const fieldNames = Array.isArray(fieldNameOrNames) ? fieldNameOrNames : [fieldNameOrNames];
         const fieldValues = Array.isArray(fieldValueOrValues) ? fieldValueOrValues : [fieldValueOrValues];
 
-        if (fieldNames.length !== fieldValues.length)
+        if (fieldNames.length !== fieldValues.length) {
             return callback(utils.makeError(500, 'deleteBy: field names array length mismatches field value array length'));
+        }
 
         const instance = this;
         this.sortOutClientAndCallback(clientOrCallback, callback, (client, callback) => {
             let sql = `DELETE FROM wicked.${entity} `;
-            if (fieldNames.length === 0)
+            if (fieldNames.length === 0) {
                 return callback(utils.makeError(500, 'deleteBy: Unconditional DELETE detected, not allowing'));
+            }
             sql += ` WHERE ${instance.resolveFieldName(entity, '', fieldNames[0])} = $1`;
-            for (let i = 1; i < fieldNames.length; ++i)
+            for (let i = 1; i < fieldNames.length; ++i) {
                 sql += ` AND ${instance.resolveFieldName(entity, '', fieldNames[i])} = \$${i + 1} `;
+            }
             const labels = {
                 command: 'DELETE',
                 entity: entity
@@ -691,8 +741,9 @@ class PgUtils {
                     prom._pgQueryErrors.inc(labels);
                     return callback(err);
                 }
-                if (result.rows.length !== 1)
+                if (result.rows.length !== 1) {
                     return callback(utils.makeError(500, 'countRows: SELECT COUNT(*) did not return a single row.'));
+                }
                 end();
                 return callback(null, result.rows[0].count);
             });
@@ -705,11 +756,12 @@ class PgUtils {
 
     resolveDatabase(dbName, postgresOptions) {
         let pgDatabase = 'wicked';
-        if (dbName === 'postgres')
+        if (dbName === 'postgres') {
             pgDatabase = dbName;
-        else if (postgresOptions) {
-            if (postgresOptions.pgDatabase)
+        } else if (postgresOptions) {
+            if (postgresOptions.pgDatabase) {
                 pgDatabase = postgresOptions.pgDatabase;
+            }
         }
         debug(`resolveDatabase(${dbName}) resolves to: ${pgDatabase}`);
         return pgDatabase;
@@ -721,8 +773,9 @@ class PgUtils {
         let options = null;
         if (this.postgresOptions) {
             options = utils.clone(this.postgresOptions);
-            if (dbName === 'postgres')
+            if (dbName === 'postgres') {
                 options.database = this.resolveDatabase(dbName, options);
+            }
             options.max = POSTGRES_MAX_CLIENTS;
             options.connectionTimeoutMillis = POSTGRES_CONNECT_TIMEOUT;
         } else {
@@ -791,8 +844,9 @@ class PgUtils {
         // Try to connect to wicked database
         debug('getPoolOrClient: Trying to connect');
         pool.connect((err, client, release) => {
-            if (client && release)
+            if (client && release) {
                 release();
+            }
             if (err) {
                 debug('getPoolOrClient: Connect to wicked database failed.');
                 const errorCode = err.code ? err.code.toUpperCase() : '';
@@ -835,8 +889,9 @@ class PgUtils {
             // Yay, this is fine.
             // Let's verify we also have the schema
             instance.verifySchema(pool, function (err, schemaPresent) {
-                if (err)
+                if (err) {
                     return callback(err);
+                }
                 instance._pool = pool;
                 if (schemaPresent) {
                     return callback(null, pool);
@@ -908,15 +963,18 @@ class PgUtils {
         const schemaFileName = path.join(__dirname, 'schemas', 'core.sql');
         const instance = this;
         this.runSql(schemaFileName, (err) => {
-            if (err)
+            if (err) {
                 return callback(err);
+            }
             instance.createMetadata(err => {
-                if (err)
+                if (err) {
                     return callback(err);
+                }
                 // Make sure we have an update date and that everything works as intended.
                 instance.getMetadata((err, metadata) => {
-                    if (err)
+                    if (err) {
                         return callback(err);
+                    }
                     instance.setMetadata(metadata, callback);
                 });
             });
@@ -937,8 +995,9 @@ class PgUtils {
         let inDollarQuote = false;
         for (let i = 0; i < lines.length; ++i) {
             const thisLine = lines[i].trim();
-            if (thisLine.startsWith('--'))
+            if (thisLine.startsWith('--')) {
                 continue;
+            }
             if (!inDollarQuote && thisLine.indexOf('$$') >= 0) {
                 inDollarQuote = true;
             }
@@ -967,10 +1026,12 @@ class PgUtils {
 
     normalizeResult(entity, resultList) {
         debug('normalizeResult()');
-        if (!resultList)
+        if (!resultList) {
             throw utils.makeError(500, 'normalizeResult: resultList is null');
-        if (!resultList.rows)
+        }
+        if (!resultList.rows) {
             return [];
+        }
         if (!Array.isArray(resultList.rows)) {
             debug('normalizeResult: resultList.rows is not an Array');
             return [];
@@ -986,20 +1047,24 @@ class PgUtils {
             for (let pgName in props) {
                 let prop = props[pgName];
                 let jsonName = pgName;
-                if (prop.property_name)
+                if (prop.property_name) {
                     jsonName = prop.property_name;
+                }
                 normRow[jsonName] = row[pgName];
-                if (!prop.optional && !row[pgName])
+                if (!prop.optional && !row[pgName]) {
                     throw utils.makeError(500, `PG Utils: Row with id ${row.id} of entity ${entity} is empty but is not optional.`);
+                }
                 pgNamesHandled[pgName] = true;
             }
             // Additional fields from JOINs?
             for (let pgName in row) {
                 // Don't take "data" again, it's already mapped
-                if (pgName === 'data')
+                if (pgName === 'data') {
                     continue;
-                if (pgNamesHandled[pgName])
+                }
+                if (pgNamesHandled[pgName]) {
                     continue;
+                }
                 // Don't map property names, we wouldn't know how
                 normRow[pgName] = row[pgName];
             }
@@ -1014,18 +1079,20 @@ class PgUtils {
         const pgRow = {
             data: Object.assign({}, data)
         };
-        if (!data.id)
+        if (!data.id) {
             throw utils.makeError(500, `PG Utils: Missing unique index "id" for entity ${entity}.`);
+        }
         // Take out the id from the data and explitcitly put it in the row model
         delete pgRow.data.id;
         pgRow.id = data.id;
 
         // Add meta data
         pgRow.data.changedDate = new Date();
-        if (upsertingUserId)
+        if (upsertingUserId) {
             pgRow.data.changedBy = upsertingUserId;
-        else if (pgRow.data.changedBy)
+        } else if (pgRow.data.changedBy) {
             delete pgRow.data.changedBy;
+        }
 
         // Map JSON structure to a structure matching what node-postgres expects,
         // i.e. move out the declared explicit fields into the real fields of the 
@@ -1037,8 +1104,9 @@ class PgUtils {
             let jsonName = prop.property_name || pgName;
             delete pgRow.data[jsonName];
             pgRow[pgName] = data[jsonName];
-            if (!prop.optional && !data[jsonName])
+            if (!prop.optional && !data[jsonName]) {
                 throw utils.makeError(500, `PG Utils: Missing mandatory property ${jsonName} for entity ${entity}`);
+            }
         }
         return pgRow;
     }
@@ -1077,8 +1145,9 @@ class PgUtils {
 
     assembleUpdatesString(fieldNames) {
         let updateString = `${fieldNames[1]} = \$2`;
-        for (let i = 2; i < fieldNames.length; ++i)
+        for (let i = 2; i < fieldNames.length; ++i) {
             updateString += `, ${fieldNames[i]} = \$${i + 1}`;
+        }
         return updateString;
     }
 
@@ -1101,8 +1170,9 @@ class PgUtils {
             client = null;
         }
         this.getPoolOrClient(client, (err, client) => {
-            if (err)
+            if (err) {
                 return callback(err);
+            }
             payload(client, callback);
         });
     }
@@ -1134,27 +1204,31 @@ class PgUtils {
     dropWickedDatabase(callback) {
         debug('dropWickedDatabase()');
         const instance = this;
-        if (instance._pool)
+        if (instance._pool) {
             return callback(utils.makeError(500, 'Cannot wipe database when already connected.'));
+        }
 
         const dbName = instance.resolveDatabase('wicked', instance.postgresOptions);
         info(`Attempting to drop database ${dbName}.`);
 
         this.tryConnectToWickedDatabase((err, wickedExists) => {
-            if (err)
+            if (err) {
                 return callback(err);
+            }
             if (wickedExists) {
                 debug(`dropWickedDatabase(): Database "${dbName}" exists, dropping it...`);
                 const pgOptions = instance.getPostgresOptions('postgres');
                 const client = new pg.Client(pgOptions);
                 client.connect((err) => {
-                    if (err)
+                    if (err) {
                         return callback(null);
+                    }
                     const dropSql = `DROP DATABASE "${dbName}";`;
                     client.query(dropSql, (err) => {
                         client.end();
-                        if (err)
+                        if (err) {
                             return callback(err);
+                        }
                         info(`Successfully dropped database "${dbName}".`);
                         return callback(null);
                     });

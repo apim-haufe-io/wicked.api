@@ -42,14 +42,15 @@ users.post('/machine', authMiddleware.rejectFromKong, function (req, res, next) 
 
 users.get('/', verifyReadScope, function (req, res, next) {
     const { offset, limit } = utils.getOffsetLimit(req);
-    if (req.query.customId)
+    if (req.query.customId) {
         users.getUserByCustomId(req.app, res, req.query.customId);
-    else if (req.query.email)
+    } else if (req.query.email) {
         users.getUserByEmail(req.app, res, req.query.email);
-    else if (req.apiUserId)
+    } else if (req.apiUserId) {
         users.getUsers(req.app, res, req.apiUserId, offset, limit);
-    else
+    } else {
         res.status(403).jsonp({ message: 'Not allowed. Unauthorized.' });
+    }
 });
 
 users.get('/:userId', verifyReadScope, function (req, res, next) {
@@ -57,10 +58,11 @@ users.get('/:userId', verifyReadScope, function (req, res, next) {
 });
 
 users.patch('/:userId', verifyWriteScope, function (req, res, next) {
-    if (req.get('X-VerificationId'))
+    if (req.get('X-VerificationId')) {
         verifications.patchUserWithVerificationId(req.app, res, users, req.apiUserId, req.get('X-VerificationId'), req.params.userId, req.body);
-    else if (req.apiUserId)
+    } else if (req.apiUserId) {
         users.patchUser(req.app, res, req.apiUserId, req.params.userId, req.body);
+    }
 });
 
 users.delete('/:userId', verifyWriteScope, function (req, res, next) {
@@ -83,8 +85,9 @@ users.delete('/:userId/password', verifyWriteScope, function (req, res, next) {
  * Checks globals.json for selected password validation strategy.
  */
 users.validatePassword = function (password, passwordIsHashed) {
-    if (passwordIsHashed)
+    if (passwordIsHashed) {
         return true;
+    }
     const glob = utils.loadGlobals();
     const passwordStrategy = glob.passwordStrategy;
     return passwordValidator.validatePassword(password, passwordStrategy);
@@ -92,13 +95,16 @@ users.validatePassword = function (password, passwordIsHashed) {
 
 users.isUserIdAdmin = function (app, userId, callback) {
     debug('isUserIdAdmin()');
-    if (!callback || typeof (callback) !== 'function')
+    if (!callback || typeof (callback) !== 'function') {
         throw utils.makeError(500, 'isUserIdAdmin: callback is null or not a function');
-    if (!userId)
+    }
+    if (!userId) {
         return callback(null, false);
+    }
     users.loadUser(app, userId, (err, user) => {
-        if (err)
+        if (err) {
             return callback(err);
+        }
 
         return callback(null, users.isUserAdmin(app, user));
     });
@@ -119,26 +125,33 @@ users.hasUserGroup = function (app, userInfo, group) {
     debug('hasUserGroup()');
     let foundGroup = false;
     for (let i = 0; i < userInfo.groups.length; ++i) {
-        if (userInfo.groups[i] == group)
+        if (userInfo.groups[i] == group) {
             return true;
+        }
     }
     return userInfo.admin;
 };
 
 users.isActionAllowed = function (app, loggedInUserId, userId, callback) {
     debug('isActionAllowed()');
-    if (!callback || typeof (callback) !== 'function')
+    if (!callback || typeof (callback) !== 'function') {
         throw new Error('isActionAllowed: callback is null or not a function');
+    }
     // Do we have a logged in user?
-    if (!loggedInUserId)
+    if (!loggedInUserId) {
         return callback(null, false, null);
+    }
     users.loadUser(app, loggedInUserId, (err, userInfo) => {
-        if (err)
+        if (err) {
             return callback(err, false, userInfo);
-        if (loggedInUserId == userId)
+        }
+        if (loggedInUserId == userId) {
             return callback(null, true, userInfo);
-        if (!userInfo) // User not found, action not allowed
+        }
+        if (!userInfo) {
+            // User not found, action not allowed
             return callback(null, false, userInfo);
+        }
         // Is user an admin?
         return callback(null, userInfo.admin, userInfo);
     });
@@ -146,13 +159,16 @@ users.isActionAllowed = function (app, loggedInUserId, userId, callback) {
 
 users.loadUser = function (app, userId, callback) {
     debug('loadUser(): ' + userId);
-    if (!callback || typeof (callback) !== 'function')
+    if (!callback || typeof (callback) !== 'function') {
         throw new Error('loadUser: callback is null or not a function');
-    if (!userId)
+    }
+    if (!userId) {
         return callback(null, null);
+    }
     return dao.users.getById(userId, (err, userInfo) => {
-        if (err)
+        if (err) {
             return callback(err);
+        }
         postProcessUser(userInfo);
         return callback(null, userInfo);
     });
@@ -175,18 +191,21 @@ function postProcessUser(userInfo) {
             groups: { href: '/groups' }
         };
 
-        if (userInfo.clientId)
+        if (userInfo.clientId) {
             delete userInfo.clientId;
-        if (userInfo.clientSecret)
+        }
+        if (userInfo.clientSecret) {
             delete userInfo.clientSecret;
+        }
     }
 }
 
 
 users.loadUserByEmail = function (app, userEmail, callback) {
     debug('loadUserByEmail(): ' + userEmail);
-    if (!callback || typeof (callback) !== 'function')
+    if (!callback || typeof (callback) !== 'function') {
         throw new Error('loadUser: callback is null or not a function');
+    }
 
     return dao.users.getByEmail(userEmail, callback);
 };
@@ -194,20 +213,26 @@ users.loadUserByEmail = function (app, userEmail, callback) {
 users.saveUser = function (app, userInfo, userId, callback) {
     debug('saveUser()');
     debug(userInfo);
-    if (!callback || typeof (callback) !== 'function')
+    if (!callback || typeof (callback) !== 'function') {
         throw new Error('loadUser: callback is null or not a function');
+    }
 
     const userInfoToSave = Object.assign({}, userInfo);
-    if (userInfoToSave.name)
+    if (userInfoToSave.name) {
         delete userInfoToSave.name;
-    if (userInfoToSave.admin)
+    }
+    if (userInfoToSave.admin) {
         delete userInfoToSave.admin;
-    if (userInfoToSave.clientId)
+    }
+    if (userInfoToSave.clientId) {
         delete userInfoToSave.clientId;
-    if (userInfoToSave.clientSecret)
+    }
+    if (userInfoToSave.clientSecret) {
         delete userInfoToSave.clientSecret;
-    if (userInfoToSave._links)
+    }
+    if (userInfoToSave._links) {
         delete userInfoToSave._links;
+    }
 
     dao.users.save(userInfoToSave, userId, callback);
 };
@@ -217,22 +242,27 @@ users.createUser = function (app, res, loggedInUserId, userCreateInfo, isMachine
     // Only admins are allowed to do this (for now)
     if (!isMachineUser) {
         users.loadUser(app, loggedInUserId, (err, creatingUserInfo) => {
-            if (err)
+            if (err) {
                 return utils.fail(res, 403, 'Users: Could not load calling user', err);
-            if (!creatingUserInfo.admin)
+            }
+            if (!creatingUserInfo.admin) {
                 return utils.fail(res, 403, 'Only admins are allowed to create users.');
+            }
 
             // Now fire off the user creation
             createUserImpl(app, res, userCreateInfo);
         });
     } else {
         // Slightly other checks here...
-        if (!userCreateInfo.customId)
+        if (!userCreateInfo.customId) {
             return utils.fail(res, 400, 'Machines users must have a custom ID');
-        if (!userCreateInfo.customId.startsWith('internal:'))
+        }
+        if (!userCreateInfo.customId.startsWith('internal:')) {
             return utils.fail(res, 400, 'Machine user customId must start with "internal:"');
-        if (userCreateInfo.password)
+        }
+        if (userCreateInfo.password) {
             return utils.fail(res, 400, 'Machine users must not have a password');
+        }
         // Off you go...
         createUserImpl(app, res, userCreateInfo);
     }
@@ -242,17 +272,21 @@ const emailRegex = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\
 function createUserImpl(app, res, userCreateInfo) {
     debug('createUserImpl(), user create info:');
     debug(userCreateInfo);
-    if (!userCreateInfo.email && !userCreateInfo.customId)
+    if (!userCreateInfo.email && !userCreateInfo.customId) {
         return res.status(400).jsonp({ message: 'Bad request. User needs email address.' });
+    }
     if (userCreateInfo.password) {
         const passwordResult = users.validatePassword(userCreateInfo.password, userCreateInfo.passwordIsHashed);
-        if (!passwordResult.valid)
+        if (!passwordResult.valid) {
             return res.status(400).jsonp({ message: passwordResult.message });
+        }
     }
-    if (userCreateInfo.email)
+    if (userCreateInfo.email) {
         userCreateInfo.email = userCreateInfo.email.toLowerCase();
-    if (!emailRegex.test(userCreateInfo.email))
+    }
+    if (!emailRegex.test(userCreateInfo.email)) {
         return res.status(400).json({ message: 'Email address invalid (not RFC 5322 compliant)' });
+    }
 
     // Name is no longer part of the user, this goes into registrations!
     delete userCreateInfo.name;
@@ -265,14 +299,16 @@ function createUserImpl(app, res, userCreateInfo) {
     let password = null;
     let mustChangePassword = false;
     if (userCreateInfo.password) {
-        if (userCreateInfo.passwordIsHashed)
+        if (userCreateInfo.passwordIsHashed) {
             password = userCreateInfo.password;
-        else
+        } else {
             password = utils.makePasswordHash(userCreateInfo.password);
+        }
         mustChangePassword = userCreateInfo.mustChangePassword;
     }
-    if (!userCreateInfo.groups)
+    if (!userCreateInfo.groups) {
         userCreateInfo.groups = [];
+    }
 
     // The "validated" property is stored as-is, we trust the calling
     // user that it's prefilled correctly. Same goes for the user groups;
@@ -289,19 +325,23 @@ function createUserImpl(app, res, userCreateInfo) {
     };
 
     dao.users.create(newUser, (err, createdUserInfo) => {
-        if (err)
+        if (err) {
             return utils.fail(res, 500, 'createUser: Could not create user', err);
+        }
 
         // Reload to get links and things
         users.loadUser(app, newId, (err, freshUser) => {
-            if (err)
+            if (err) {
                 return utils.fail(res, 500, 'createUser: Could not load user after creating', err);
-            if (!freshUser)
+            }
+            if (!freshUser) {
                 return utils.fail(res, 500, `createUser: Newly created user with id ${newId} could not be loaded (not found)`);
+            }
 
             // Don't return the password hash
-            if (freshUser.password)
+            if (freshUser.password) {
                 delete freshUser.password;
+            }
             res.status(201).json(freshUser);
 
             webhooks.logEvent(app, {
@@ -320,25 +360,31 @@ function createUserImpl(app, res, userCreateInfo) {
 users.getUser = function (app, res, loggedInUserId, userId) {
     debug('getUser(): ' + userId);
     users.isActionAllowed(app, loggedInUserId, userId, (err, isAllowed) => {
-        if (err)
+        if (err) {
             return utils.fail(res, 500, 'getUser: isActionAllowed returned an error.', err);
-        if (!isAllowed)
+        }
+        if (!isAllowed) {
             return res.status(403).jsonp({ message: 'Not allowed.' });
+        }
         users.loadUser(app, userId, (err, user) => {
-            if (err)
+            if (err) {
                 return utils.fail(res, 500, 'getUser: Could not load user.', err);
-            if (!user)
+            }
+            if (!user) {
                 return res.status(404).jsonp({ message: 'Not found.' });
+            }
             if (user.password) {
                 delete user.password;
                 user.hasPassword = true;
             }
             // You can't retrieve clientId and clientSecret for other users
             if (userId != loggedInUserId) {
-                if (user.clientId)
+                if (user.clientId) {
                     delete user.clientId;
-                if (user.clientSecret)
+                }
+                if (user.clientSecret) {
                     delete user.clientSecret;
+                }
             }
 
             res.json(user);
@@ -349,16 +395,20 @@ users.getUser = function (app, res, loggedInUserId, userId) {
 users.getUsers = function (app, res, loggedInUserId, offset, limit) {
     debug('getUsers()');
     users.loadUser(app, loggedInUserId, (err, user) => {
-        if (err)
+        if (err) {
             return utils.fail(res, 500, 'getUsers: loadUser failed', err);
-        if (!user)
+        }
+        if (!user) {
             return utils.fail(res, 400, 'Bad request. Unknown user.');
-        if (!user.admin)
+        }
+        if (!user.admin) {
             return utils.fail(res, 403, 'Not allowed. Only admins can retrieve user list.');
+        }
 
         dao.users.getIndex(offset, limit, (err, userIndex, countResult) => {
-            if (err)
+            if (err) {
                 return utils.fail(res, 500, 'getUsers: DAO getIndex failed.', err);
+            }
             res.json({
                 items: userIndex,
                 count: countResult.count,
@@ -375,10 +425,12 @@ users.getUserByCustomId = function (app, res, customId) {
 
     // No security check here, only retrieves short info
     dao.users.getShortInfoByCustomId(customId, (err, shortInfo) => {
-        if (err)
+        if (err) {
             return utils.fail(res, 500, 'getUserByCustomId: DAO getShortInfoByCustomId failed.', err);
-        if (!shortInfo)
+        }
+        if (!shortInfo) {
             return utils.fail(res, 404, `User with custom ID ${customId} not found.`);
+        }
         res.json([shortInfo]);
     });
 };
@@ -388,18 +440,21 @@ users.getUserByEmail = function (app, res, email) {
 
     // No security check here, only retrieves short info
     dao.users.getShortInfoByEmail(email, (err, shortInfo) => {
-        if (err)
+        if (err) {
             return utils.fail(res, 500, 'getUserByEmail: DAO getShortInfoByEmail failed.', err);
-        if (!shortInfo)
+        }
+        if (!shortInfo) {
             return utils.fail(res, 404, `User with email ${email} not found.`);
+        }
         res.json([shortInfo]);
     });
 };
 
 function comparePasswords(password, userInfo, callback) {
     debug(`comparePasswords()`);
-    if (bcrypt.compareSync(password, userInfo.password))
+    if (bcrypt.compareSync(password, userInfo.password)) {
         return callback(null);
+    }
     // Fallback to Meteor type checking
     debug('comparePasswords(): Falling back to Meteor type matching');
     const hash = crypto.createHash('sha256');
@@ -423,20 +478,26 @@ function comparePasswords(password, userInfo, callback) {
 users.getUserByEmailAndPassword = function (app, res, loggedInUserId, email, password) {
     debug('getUserByEmailAndPassword(): ' + email + ', password=***');
     users.loadUser(app, loggedInUserId, (err, loggedInUserInfo) => {
-        if (err)
+        if (err) {
             return utils.fail(res, 500, 'Could not verify logged in user.', err);
-        if (!loggedInUserInfo || (loggedInUserInfo && !loggedInUserInfo.admin))
+        }
+        if (!loggedInUserInfo || (loggedInUserInfo && !loggedInUserInfo.admin)) {
             return utils.fail(res, 403, 'Not allowed. Only admin users can verify a user by email and password.');
+        }
         users.loadUserByEmail(app, email, (err, userInfo) => {
-            if (err)
+            if (err) {
                 return utils.fail(res, 500, 'getUserByEmailAndPassword: loadUserByEmail failed.', err);
-            if (!userInfo)
+            }
+            if (!userInfo) {
                 return utils.fail(res, 404, 'User not found or password not correct.');
-            if (!userInfo.password)
+            }
+            if (!userInfo.password) {
                 return utils.fail(res, 400, 'Bad request. User has no defined password.');
+            }
             comparePasswords(password, userInfo, function (err) {
-                if (err)
+                if (err) {
                     return utils.fail(res, 403, 'Password not correct or user not found.');
+                }
                 delete userInfo.password;
                 res.json([userInfo]);
             });
@@ -448,63 +509,77 @@ users.patchUser = function (app, res, loggedInUserId, userId, userInfo) {
     debug('patchUser(): ' + userId);
     debug(userInfo);
     users.isActionAllowed(app, loggedInUserId, userId, (err, isAllowed, loggedInUserInfo) => {
-        if (err)
+        if (err) {
             return utils.fail(res, 500, 'patchUser: isActionAllowed failed.', err);
-        if (!isAllowed)
+        }
+        if (!isAllowed) {
             return utils.fail(res, 403, 'Not allowed');
+        }
         if (userInfo.password &&
             !userInfo.forcePasswordUpdate) {
 
             const passwordResult = users.validatePassword(userInfo.password, userInfo.passwordIsHashed);
-            if (!passwordResult.valid)
+            if (!passwordResult.valid) {
                 return utils.fail(res, 400, passwordResult.message);
+            }
         }
         delete userInfo.forcePasswordUpdate;
 
         users.loadUser(app, userId, (err, user) => {
-            if (err)
+            if (err) {
                 return utils.fail(res, 500, 'patchUser: loadUser failed', err);
+            }
 
-            if (!user)
+            if (!user) {
                 return utils.fail(res, 404, 'Not found.');
-            if (userInfo.customId)
-                if (userInfo.customId != user.customId)
-                    return utils.fail(res, 400, 'Bad request. Changing custom ID is not allowed.');
+            }
+            if (userInfo.customId && userInfo.customId !== user.customId) {
+                return utils.fail(res, 400, 'Bad request. Changing custom ID is not allowed.');
+            }
             if (user.password &&
                 userInfo.email &&
-                (userInfo.email != user.email))
+                (userInfo.email != user.email)) {
                 return utils.fail(res, 400, 'Bad request. You can not change the email address of a username with a local password.');
+            }
 
             // Groups can only be changed on behalf of an Admin
             if (userInfo.groups &&
-                !loggedInUserInfo.admin)
+                !loggedInUserInfo.admin) {
                 return utils.fail(res, 403, 'Not allowed. Only admins can change a user\'s groups.');
-            if (userInfo.groups)
+            }
+            if (userInfo.groups) {
                 user.groups = userInfo.groups;
-            if (userInfo.email)
+            }
+            if (userInfo.email) {
                 user.email = userInfo.email;
+            }
             if (userInfo.hasOwnProperty('validated') &&
                 userInfo.validated !== user.validated &&
-                !loggedInUserInfo.admin)
+                !loggedInUserInfo.admin) {
                 return utils.fail(res, 403, 'Not allowed. Only admins can change a user\'s validated email status.');
-            if (userInfo.hasOwnProperty('validated'))
+            }
+            if (userInfo.hasOwnProperty('validated')) {
                 user.validated = userInfo.validated;
+            }
             if (userInfo.password) {
                 // If password is already hashed, leave as is.
-                if (!userInfo.passwordIsHashed)
+                if (!userInfo.passwordIsHashed) {
                     user.password = utils.makePasswordHash(userInfo.password);
-                else
+                } else {
                     user.password = userInfo.password;
+                }
             }
             if (userInfo.hasOwnProperty('mustChangePassword')) {
-                if (!loggedInUserInfo.admin)
+                if (!loggedInUserInfo.admin) {
                     return utils.fail(res, 403, 'Not allowed. Only admins can update the "mustChangePassword" property.');
+                }
                 user.mustChangePassword = userInfo.mustChangePassword;
             }
 
             dao.users.save(user, loggedInUserId, (err) => {
-                if (err)
+                if (err) {
                     return utils.fail(res, 500, 'patchUser: DAO returned an error', err);
+                }
                 webhooks.logEvent(app, {
                     action: webhooks.ACTION_UPDATE,
                     entity: webhooks.ENTITY_USER,
@@ -514,11 +589,13 @@ users.patchUser = function (app, res, loggedInUserId, userId, userInfo) {
                     }
                 });
                 users.loadUser(app, user.id, (err, patchedUser) => {
-                    if (err)
+                    if (err) {
                         return utils.fail(res, 500, 'patchUser: loadUser after patch failed', err);
+                    }
                     // Delete password, if present
-                    if (patchedUser.password)
+                    if (patchedUser.password) {
                         delete patchedUser.password;
+                    }
                     res.json(patchedUser);
                 });
             });
@@ -529,25 +606,31 @@ users.patchUser = function (app, res, loggedInUserId, userId, userInfo) {
 users.deleteUser = function (app, res, loggedInUserId, userId) {
     debug('deleteUser(): ' + userId);
     users.isActionAllowed(app, loggedInUserId, userId, (err, isAllowed) => {
-        if (err)
+        if (err) {
             return utils.fail(res, 500, 'deleteUser: isActionAllowed failed.', err);
-        if (!isAllowed)
+        }
+        if (!isAllowed) {
             return res.status(403).jsonp({ message: 'Not allowed.' });
+        }
 
         // Make sure the user doesn't have any applications; if that's the case,
         // we will not allow deleting.
         dao.users.getById(userId, (err, userInfo) => {
-            if (err)
+            if (err) {
                 return utils.fail(res, 500, 'deleteUser: DAO failed to load user.', err);
-            if (!userInfo)
+            }
+            if (!userInfo) {
                 return utils.fail(res, 404, 'User not found');
-            if (userInfo.applications && userInfo.applications.length > 0)
+            }
+            if (userInfo.applications && userInfo.applications.length > 0) {
                 return utils.fail(res, 409, 'User has applications; remove user from applications first.');
+            }
 
             // OK, now we allow deletion.
             dao.users.delete(userId, loggedInUserId, (err) => {
-                if (err)
+                if (err) {
                     return utils.fail(res, 500, 'deleteUser: DAO failed to delete user.', err);
+                }
 
                 res.status(204).json('');
 
@@ -567,23 +650,30 @@ users.deleteUser = function (app, res, loggedInUserId, userId) {
 users.deletePassword = function (app, res, loggedInUserId, userId) {
     debug('deletePassword(): ' + userId);
     users.loadUser(app, loggedInUserId, (err, adminUser) => {
-        if (err)
+        if (err) {
             return utils.fail(res, 500, 'deletePassword: loadUser (loggedInUserId) failed.', err);
-        if (!adminUser)
+        }
+        if (!adminUser) {
             return utils.fail(res, 400, 'Bad request. Unknown user.');
-        if (!adminUser.admin)
+        }
+        if (!adminUser.admin) {
             return utils.fail(res, 403, 'Not allowed. Only admins can delete passwords.');
+        }
         users.loadUser(app, userId, (err, user) => {
-            if (err)
+            if (err) {
                 return utils.fail(res, 500, 'deletePassword: loadUser (userId) failed.', err);
-            if (!user)
+            }
+            if (!user) {
                 return res.status(404).jsonp({ message: 'User not found.' });
-            if (!user.password)
+            }
+            if (!user.password) {
                 return res.status(204).send('');
+            }
             delete user.password;
             users.saveUser(app, user, loggedInUserId, (err) => {
-                if (err)
+                if (err) {
                     return utils.fail(res, 500, 'deletePassword: saveUser failed.', err);
+                }
                 return res.status(204).send('');
             });
         });

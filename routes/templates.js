@@ -28,8 +28,9 @@ templates.get('/email/:templateId', verifyScope, function (req, res, next) {
 
 templates.getChatbotTemplates = function (app, res, loggedInUserId) {
     users.isUserIdAdmin(app, loggedInUserId, (err, isAdmin) => {
-        if (err || !isAdmin)
+        if (err || !isAdmin) {
             return res.status(403).jsonp({ message: 'Not allowed. Only admins can do this.' });
+        }
         const chatbotTemplates = utils.loadChatbotTemplates(app);
         res.json(chatbotTemplates);
     });
@@ -37,8 +38,9 @@ templates.getChatbotTemplates = function (app, res, loggedInUserId) {
 
 templates.getEmailTemplate = function (app, res, loggedInUserId, templateName, next) {
     users.isUserIdAdmin(app, loggedInUserId, (err, isAdmin) => {
-        if (err || !isAdmin)
+        if (err || !isAdmin) {
             return res.status(403).jsonp({ message: 'Not allowed. Only admins can do this.' });
+        }
         try {
             const emailTemplate = utils.loadEmailTemplate(app, templateName);
             res.setHeader('Content-Type', 'text/plain');

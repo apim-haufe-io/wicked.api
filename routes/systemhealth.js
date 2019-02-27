@@ -67,8 +67,9 @@ systemhealth.checkHealth = function (app) {
             const kongUrl = new URL(kongUri);
             const req = { url: kongUri, headers: { 'Correlation-Id': correlationId } };
             // We'll only inject the "insecure" agent if we really need it.
-            if ("https:" == kongUrl.protocol)
+            if ("https:" == kongUrl.protocol) {
                 req.agent = portalAgent;
+            }
             request.get(req, function (err, apiResult, apiBody) {
                 callback(null, makeHealthEntry('kong', kongUri, err, apiResult, apiBody));
             });
@@ -113,8 +114,9 @@ systemhealth.checkHealth = function (app) {
 
             h.push(results.portalPing);
             h.push(results.kongPing);
-            if (results.authPing)
+            if (results.authPing) {
                 h.push(results.authPing);
+            }
 
             // Check our webhook listeners
             dao.webhooks.listeners.getAll((err, listeners) => {
@@ -205,12 +207,15 @@ function makeHealthEntry(pingName, pingUrl, apiErr, apiResult, apiBody) {
         let error;
         try {
             const jsonBody = utils.getJson(apiBody);
-            if (jsonBody.hasOwnProperty('healthy'))
+            if (jsonBody.hasOwnProperty('healthy')) {
                 healthy = jsonBody.healthy;
-            if (jsonBody.hasOwnProperty('message'))
+            }
+            if (jsonBody.hasOwnProperty('message')) {
                 msg = jsonBody.message;
-            if (jsonBody.hasOwnProperty('error'))
+            }
+            if (jsonBody.hasOwnProperty('error')) {
                 error = jsonBody.error;
+            }
         } catch (err) {
             debug('Couldn\'t parse JSON from body:');
             debug(apiBody);
@@ -236,14 +241,18 @@ function makeHealthEntry(pingName, pingUrl, apiErr, apiResult, apiBody) {
 
         if (pingName === 'kong') {
             // These are from the portal, should not be returned
-            if (pingResponse.version)
+            if (pingResponse.version) {
                 delete pingResponse.version;
-            if (pingResponse.gitBranch)
+            }
+            if (pingResponse.gitBranch) {
                 delete pingResponse.gitBranch;
-            if (pingResponse.gitLastCommit)
+            }
+            if (pingResponse.gitLastCommit) {
                 delete pingResponse.gitLastCommit;
-            if (pingResponse.buildDate)
+            }
+            if (pingResponse.buildDate) {
                 delete pingResponse.buildDate;
+            }
         }
 
         return pingResponse;
@@ -272,11 +281,13 @@ systemhealth.getSystemHealthInternal = function (app) {
 systemhealth.getSystemHealth = function (app, res, loggedInUserId) {
     debug('getSystemHealth()');
     users.loadUser(app, loggedInUserId, (err, userInfo) => {
-        if (err)
+        if (err) {
             return utils.fail(res, 500, 'getSystemHealth: loadUser failed', err);
+        }
         if (!userInfo ||
-            !userInfo.admin)
+            !userInfo.admin) {
             return utils.fail(res, 403, 'Not allowed. Only Admins may do this.');
+        }
         return res.json(systemhealth._health);
     });
 };

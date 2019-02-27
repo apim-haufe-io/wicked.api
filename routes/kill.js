@@ -20,15 +20,18 @@ kill.post('/', verifyKillScope, function (req, res, next) {
 kill.killApi = function (app, res, loggedInUserId) {
     debug('killApi()');
     users.loadUser(app, loggedInUserId, (err, userInfo) => {
-        if (err)
+        if (err) {
             return utils.fail(res, 500, 'getApplications: Could not load user.', err);
-        if (!userInfo)
+        }
+        if (!userInfo) {
             return utils.fail(res, 403, 'Not allowed.');
-        if (!userInfo.admin && !userInfo.approver)
+        }
+        if (!userInfo.admin && !userInfo.approver) {
             return utils.fail(res, 403, 'Not allowed. This is admin land.');
+        }
         warn('RESTARTING API DUE TO USER REQUEST');
         res.status(204).json({});
-        setTimeout(function() {
+        setTimeout(function () {
             process.exit(0);
         }, 1000);
     });

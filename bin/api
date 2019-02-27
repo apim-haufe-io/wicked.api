@@ -49,19 +49,22 @@ app.set('config_key', configKey);
 envReader.checkEnvironment(staticConfigPath, configKey, environment);
 
 const staticRepo = process.env.PORTAL_API_STATIC_CONFIG;
-if (!staticRepo)
+if (!staticRepo) {
     throw Error('Environment variable PORTAL_API_STATIC_CONFIG not set.');
+}
 app.set('static_config', staticRepo);
 debug('Static DB: ' + staticRepo);
 const dynamicRepo = process.env.PORTAL_API_DYNAMIC_CONFIG;
-if (!dynamicRepo)
+if (!dynamicRepo) {
     throw Error('Environment variable PORTAL_API_DYNAMIC_CONFIG not set.');
+}
 app.set('dynamic_config', dynamicRepo);
 debug('Dynamic DB: ' + dynamicRepo);
 
 const aesKey = process.env.PORTAL_API_AESKEY;
-if (!aesKey)
+if (!aesKey) {
     throw Error('Environment variable PORTAL_API_AESKEY not set. Needed for encrypting files.');
+}
 app.set('aes_key', aesKey);
 debug('AES encryption key for file encryption set.');
 
@@ -79,8 +82,9 @@ try {
 envReader.checkEnvironment(staticConfigPath, configKey, environment);
 
 // Sanity check environment variables
-if (!envReader.sanityCheckDir(staticRepo))
+if (!envReader.sanityCheckDir(staticRepo)) {
     throw Error('Environment variables are missing. Check log files for details.');
+}
 
 let server = null;
 // How does our dynamic config look?
@@ -193,8 +197,9 @@ function findEnvKeyFileName(baseDir) {
     const fileNames = fs.readdirSync(baseDir);
     for (let i = 0; i < fileNames.length; ++i) {
         const fileName = fileNames[i];
-        if (/[a-zA-Z0-9\._]*envkey/.test(fileName))
+        if (/[a-zA-Z0-9\._]*envkey/.test(fileName)) {
             return path.join(baseDir, fileName);
+        }
     }
     return null;
 }

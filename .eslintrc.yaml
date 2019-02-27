@@ -30,6 +30,9 @@ rules:
     - off
   no-console:
     - off
+  curly:
+    - error
+    - all
 globals:
   process: true
   Buffer: true
