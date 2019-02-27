@@ -2,8 +2,8 @@ pipeline {
     agent {
         docker {
             image 'haufelexware/wicked.build-agent:latest'
-            // swarmslave:docker
-            args '-u 1000:125'
+            // Add docker group
+            args '--group-add 125'
         }
     }
     triggers {
