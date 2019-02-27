@@ -2,6 +2,14 @@
 
 set -e
 
+ls -la
+if [[ $(id -u) == 0 ]]; then
+    chown -R swarmslave:swarmslave .
+    echo "*** BUILD SCRIPT RUNNING AS root"
+    echo "*** Don't do this. Exiting."
+    exit 1
+fi
+
 if [ -z "$DOCKER_PREFIX" ]; then
     echo "WARNING: Env var DOCKER_PREFIX not set, assuming haufelexware/wicked."
     export DOCKER_PREFIX="haufelexware/wicked."
@@ -31,7 +39,6 @@ echo "Building normal image..."
 echo "============================================"
 
 export BUILD_ALPINE=""
-ls -la
 perl -pe 's;(\\*)(\$([a-zA-Z_][a-zA-Z_0-9]*)|\$\{([a-zA-Z_][a-zA-Z_0-9]*)\})?;substr($1,0,int(length($1)/2)).($2&&length($1)%2?$2:$ENV{$3||$4});eg' Dockerfile.template > Dockerfile
 normalImageName="${DOCKER_PREFIX}api:${DOCKER_TAG}"
 if [[ "dev" = "${DOCKER_TAG}" ]]; then
