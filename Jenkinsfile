@@ -2,10 +2,8 @@ pipeline {
     agent {
         docker {
             image 'haufelexware/wicked.build-agent:latest'
-            // This was a bad workaround to make it work the first time; now the build image
-            // contains a "dockerjenkins" group which, on the docker host, has the right
-            // permissions. The GID is 125.
-            // args '-u 0:0'
+            // swarmslave:docker
+            args '-u 1000:125'
         }
     }
     triggers {
@@ -14,12 +12,6 @@ pipeline {
     }
 
     stages {
-        // stage('Checkout') {
-        //     steps {
-        //         checkout scm
-        //     }
-        // }
-
         stage('SonarQube analysis') {
             steps {
                 script {
