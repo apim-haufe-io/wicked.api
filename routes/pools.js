@@ -80,21 +80,27 @@ pools.delete('/:poolId/namespaces/:namespaceId', verifyWriteScope, function (req
 
 function verifyAccess(app, loggedInUserId, poolId, callback) {
     debug(`verifyAccess(${loggedInUserId})`);
-    if (!loggedInUserId)
+    if (!loggedInUserId) {
         return callback(utils.makeError(403, 'Must be logged in to access this endpoint'));
+    }
     users.loadUser(app, loggedInUserId, (err, userInfo) => {
-        if (err)
+        if (err) {
             return callback(utils.makeError(500, 'Namespaces: Could not load user.', err));
-        if (!userInfo)
+        }
+        if (!userInfo) {
             return callback(utils.makeError(403, 'Namespaces: Not allowed, logged in user not found.'));
-        if (!userInfo.admin)
+        }
+        if (!userInfo.admin) {
             return callback(utils.makeError(403, 'Only admins can access namespaces. Consider using a machine user.'));
+        }
         // Access rights are okay, let's check for the pool info
-        if (!utils.hasPool(poolId))
+        if (!utils.hasPool(poolId)) {
             return callback(utils.makeError(404, `Unknown pool ${poolId}, cannot get namespaces.`));
+        }
         const poolInfo = utils.getPool(poolId);
-        if (!poolInfo.requiresNamespace)
+        if (!poolInfo.requiresNamespace) {
             return callback(utils.makeError(400, `Pool ${poolId} does not support namespaces, i.e. property requiresNamespaces is false or not set.`));
+        }
         return callback(null, userInfo);
     });
 }
@@ -102,11 +108,13 @@ function verifyAccess(app, loggedInUserId, poolId, callback) {
 function getNamespaces(req, res, loggedInUserId, poolId, filter, orderBy, offset, limit, noCountCache) {
     debug(`getNamespaces(${poolId})`);
     verifyAccess(req.app, loggedInUserId, poolId, (err, _) => {
-        if (err)
+        if (err) {
             return utils.failError(res, err);
+        }
         dao.namespaces.getByPool(poolId, filter, orderBy, offset, limit, noCountCache, (err, namespaceData, countResult) => {
-            if (err)
+            if (err) {
                 return utils.fail(res, 500, 'Namespaces: Loading namespaces failed (DAO)', err);
+            }
             return res.json({
                 items: namespaceData,
                 count: countResult.count,
@@ -121,13 +129,16 @@ function getNamespaces(req, res, loggedInUserId, poolId, filter, orderBy, offset
 function getNamespace(req, res, loggedInUserId, poolId, namespace) {
     debug(`getNamespace(${poolId}, ${namespace})`);
     verifyAccess(req.app, loggedInUserId, poolId, (err, _) => {
-        if (err)
+        if (err) {
             return utils.failError(res, err);
+        }
         dao.namespaces.getByPoolAndNamespace(poolId, namespace, (err, namespaceData) => {
-            if (err)
+            if (err) {
                 return utils.fail(res, 500, 'Namespaces: Loading namespace failed (DAO)', err);
-            if (!namespaceData)
+            }
+            if (!namespaceData) {
                 return res.status(404).json({ message: 'Not found.' });
+            }
             return res.json(namespaceData);
         });
     });
@@ -136,24 +147,31 @@ function getNamespace(req, res, loggedInUserId, poolId, namespace) {
 function upsertNamespace(req, res, loggedInUserId, poolId, namespace, namespaceData) {
     debug(`upsertNamespace(${poolId}, ${namespace})`);
     verifyAccess(req.app, loggedInUserId, poolId, (err, _) => {
-        if (err)
+        if (err) {
             return utils.failError(res, err);
+        }
         // Verify it's JSON
-        if (typeof (namespaceData) !== 'object')
+        if (typeof (namespaceData) !== 'object') {
             return utils.fail(res, 400, 'Received non-JSON payload. Content-Type correct?');
-        if (!namespaceData.description)
+        }
+        if (!namespaceData.description) {
             return utils.fail(res, 400, 'Property "description" is mandatory, but missing.');
-        if (!utils.isNamespaceValid(namespace))
+        }
+        if (!utils.isNamespaceValid(namespace)) {
             return utils.fail(res, 400, `Invalid namespace ID; only a-z, 0-9, - and _ are allowed`);
-        if (namespaceData.namespace && namespaceData.namespace !== namespace)
+        }
+        if (namespaceData.namespace && namespaceData.namespace !== namespace) {
             return utils.fail(res, 400, 'Mismatch in namespace name (path/body)');
-        if (namespaceData.poolId && namespaceData.poolId !== poolId)
+        }
+        if (namespaceData.poolId && namespaceData.poolId !== poolId) {
             return utils.fail(res, 400, 'Mismatch in pool ID (path/body)');
+        }
         namespaceData.poolId = poolId;
         namespaceData.namespace = namespace;
         dao.namespaces.upsert(poolId, namespace, loggedInUserId, namespaceData, (err) => {
-            if (err)
+            if (err) {
                 return utils.fail(res, 500, `Failed to upsert namespace ${namespace} in pool ${poolId}`, err);
+            }
             return res.status(204).json({ message: 'Success.' });
         });
     });
@@ -162,11 +180,13 @@ function upsertNamespace(req, res, loggedInUserId, poolId, namespace, namespaceD
 function deleteNamespace(req, res, loggedInUserId, poolId, namespace) {
     debug(`upsertNamespace(${poolId}, ${namespace})`);
     verifyAccess(req.app, loggedInUserId, poolId, (err, _) => {
-        if (err)
+        if (err) {
             return utils.failError(res, err);
+        }
         dao.namespaces.delete(poolId, namespace, loggedInUserId, (err) => {
-            if (err)
+            if (err) {
                 return utils.fail(res, 500, `Failed to delete namespace ${namespace} from pool ${poolId}`, err);
+            }
             return res.status(204).json({ message: 'Success.' });
         });
     });

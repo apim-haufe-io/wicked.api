@@ -109,8 +109,9 @@ class PgWebhooksEvents {
         debug('createImpl()');
         const instance = this;
         instance.pgWebhooksListeners.getAllListenersImpl((err, listenerList) => {
-            if (err)
+            if (err) {
                 return callback(err);
+            }
             async.forEach(listenerList, (listenerInfo, callback) => {
                 const tmpEvent = Object.assign({}, eventData);
                 // Each record needs its own ID, not like in the JSON implementation where
@@ -119,8 +120,9 @@ class PgWebhooksEvents {
                 tmpEvent.listenerId = listenerInfo.id;
                 instance.pgUtils.upsert('webhook_events', tmpEvent, null, callback);
             }, (err) => {
-                if (err)
+                if (err) {
                     return callback(err);
+                }
                 debug('Successfully upserted events for all listeners.');
                 return callback(null);
             });
@@ -142,8 +144,9 @@ class PgWebhooksEvents {
                 safetyDispatch = true;
             }
             if (instance._eventsPending || safetyDispatch) {
-                if (instance._eventsPending)
+                if (instance._eventsPending) {
                     info('Detected pending webhook events, firing dispatcher');
+                }
                 instance._lastDispatch = Date.now();
                 instance._eventsPending = false;
                 dispatchEvents((err) => {
@@ -155,8 +158,9 @@ class PgWebhooksEvents {
                 });
             }
         }, 250);
-        if (callback)
+        if (callback) {
             return callback(null);
+        }
     }
 }
 

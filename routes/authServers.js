@@ -55,8 +55,9 @@ authServers.getAuthServer = function (app, res, loggedInUserId, serverId) {
     // what we want.
     const authServer = utils.clone(authServerData);
 
-    if (!authServer.exists)
+    if (!authServer.exists) {
         return utils.fail(res, 404, 'Not found.');
+    }
 
     debug(`getAuthServer(${serverId}), logged in User: ${loggedInUserId}`);
     users.isUserIdAdmin(app, loggedInUserId, (err, isAdmin) => {

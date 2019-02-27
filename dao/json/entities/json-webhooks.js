@@ -162,10 +162,11 @@ class JsonWebhooks {
         if (!this._listeners) {
             const webhooksDir = path.join(this.jsonUtils.getDynamicDir(), 'webhooks');
             const listenersFile = path.join(webhooksDir, this.jsonUtils.LISTENER_FILE);
-            if (!fs.existsSync(listenersFile))
+            if (!fs.existsSync(listenersFile)) {
                 this._listeners = [];
-            else
+            } else {
                 this._listeners = JSON.parse(fs.readFileSync(listenersFile, 'utf8'));
+            }
         }
         return this._listeners;
     }
@@ -174,8 +175,9 @@ class JsonWebhooks {
         debug(`getListener(${listenerId})`);
         const listenerInfos = this.loadListeners();
         const index = JsonWebhooks.getIndex(listenerInfos, listenerId);
-        if (index < 0)
+        if (index < 0) {
             return null;
+        }
         return listenerInfos[index];
     }
 
@@ -193,8 +195,9 @@ class JsonWebhooks {
         debug('loadEvents(): ' + listenerId);
         const webhooksDir = path.join(this.jsonUtils.getDynamicDir(), 'webhooks');
         const eventsFile = path.join(webhooksDir, listenerId + '.json');
-        if (!fs.existsSync(eventsFile))
+        if (!fs.existsSync(eventsFile)) {
             return [];
+        }
         return JSON.parse(fs.readFileSync(eventsFile, 'utf8'));
     }
 
@@ -248,8 +251,9 @@ class JsonWebhooks {
                 try { this.jsonUtils.unlockEvents(lockList[i]); } catch (err2) { debug(err2); error(err2); }
             }
         }
-        if (internalError)
+        if (internalError) {
             throw internalError;
+        }
 
         return success;
     }
@@ -291,8 +295,9 @@ class JsonWebhooks {
         return this.jsonUtils.withLockedListeners(listenerId, function () {
             const listenerInfos = instance.loadListeners();
             const index = JsonWebhooks.getIndex(listenerInfos, listenerId);
-            if (index < 0)
+            if (index < 0) {
                 throw utils.makeError(404, 'Listener not found: ' + listenerId);
+            }
             const deletedListenerInfo = listenerInfos[index];
             listenerInfos.splice(index, 1);
 
@@ -304,8 +309,9 @@ class JsonWebhooks {
     getEventsByListenerSync(listenerId) {
         debug('getEventsByListenerSync()');
         const listener = this.getListener(listenerId);
-        if (!listener)
+        if (!listener) {
             throw utils.makeError(404, 'Listener not found: ' + listenerId);
+        }
         const events = this.loadEvents(listenerId);
         return events;
     }
@@ -313,8 +319,9 @@ class JsonWebhooks {
     flushEventsSync(listenerId) {
         debug('flushEventsSync()');
         const listener = this.getListener(listenerId);
-        if (!listener)
+        if (!listener) {
             throw utils.makeError(404, 'Listener not found: ' + listenerId);
+        }
 
         const instance = this;
         return this.jsonUtils.withLockedEvents(listenerId, function () {
@@ -326,15 +333,17 @@ class JsonWebhooks {
     deleteEventSync(listenerId, eventId) {
         debug('deleteEventSync()');
         const listener = this.getListener(listenerId);
-        if (!listener)
+        if (!listener) {
             throw utils.makeError(404, 'Listener not found: ' + listenerId);
+        }
 
         const instance = this;
         return this.jsonUtils.withLockedEvents(listenerId, function () {
             const events = instance.loadEvents(listenerId);
             const index = JsonWebhooks.getIndex(events, eventId);
-            if (index < 0)
+            if (index < 0) {
                 throw utils.makeError(404, 'Event not found: ' + eventId);
+            }
 
             events.splice(index, 1);
 
@@ -345,8 +354,9 @@ class JsonWebhooks {
     createLogSync(eventData) {
         debug('createLogSync()');
         const listenerList = this.loadListeners();
-        if (listenerList.length === 0)
-            return; // Nothing to do
+        if (listenerList.length === 0) {
+            return;
+        } // Nothing to do
 
         let lockedAll = false;
         let err = null;
@@ -370,11 +380,13 @@ class JsonWebhooks {
                 }
             }
         } finally {
-            if (lockedAll)
+            if (lockedAll) {
                 this.unlockAll();
+            }
         }
-        if (err)
+        if (err) {
             throw err;
+        }
     }
 }
 

@@ -55,15 +55,17 @@ class PgVerifications {
         // Not so nice, this is a FTS, but we don't expect tons of records in here anyway
         const instance = this;
         instance.getAll((err, verifInfos, countResult) => {
-            if (err)
+            if (err) {
                 return callback(err);
+            }
             debug(`reconcileImpl(): Found ${countResult.count} verifications.`);
             const idsToDelete = [];
             const nowUtc = utils.getUtc();
             for (let i = 0; i < verifInfos.length; ++i) {
                 const v = verifInfos[i];
-                if (nowUtc - v.utc > expirySeconds)
+                if (nowUtc - v.utc > expirySeconds) {
                     idsToDelete.push(v.id);
+                }
             }
             if (idsToDelete.length > 0) {
                 info(`Verification reconciliation: Pruning ${idsToDelete.length} verification records (older than ${expirySeconds} seconds).`);

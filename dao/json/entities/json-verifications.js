@@ -84,8 +84,9 @@ class JsonVerifications {
         debug('loadVerifications()');
         const verificationsDir = path.join(this.jsonUtils.getDynamicDir(), 'verifications');
         const verificationsFile = path.join(verificationsDir, '_index.json');
-        if (!fs.existsSync(verificationsFile))
+        if (!fs.existsSync(verificationsFile)) {
             return [];
+        }
         return JSON.parse(fs.readFileSync(verificationsFile, 'utf8'));
     }
 
@@ -112,8 +113,9 @@ class JsonVerifications {
         debug('getByIdSync()');
         const verifs = this.loadVerifications();
         const thisVerif = verifs.find(verif => verif.id === verificationId);
-        if (!thisVerif)
+        if (!thisVerif) {
             return null;
+        }
         return thisVerif;
     }
 
@@ -129,8 +131,9 @@ class JsonVerifications {
                     break;
                 }
             }
-            if (verifIndex < 0)
+            if (verifIndex < 0) {
                 return utils.makeError(404, 'Not found. Verification ID not found.');
+            }
             const thisVerif = verifs[verifIndex];
             verifs.splice(verifIndex, 1);
 
@@ -144,8 +147,9 @@ class JsonVerifications {
         debug('reconcileSync()');
         let lockedVerifs = false;
         try {
-            if (!this.jsonUtils.lockVerifications())
+            if (!this.jsonUtils.lockVerifications()) {
                 return;
+            }
             lockedVerifs = true;
 
             const verifs = this.loadVerifications();
@@ -175,8 +179,9 @@ class JsonVerifications {
                 this.saveVerifications(verifs);
             }
         } finally {
-            if (lockedVerifs)
+            if (lockedVerifs) {
                 this.jsonUtils.unlockVerifications();
+            }
         }
     }
 }

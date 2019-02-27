@@ -25,8 +25,9 @@ dao.init = (app) => {
     // This is defined in the globals.json storage property
     const glob = utils.loadGlobals();
     let storageType = 'json';
-    if (glob.storage && glob.storage.type)
+    if (glob.storage && glob.storage.type) {
         storageType = glob.storage.type;
+    }
     if (storageType === 'postgres') {
         // Postgres storage backend
         debug('DAO uses Postgres backing storage');
@@ -97,7 +98,7 @@ dao.subscriptions = {
     getAll: (filter, orderBy, offset, limit, noCountCache, callback) => { dao._impl.subscriptions.getAll(filter, orderBy, offset, limit, noCountCache, callback); },
     getIndex: (offset, limit, callback) => { dao._impl.subscriptions.getIndex(offset, limit, callback); },
     getCount: (callback) => { dao._impl.subscriptions.getCount(callback); },
- 
+
     create: (newSubscription, creatingUserId, callback) => { dao._impl.subscriptions.create(newSubscription, creatingUserId, callback); },
     delete: (appId, apiId, subscriptionId, callback) => { dao._impl.subscriptions.delete(appId, apiId, subscriptionId, callback); },
     patch: (appId, subsInfo, patchingUserId, callback) => { dao._impl.subscriptions.patch(appId, subsInfo, patchingUserId, callback); },
