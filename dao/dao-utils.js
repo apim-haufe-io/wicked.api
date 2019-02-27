@@ -123,13 +123,6 @@ daoUtils.encryptApiCredentials = (subsList) => {
     }
 };
 
-// DAO Validation functions
-daoUtils.listParameters = (o) => {
-    const functionArray = [];
-    listParametersImpl([], functionArray, o);
-    return functionArray;
-};
-
 const listParametersImpl = (prefixArray, functionArray, o) => {
     for (let k in o) {
         const p = o[k];
@@ -155,6 +148,13 @@ const listParametersImpl = (prefixArray, functionArray, o) => {
             listParametersImpl(moreArray, functionArray, p);
         }
     }
+};
+
+// DAO Validation functions
+daoUtils.listParameters = (o) => {
+    const functionArray = [];
+    listParametersImpl([], functionArray, o);
+    return functionArray;
 };
 
 function dumpSignatures(p1, p2) {

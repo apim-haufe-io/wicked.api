@@ -315,9 +315,15 @@ function thatApiPlanIsValid(apis, plans, sub) {
     return 'ApiPlanIsValid: Application "' + sub.application + '" has a subscription to an invalid API Plan (plan not part of API "' + sub.api + '"): "' + sub.plan + '".';
 }
 
+// The following function returns "null" as in invariant. This is on
+// purpose, as we only need the side effect (pushing to the subscriptions arraay).
+// This is of course in itself a code smell. Hence, still we flag it to not be
+// checked by SonarQube.
+// NOSONAR
 function thatApiIndexIsWritten(apis, plans, sub) {
     if (!apis[sub.api] || !plans[sub.plan]) {
-        return null; // Shouldn't be possible
+        // Shouldn't be possible, but we still won't make it an error.
+        return null; 
     }
     const api = apis[sub.api];
     api.subscriptions.push({
