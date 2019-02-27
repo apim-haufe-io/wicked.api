@@ -1,5 +1,7 @@
 'use strict';
 
+/* global __dirname */
+
 const async = require('async');
 const { debug, info, warn, error } = require('portal-env').Logger('portal-api:dao:pg:meta');
 const path = require('path');

@@ -11,7 +11,7 @@ const verifyKillScope = utils.verifyScope('restart_api');
 // ===== ENDPOINTS =====
 
 kill.post('/', verifyKillScope, function (req, res, next) {
-    debug('POST /kill')
+    debug('POST /kill');
     kill.killApi(req.app, res, req.apiUserId);
 });
 

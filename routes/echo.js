@@ -5,7 +5,7 @@
 const express = require('express');
 const http = require('http');
 
-var { debug, info, warn, error } = require('portal-env').Logger('portal-api:echo');
+const { debug, info, warn, error } = require('portal-env').Logger('portal-api:echo');
 
 const ECHO_PORT = process.env.ECHO_PORT ? process.env.ECHO_PORT : 3009;
 

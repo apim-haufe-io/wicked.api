@@ -1,5 +1,7 @@
 'use strict';
 
+/* global __dirname */
+
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
@@ -701,7 +703,7 @@ utils.concatUrl = (a, b) => {
     if (b.startsWith('/'))
         return a + b;
     return a + '/' + b;
-}
+};
 
 // Middleware to verify a scope
 utils.verifyScope = (requiredScope) => {
@@ -751,7 +753,7 @@ utils.getFunctionParams = (func) => {
         debug(`Does not start with "(", look at me: ${functionAsString}`);
     }
 
-    while (match = REGEX_PARAMETERS_VALUES.exec(functionAsString)) params.push([match[1], match[2]]); // jshint ignore:line
+    while (match = REGEX_PARAMETERS_VALUES.exec(functionAsString)) params.push([match[1], match[2]]); // eslint-disable-line
     return params;
 };
 

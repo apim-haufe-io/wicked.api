@@ -1,20 +1,20 @@
 'use strict';
 
-var utils = require('./utils');
-var fs = require('fs');
-var path = require('path');
-var { debug, info, warn, error } = require('portal-env').Logger('portal-api:users');
-var passwordValidator = require('portal-env').PasswordValidator;
-var bcrypt = require('bcrypt-nodejs');
-var crypto = require('crypto');
-var webhooks = require('./webhooks');
-var verifications = require('./verifications');
-var authMiddleware = require('../auth-middleware');
+const utils = require('./utils');
+const fs = require('fs');
+const path = require('path');
+const { debug, info, warn, error } = require('portal-env').Logger('portal-api:users');
+const passwordValidator = require('portal-env').PasswordValidator;
+const bcrypt = require('bcrypt-nodejs');
+const crypto = require('crypto');
+const webhooks = require('./webhooks');
+const verifications = require('./verifications');
+const authMiddleware = require('../auth-middleware');
 
-var users = require('express').Router();
+const users = require('express').Router();
 
-var dao = require('../dao/dao');
-var daoUtils = require('../dao/dao-utils');
+const dao = require('../dao/dao');
+const daoUtils = require('../dao/dao-utils');
 
 // ===== SCOPES =====
 
@@ -117,8 +117,8 @@ users.isUserApprover = function (app, userInfo) {
 /* Does the user belong to a specific group, or is he an admin? */
 users.hasUserGroup = function (app, userInfo, group) {
     debug('hasUserGroup()');
-    var foundGroup = false;
-    for (var i = 0; i < userInfo.groups.length; ++i) {
+    let foundGroup = false;
+    for (let i = 0; i < userInfo.groups.length; ++i) {
         if (userInfo.groups[i] == group)
             return true;
     }

@@ -1,11 +1,11 @@
 'use strict';
 
-var path = require('path');
-var fs = require('fs');
-var { debug, info, warn, error } = require('portal-env').Logger('portal-api:systemhealth');
-var request = require('request');
-var async = require('async');
-var uuid = require('node-uuid');
+const path = require('path');
+const fs = require('fs');
+const { debug, info, warn, error } = require('portal-env').Logger('portal-api:systemhealth');
+const request = require('request');
+const async = require('async');
+const uuid = require('node-uuid');
 
 // This looks really weird, but apparently the "request" library does not
 // consider "Let's Encrypt" SSL certificates as trusted (yet), and thus it
@@ -13,16 +13,16 @@ var uuid = require('node-uuid');
 // as a default Certificate Provider, this would render the System Health
 // "Unhealthy" for "portal" and "kong" if we don't explicitly allow untrusted
 // connections for these two end points.
-var https = require('https');
-var agentOptions = { rejectUnauthorized: false };
-var portalAgent = new https.Agent(agentOptions);
+const https = require('https');
+const agentOptions = { rejectUnauthorized: false };
+const portalAgent = new https.Agent(agentOptions);
 
-var utils = require('./utils');
-var users = require('./users');
-var webhooks = require('./webhooks');
-var dao = require('../dao/dao');
+const utils = require('./utils');
+const users = require('./users');
+const webhooks = require('./webhooks');
+const dao = require('../dao/dao');
 
-var systemhealth = function () { };
+const systemhealth = function () { };
 
 systemhealth._health = [{
     name: 'api',
@@ -39,7 +39,7 @@ systemhealth._health = [{
 systemhealth._startupSeconds = utils.getUtc();
 systemhealth.checkHealth = function (app) {
     debug('checkHealth()');
-    var glob = utils.loadGlobals(app);
+    const glob = utils.loadGlobals(app);
 
     // - Listeners
     // - Portal
@@ -117,7 +117,6 @@ systemhealth.checkHealth = function (app) {
                 h.push(results.authPing);
 
             // Check our webhook listeners
-            // var listeners = webhooks.loadListeners(app);
             dao.webhooks.listeners.getAll((err, listeners) => {
                 if (err) {
                     // UURGhrghgrl
@@ -130,7 +129,7 @@ systemhealth.checkHealth = function (app) {
                         url: listener.url + 'ping',
                         headers: { 'Correlation-Id': correlationId }
                     }, function (apiErr, apiResult, apiBody) {
-                        var listenerHealth = makeHealthEntry(listener.id, listener.url + 'ping', apiErr, apiResult, apiBody);
+                        const listenerHealth = makeHealthEntry(listener.id, listener.url + 'ping', apiErr, apiResult, apiBody);
                         callback(null, listenerHealth);
                     });
                 }, function (err, results) {
@@ -201,11 +200,11 @@ function makeHealthEntry(pingName, pingUrl, apiErr, apiResult, apiBody) {
         };
     }
     if (200 != apiResult.statusCode) {
-        var msg = 'Unexpected PING result: ' + apiResult.statusCode;
-        var healthy = 0;
-        var error;
+        let msg = 'Unexpected PING result: ' + apiResult.statusCode;
+        let healthy = 0;
+        let error;
         try {
-            var jsonBody = utils.getJson(apiBody);
+            const jsonBody = utils.getJson(apiBody);
             if (jsonBody.hasOwnProperty('healthy'))
                 healthy = jsonBody.healthy;
             if (jsonBody.hasOwnProperty('message'))
@@ -230,7 +229,7 @@ function makeHealthEntry(pingName, pingUrl, apiErr, apiResult, apiBody) {
     }
 
     try {
-        var pingResponse = utils.getJson(apiBody);
+        const pingResponse = utils.getJson(apiBody);
         pingResponse.name = pingName;
         pingResponse.pingUrl = pingUrl;
         pingResponse.pendingEvents = -1; // May be overwritten

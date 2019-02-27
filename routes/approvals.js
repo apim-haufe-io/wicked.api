@@ -1,14 +1,14 @@
 'use strict';
 
-var fs = require('fs');
-var path = require('path');
-var { debug, info, warn, error } = require('portal-env').Logger('portal-api:approvals');
-var utils = require('./utils');
-var users = require('./users');
+const fs = require('fs');
+const path = require('path');
+const { debug, info, warn, error } = require('portal-env').Logger('portal-api:approvals');
+const utils = require('./utils');
+const users = require('./users');
 
-var dao = require('../dao/dao');
+const dao = require('../dao/dao');
 
-var approvals = require('express').Router();
+const approvals = require('express').Router();
 
 // ===== SCOPES =====
 

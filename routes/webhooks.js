@@ -1,16 +1,16 @@
 'use strict';
 
-var fs = require('fs');
-var path = require('path');
-var request = require('request');
-var utils = require('./utils');
-var async = require('async');
-var { debug, info, warn, error } = require('portal-env').Logger('portal-api:webhooks');
+const fs = require('fs');
+const path = require('path');
+const request = require('request');
+const utils = require('./utils');
+const async = require('async');
+const { debug, info, warn, error } = require('portal-env').Logger('portal-api:webhooks');
 
-var dao = require('../dao/dao');
-var principal = require('./principal');
+const dao = require('../dao/dao');
+const principal = require('./principal');
 
-var webhooks = require('express').Router();
+const webhooks = require('express').Router();
 webhooks.setup = function (users) {
     webhooks._usersModule = users;
 };
@@ -136,7 +136,7 @@ webhooks.putListener = function (app, res, users, loggedInUserId, listenerId, bo
             !userInfo.admin)
             return utils.fail(res, 403, 'Not allowed. Only Admins may do this.');
         // Validate listenerId
-        var regex = /^[a-zA-Z0-9\-_]+$/;
+        const regex = /^[a-zA-Z0-9\-_]+$/;
 
         if (!regex.test(listenerId))
             return utils.fail(res, 400, 'Invalid webhook listener ID, allowed chars are: a-z, A-Z, -, _');
@@ -148,7 +148,7 @@ webhooks.putListener = function (app, res, users, loggedInUserId, listenerId, bo
         if (!body.url)
             return utils.fail(res, 400, 'Mandatory body property "url" is missing.');
 
-        var upsertListener = {
+        const upsertListener = {
             id: listenerId,
             url: body.url
         };
@@ -277,8 +277,8 @@ webhooks.checkAndFireHooks = function (callback) {
         debug('checkAndFireHooks: Retrieved listeners.');
 
         async.map(listenerInfos, (listener, callback) => {
-            var listenerId = listener.id;
-            var listenerUrl = listener.url;
+            const listenerId = listener.id;
+            const listenerUrl = listener.url;
 
             dao.webhooks.events.getByListener(listenerId, (err, listenerEvents) => {
                 if (err)
@@ -294,7 +294,7 @@ webhooks.checkAndFireHooks = function (callback) {
                         if (err)
                             return callback(err);
                         if (200 != apiResponse.statusCode) {
-                            var err2 = new Error('Calling the web hook "' + listenerId + '" failed.');
+                            const err2 = new Error('Calling the web hook "' + listenerId + '" failed.');
                             err2.status = apiResponse.statusCode;
                             return callback(err);
                         }

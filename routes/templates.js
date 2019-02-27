@@ -7,7 +7,7 @@ const { debug, info, warn, error } = require('portal-env').Logger('portal-api:te
 const utils = require('./utils');
 const users = require('./users');
 
-var templates = require('express').Router();
+const templates = require('express').Router();
 
 // ===== SCOPES =====
 
@@ -40,7 +40,7 @@ templates.getEmailTemplate = function (app, res, loggedInUserId, templateName, n
         if (err || !isAdmin)
             return res.status(403).jsonp({ message: 'Not allowed. Only admins can do this.' });
         try {
-            var emailTemplate = utils.loadEmailTemplate(app, templateName);
+            const emailTemplate = utils.loadEmailTemplate(app, templateName);
             res.setHeader('Content-Type', 'text/plain');
             res.send(emailTemplate);
         } catch (err) {

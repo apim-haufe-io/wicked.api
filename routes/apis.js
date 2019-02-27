@@ -1,7 +1,6 @@
 'use strict';
 
-// URL is not known by jshnit, for whatever reason
-/* globals URL */
+/* globals __dirname */
 
 const path = require('path');
 const fs = require('fs');
@@ -68,11 +67,11 @@ apis.get('/:apiId/subscriptions', verifyScope, verifyReadSubsScope, function (re
 
 apis.getApis = function (app, res, loggedInUserId) {
     debug('getApis()');
-    var apiList = utils.loadApis(app);
+    const apiList = utils.loadApis(app);
 
     // Set defaults
-    var userGroups = [];
-    var isAdmin = false;
+    let userGroups = [];
+    let isAdmin = false;
 
     function injectAndReturn(anApiList) {
         checkAndInjectScopes(anApiList.apis, function (err) {
@@ -100,17 +99,17 @@ function filterApiList(isAdmin, userGroups, apiList) {
     if (isAdmin)
         return apiList;
 
-    var groupDict = {};
+    const groupDict = {};
     for (let i = 0; i < userGroups.length; ++i) {
         groupDict[userGroups[i]] = true;
     }
 
-    var filteredApiList = [];
+    const filteredApiList = [];
 
     for (let i = 0; i < apiList.apis.length; ++i) {
-        var api = apiList.apis[i];
+        const api = apiList.apis[i];
 
-        var addApi = false;
+        let addApi = false;
         if (!api.requiredGroup || api.partner)
             addApi = true;
         else if (groupDict[api.requiredGroup])
@@ -125,9 +124,9 @@ function filterApiList(isAdmin, userGroups, apiList) {
 
 apis.getDesc = function (app, res) {
     debug('getDesc()');
-    var staticDir = utils.getStaticDir();
-    var apisDir = path.join(staticDir, 'apis');
-    var descFileName = path.join(apisDir, 'desc.md');
+    const staticDir = utils.getStaticDir();
+    const apisDir = path.join(staticDir, 'apis');
+    const descFileName = path.join(apisDir, 'desc.md');
 
     if (!fs.existsSync(descFileName))
         return res.status(404).jsonp({ message: 'Not found.' });
@@ -141,8 +140,8 @@ apis.getDesc = function (app, res) {
 
 apis.isValidApi = function (app, apiId) {
     debug('isValidApi()');
-    var apiList = utils.loadApis(app);
-    var apiIndex = -1;
+    const apiList = utils.loadApis(app);
+    let apiIndex = -1;
     for (let i = 0; i < apiList.apis.length; ++i) {
         if (apiList.apis[i].id == apiId) {
             apiIndex = i;
@@ -157,9 +156,9 @@ apis.checkAccess = function (app, res, userId, apiId, callback) {
     if (!callback || typeof (callback) !== 'function') {
         throw utils.makeError(500, 'checkAccess: callback is null or not a function');
     }
-    var apiList = utils.loadApis(app);
+    const apiList = utils.loadApis(app);
     // Is it a valid API id?
-    var apiIndex = -1;
+    let apiIndex = -1;
     for (let i = 0; i < apiList.apis.length; ++i) {
         if (apiList.apis[i].id == apiId) {
             apiIndex = i;
@@ -179,7 +178,7 @@ apis.checkAccess = function (app, res, userId, apiId, callback) {
                 return callback(utils.makeError(403, 'Not allowed. Invalid user.'));
             }
         }
-        var selectedApi = apiList.apis[apiIndex];
+        const selectedApi = apiList.apis[apiIndex];
         if (!selectedApi.requiredGroup || selectedApi.partner) // Public or Partner
             return callback(null, true);
 
@@ -260,8 +259,8 @@ apis.getApi = function (app, res, loggedInUserId, apiId) {
     apis.checkAccess(app, res, loggedInUserId, apiId, (err) => {
         if (err)
             return utils.fail(res, 403, 'Access denied', err);
-        var apiList = utils.loadApis(app);
-        var apiIndex = apiList.apis.findIndex(a => a.id === apiId);
+        const apiList = utils.loadApis(app);
+        const apiIndex = apiList.apis.findIndex(a => a.id === apiId);
         const apiInfo = apiList.apis[apiIndex];
         checkAndInjectScopes([apiInfo], function (err) {
             if (err)
@@ -276,22 +275,22 @@ apis.getApiPlans = function (app, res, loggedInUserId, apiId) {
     apis.checkAccess(app, res, loggedInUserId, apiId, (err) => {
         if (err)
             return utils.fail(res, 403, 'Access denied', err);
-        var apiList = utils.loadApis(app);
-        var apiIndex = apiList.apis.findIndex(a => a.id === apiId);
+        const apiList = utils.loadApis(app);
+        let apiIndex = apiList.apis.findIndex(a => a.id === apiId);
         if (apiIndex < 0)
             return res.status(404).jsonp({ message: 'API not found:' + apiId });
-        var selectedApi = apiList.apis[apiIndex];
-        var allPlans = utils.loadPlans(app);
-        var planMap = {};
-        for (var i = 0; i < allPlans.plans.length; ++i)
+        const selectedApi = apiList.apis[apiIndex];
+        const allPlans = utils.loadPlans(app);
+        const planMap = {};
+        for (let i = 0; i < allPlans.plans.length; ++i)
             planMap[allPlans.plans[i].id] = allPlans.plans[i];
-        var apiPlans = [];
+        const apiPlans = [];
         users.loadUser(app, loggedInUserId, (err, userInfo) => {
             if (err)
                 return utils.fail(res, 500, 'could not load user', err);
             if (userInfo) {
                 for (let i = 0; i < selectedApi.plans.length; ++i) {
-                    var plan = planMap[selectedApi.plans[i]];
+                    const plan = planMap[selectedApi.plans[i]];
                     if (!plan.requiredGroup ||
                         (plan.requiredGroup && users.hasUserGroup(app, userInfo, plan.requiredGroup)))
                         apiPlans.push(plan);
@@ -307,10 +306,10 @@ apis.getApiPlans = function (app, res, loggedInUserId, apiId) {
 
 function loadApiConfig(app, apiId) {
     debug('loadApiConfig()');
-    var staticDir = utils.getStaticDir();
-    var configFileName = path.join(staticDir, 'apis', apiId, 'config.json');
+    const staticDir = utils.getStaticDir();
+    let configFileName = path.join(staticDir, 'apis', apiId, 'config.json');
     // Default to empty but valid json.
-    var configJson = {};
+    let configJson = {};
     if (fs.existsSync(configFileName))
         configJson = JSON.parse(fs.readFileSync(configFileName, 'utf8'));
     else {
@@ -338,8 +337,8 @@ apis.getConfig = function (app, res, loggedInUserId, apiId) {
     apis.checkAccess(app, res, loggedInUserId, apiId, (err) => {
         if (err)
             return utils.fail(res, 403, 'Access denied', err);
-        var configJson = loadApiConfig(app, apiId);
-        var configReturn = configJson;
+        const configJson = loadApiConfig(app, apiId);
+        let configReturn = configJson;
         users.isUserIdAdmin(app, loggedInUserId, (err, isAdmin) => {
             // Restrict what we return in case it's a non-admin user,
             // only return the request path, not the backend URL.
@@ -361,8 +360,8 @@ apis.getApiDesc = function (app, res, loggedInUserId, apiId) {
     apis.checkAccess(app, res, loggedInUserId, apiId, (err) => {
         if (err)
             return utils.fail(res, 403, 'Access denied', err);
-        var staticDir = utils.getStaticDir();
-        var descFileName = path.join(staticDir, 'apis', apiId, 'desc.md');
+        const staticDir = utils.getStaticDir();
+        let descFileName = path.join(staticDir, 'apis', apiId, 'desc.md');
         res.setHeader('Content-Type', 'text/markdown');
         // Even if there is no desc.md, default to empty 200 OK
         if (!fs.existsSync(descFileName)) {
@@ -465,8 +464,8 @@ apis.getSwagger = function (app, res, loggedInUserId, apiId) {
     apis.checkAccess(app, res, loggedInUserId, apiId, (err) => {
         if (err)
             return utils.fail(res, 403, 'Access denied', err);
-        var staticDir = utils.getStaticDir();
-        var swaggerFileName = path.join(staticDir, 'apis', apiId, 'swagger.json');
+        const staticDir = utils.getStaticDir();
+        let swaggerFileName = path.join(staticDir, 'apis', apiId, 'swagger.json');
         if (!fs.existsSync(swaggerFileName)) {
             // Check internal APIs
             swaggerFileName = path.join(__dirname, 'internal_apis', apiId, 'swagger.json');
@@ -474,15 +473,15 @@ apis.getSwagger = function (app, res, loggedInUserId, apiId) {
                 return res.status(404).jsonp({ message: 'Not found. This is a bad sign; the Swagger definition must be there!' });
         }
 
-        var globalSettings = utils.loadGlobals(app);
-        var configJson = loadApiConfig(app, apiId);
+        const globalSettings = utils.loadGlobals(app);
+        const configJson = loadApiConfig(app, apiId);
 
         if (!configJson || !configJson.api || !configJson.api.uris || !configJson.api.uris.length)
             return res.status(500).jsonp({ message: 'Invalid API configuration; does not contain uris array.' });
-        var requestPaths = configJson.api.uris;
+        const requestPaths = configJson.api.uris;
 
-        var apiList = utils.loadApis(app);
-        var apiInfo = apiList.apis.find(function (anApi) { return anApi.id == apiId; });
+        const apiList = utils.loadApis(app);
+        const apiInfo = apiList.apis.find(function (anApi) { return anApi.id == apiId; });
 
         // Read it, we want to do stuff with it.
         // resolveSwagger might read directly from the swagger file, or, if the

@@ -1,17 +1,17 @@
 'use strict';
 
-var fs = require('fs');
-var path = require('path');
-var { debug, info, warn, error } = require('portal-env').Logger('portal-api:subscriptions');
-var utils = require('./utils');
-var users = require('./users');
-var ownerRoles = require('./ownerRoles');
-var approvals = require('./approvals');
-var webhooks = require('./webhooks');
+const fs = require('fs');
+const path = require('path');
+const { debug, info, warn, error } = require('portal-env').Logger('portal-api:subscriptions');
+const utils = require('./utils');
+const users = require('./users');
+const ownerRoles = require('./ownerRoles');
+const approvals = require('./approvals');
+const webhooks = require('./webhooks');
 
-var subscriptions = require('express').Router();
-var dao = require('../dao/dao');
-var daoUtils = require('../dao/dao-utils');
+const subscriptions = require('express').Router();
+const dao = require('../dao/dao');
+const daoUtils = require('../dao/dao-utils');
 
 const READ_SUBSCRIPTIONS = 'read_subscriptions';
 const verifySubscriptionsReadScope = utils.verifyScope(READ_SUBSCRIPTIONS);
@@ -65,7 +65,7 @@ subscriptions.getAllSubscriptions = function (app, res, loggedInUserId, filter, 
 
 subscriptions.getOwnerRole = function (appInfo, userInfo) {
     debug('getOwnerRole()');
-    for (var i = 0; i < appInfo.owners.length; ++i) {
+    for (let i = 0; i < appInfo.owners.length; ++i) {
         if (appInfo.owners[i].userId == userInfo.id)
             return appInfo.owners[i].role;
     }
@@ -86,15 +86,15 @@ subscriptions.getSubscriptions = function (app, res, applications, loggedInUserI
             if (!userInfo)
                 return utils.fail(res, 403, 'Not allowed. User invalid.');
 
-            var isAllowed = false;
-            var adminOrCollab = false;
+            let isAllowed = false;
+            let adminOrCollab = false;
             if (userInfo.admin || userInfo.approver) {
                 isAllowed = true;
                 adminOrCollab = true;
             }
             if (!isAllowed) {
                 // Check for App rights
-                var access = subscriptions.getOwnerRole(appInfo, userInfo);
+                const access = subscriptions.getOwnerRole(appInfo, userInfo);
                 if (access) // Any role will do for GET
                     isAllowed = true;
                 if (ownerRoles.OWNER == access ||
@@ -111,7 +111,7 @@ subscriptions.getSubscriptions = function (app, res, applications, loggedInUserI
                     checkScopeSettings(subs[i]);
                 // Add some links if admin or collaborator
                 if (adminOrCollab) {
-                    for (var i = 0; i < subs.length; ++i) {
+                    for (let i = 0; i < subs.length; ++i) {
                         if (!subs[i]._links)
                             subs[i]._links = {};
                         subs[i]._links.deleteSubscription = {
@@ -142,15 +142,15 @@ subscriptions.addSubscription = function (app, res, applications, loggedInUserId
             if (!userInfo.validated)
                 return utils.fail(res, 403, 'Not allowed. Email address not validated.');
 
-            var isAllowed = false;
-            var isAdmin = false;
+            let isAllowed = false;
+            let isAdmin = false;
             if (userInfo.admin) {
                 isAllowed = true;
                 isAdmin = true;
             }
             if (!isAllowed) {
                 // Check for App rights
-                var access = subscriptions.getOwnerRole(appInfo, userInfo);
+                const access = subscriptions.getOwnerRole(appInfo, userInfo);
                 // OWNERs and COLLABORATORs may do this.
                 if (access &&
                     ((access == ownerRoles.OWNER) ||
@@ -166,9 +166,9 @@ subscriptions.addSubscription = function (app, res, applications, loggedInUserId
 
             debug('Adding Subscription allowed.');
 
-            var apis = utils.loadApis(app);
+            const apis = utils.loadApis(app);
             // Valid api name?
-            var apiIndex = -1;
+            let apiIndex = -1;
             for (let i = 0; i < apis.apis.length; ++i) {
                 if (apis.apis[i].id == subsCreateInfo.api) {
                     apiIndex = i;
@@ -179,12 +179,12 @@ subscriptions.addSubscription = function (app, res, applications, loggedInUserId
                 return utils.fail(res, 400, 'Bad request. Unknown API "' + subsCreateInfo.api + '".');
 
             // API deprecated? 
-            var selectedApi = apis.apis[apiIndex];
+            const selectedApi = apis.apis[apiIndex];
             if (selectedApi.deprecated)
                 return utils.fail(res, 400, 'API is deprecated. Subscribing not possible.');
 
             // Valid plan?
-            var foundPlan = false;
+            let foundPlan = false;
             for (let i = 0; i < selectedApi.plans.length; ++i) {
                 if (selectedApi.plans[i] == subsCreateInfo.plan) {
                     foundPlan = true;
@@ -196,8 +196,8 @@ subscriptions.addSubscription = function (app, res, applications, loggedInUserId
 
             debug('Subscription plan and API known.');
 
-            var apiPlans = utils.loadPlans(app).plans;
-            var apiPlanIndex = -1;
+            const apiPlans = utils.loadPlans(app).plans;
+            let apiPlanIndex = -1;
             for (let i = 0; i < apiPlans.length; ++i) {
                 if (apiPlans[i].id == subsCreateInfo.plan) {
                     apiPlanIndex = i;
@@ -206,7 +206,7 @@ subscriptions.addSubscription = function (app, res, applications, loggedInUserId
             }
             if (apiPlanIndex < 0)
                 return utils.fail(res, 500, 'Inconsistent API/Plan data. Plan not found: ' + subsCreateInfo.plan);
-            var apiPlan = apiPlans[apiPlanIndex];
+            const apiPlan = apiPlans[apiPlanIndex];
 
             // Required group? Or Admin, they may also.
             if (selectedApi.requiredGroup && !selectedApi.partner) {
@@ -238,7 +238,7 @@ subscriptions.addSubscription = function (app, res, applications, loggedInUserId
             dao.subscriptions.getByAppId(appId, (err, appSubs) => {
                 if (err)
                     return utils.fail(res, 500, 'addSubscription: DAO load subscriptions failed', err);
-                for (var i = 0; i < appSubs.length; ++i) {
+                for (let i = 0; i < appSubs.length; ++i) {
                     if (appSubs[i].api == subsCreateInfo.api)
                         return utils.fail(res, 409, 'Application already has a subscription for API "' + subsCreateInfo.api + '".');
                 }
@@ -255,12 +255,12 @@ subscriptions.addSubscription = function (app, res, applications, loggedInUserId
                 // Or do we require approval? Admins never need approval. A trusted
                 // subscription always needs approval, if it's not an Admin creating
                 // it.
-                var needsApproval = !isAdmin && (apiPlan.needsApproval || wantsTrusted);
+                const needsApproval = !isAdmin && (apiPlan.needsApproval || wantsTrusted);
 
-                var apiKey = null;
-                var clientId = null;
-                var clientSecret = null;
-                var authMethod = "key-auth";
+                let apiKey = null;
+                let clientId = null;
+                let clientSecret = null;
+                let authMethod = "key-auth";
                 if (!needsApproval) {
                     debug('Subscription does not need approval, creating keys.');
                     if (selectedApi.auth && selectedApi.auth.startsWith("oauth2")) { // oauth2
@@ -333,7 +333,7 @@ subscriptions.addSubscription = function (app, res, applications, loggedInUserId
                         persistedSubscription.apikey = apiKey;
                     }
 
-                    
+
                     // Webhook it, man
                     webhooks.logEvent(app, {
                         action: webhooks.ACTION_ADD,
@@ -346,7 +346,7 @@ subscriptions.addSubscription = function (app, res, applications, loggedInUserId
                             planId: apiPlan.id
                         }
                     });
-                    
+
                     if (!needsApproval) {
                         // No approval needed, we can send the answer directly.
                         res.status(201).json(persistedSubscription);
@@ -416,15 +416,15 @@ subscriptions.getSubscription = function (app, res, applications, loggedInUserId
             if (!userInfo)
                 return utils.fail(res, 403, 'Not allowed. User invalid.');
 
-            var isAllowed = false;
-            var adminOrCollab = false;
+            let isAllowed = false;
+            let adminOrCollab = false;
             if (userInfo.admin) {
                 isAllowed = true;
                 adminOrCollab = true;
             }
             if (!isAllowed) {
                 // Check for App rights
-                var access = subscriptions.getOwnerRole(appInfo, userInfo);
+                const access = subscriptions.getOwnerRole(appInfo, userInfo);
                 if (access) // Any role will do for GET
                     isAllowed = true;
                 if (ownerRoles.OWNER == access ||
@@ -443,7 +443,6 @@ subscriptions.getSubscription = function (app, res, applications, loggedInUserId
 
                 checkScopeSettings(appSub);
 
-                // var appSub = appSubs[subsIndex];
                 if (adminOrCollab) {
                     if (!appSub._links)
                         appSub._links = {};
@@ -461,8 +460,8 @@ subscriptions.getSubscription = function (app, res, applications, loggedInUserId
 };
 
 function findSubsIndex(appSubs, apiId) {
-    var subsIndex = -1;
-    for (var i = 0; i < appSubs.length; ++i) {
+    let subsIndex = -1;
+    for (let i = 0; i < appSubs.length; ++i) {
         if (appSubs[i].api == apiId) {
             subsIndex = i;
             break;
@@ -472,9 +471,9 @@ function findSubsIndex(appSubs, apiId) {
 }
 
 function findApprovalIndex(approvalInfos, appId, apiId) {
-    var approvalIndex = -1;
-    for (var i = 0; i < approvalInfos.length; ++i) {
-        var appr = approvalInfos[i];
+    let approvalIndex = -1;
+    for (let i = 0; i < approvalInfos.length; ++i) {
+        const appr = approvalInfos[i];
         if (appr.application.id == appId &&
             appr.api.id == apiId) {
             approvalIndex = i;
@@ -497,12 +496,12 @@ subscriptions.deleteSubscription = function (app, res, applications, loggedInUse
             if (!userInfo)
                 return utils.fail(res, 403, 'Not allowed. User invalid.');
 
-            var isAllowed = false;
+            let isAllowed = false;
             if (userInfo.admin || userInfo.approver)
                 isAllowed = true;
             if (!isAllowed) {
                 // Check for App rights
-                var access = subscriptions.getOwnerRole(appInfo, userInfo);
+                const access = subscriptions.getOwnerRole(appInfo, userInfo);
                 // OWNERs and COLLABORATORs may do this.
                 if (access &&
                     ((access == ownerRoles.OWNER) ||
@@ -517,7 +516,7 @@ subscriptions.deleteSubscription = function (app, res, applications, loggedInUse
             dao.subscriptions.getByAppId(appId, (err, appSubs) => {
                 if (err)
                     return utils.fail(res, 500, 'deleteSubscription: DAO get subscriptions failed', err);
-                var subsIndex = findSubsIndex(appSubs, apiId);
+                const subsIndex = findSubsIndex(appSubs, apiId);
                 if (subsIndex < 0)
                     return utils.fail(res, 404, 'Not found. Subscription to API "' + apiId + '" does not exist: ' + appId);
 
@@ -560,7 +559,7 @@ subscriptions.patchSubscription = function (app, res, applications, loggedInUser
         dao.subscriptions.getByAppId(appId, (err, appSubs) => {
             if (err)
                 return utils.fail(res, 500, 'patchSubscription: DAO load app subscriptions failed', err);
-            var subsIndex = findSubsIndex(appSubs, apiId);
+            const subsIndex = findSubsIndex(appSubs, apiId);
             if (subsIndex < 0)
                 return utils.fail(res, 404, 'Not found. Subscription to API "' + apiId + '" does not exist: ' + appId);
 
@@ -577,7 +576,7 @@ subscriptions.patchSubscription = function (app, res, applications, loggedInUser
             }
 
             if (allowPatch || allowScopePatch) {
-                var thisSubs = appSubs[subsIndex];
+                const thisSubs = appSubs[subsIndex];
                 // In case a clientId is created, we need to temporary store it here, too,
                 // as saveSubscriptions encrypts the ID.
                 let tempClientId = null;

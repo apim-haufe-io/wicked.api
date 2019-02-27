@@ -1,5 +1,7 @@
 'use strict';
 
+/* global setImmediate */
+
 const async = require('async');
 const ncp = require('ncp');
 const rimraf = require('rimraf');

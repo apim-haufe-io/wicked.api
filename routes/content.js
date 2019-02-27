@@ -1,13 +1,13 @@
 'use strict';
 
-var path = require('path');
-var fs = require('fs');
-var mustache = require('mustache');
-var { debug, info, warn, error } = require('portal-env').Logger('portal-api:content');
-var users = require('./users');
-var utils = require('./utils');
+const path = require('path');
+const fs = require('fs');
+const mustache = require('mustache');
+const { debug, info, warn, error } = require('portal-env').Logger('portal-api:content');
+const users = require('./users');
+const utils = require('./utils');
 
-var content = require('express').Router();
+const content = require('express').Router();
 
 // ===== SCOPES =====
 
@@ -59,9 +59,9 @@ function makeTocEntry(category, url, title, subTitle, requiredGroup, tags) {
 }
 
 function addApisToToc(app, toc) {
-    var apiList = utils.loadApis(app);
-    for (var i = 0; i < apiList.apis.length; ++i) {
-        var thisApi = apiList.apis[i];
+    const apiList = utils.loadApis(app);
+    for (let i = 0; i < apiList.apis.length; ++i) {
+        const thisApi = apiList.apis[i];
         toc.push(makeTocEntry("api",
             "/apis/" + thisApi.id,
             thisApi.name,
@@ -72,41 +72,41 @@ function addApisToToc(app, toc) {
 }
 
 function addContentToToc(app, toc) {
-    var contentBase = path.join(utils.getStaticDir(), 'content');
+    const contentBase = path.join(utils.getStaticDir(), 'content');
 
     addContentDirToToc(app, contentBase, '/content/', toc);
 }
 
 function addContentDirToToc(app, dir, uriPart, toc) {
-    var fileNames = fs.readdirSync(dir);
-    for (var i = 0; i < fileNames.length; ++i) {
-        var fileName = fileNames[i];
+    const fileNames = fs.readdirSync(dir);
+    for (let i = 0; i < fileNames.length; ++i) {
+        const fileName = fileNames[i];
         if (fileName.toLowerCase().endsWith('.json'))
             continue;
 
-        var stat = fs.statSync(path.join(dir, fileName));
+        const stat = fs.statSync(path.join(dir, fileName));
         if (stat.isDirectory()) {
             // Recurse please
             addContentDirToToc(app, path.join(dir, fileName), uriPart + fileName + '/', toc);
             continue;
         }
 
-        var isJadeFile = fileName.toLowerCase().endsWith('.jade');
-        var isMarkdownFile = fileName.toLowerCase().endsWith('.md');
+        const isJadeFile = fileName.toLowerCase().endsWith('.jade');
+        const isMarkdownFile = fileName.toLowerCase().endsWith('.md');
         if (!isJadeFile && !isMarkdownFile)
             continue;
-        var strippedFileName = null;
+        let strippedFileName = null;
         if (isJadeFile)
             strippedFileName = fileName.substring(0, fileName.length - 5);
         if (isMarkdownFile)
             strippedFileName = fileName.substring(0, fileName.length - 3);
-        var jsonFileName = path.join(dir, strippedFileName + '.json');
+        const jsonFileName = path.join(dir, strippedFileName + '.json');
         if (!fs.existsSync(jsonFileName)) {
             debug('JADE or MD file without companion JSON file: ' + fileName);
             continue;
         }
 
-        var metaData = JSON.parse(fs.readFileSync(jsonFileName, 'utf8'));
+        const metaData = JSON.parse(fs.readFileSync(jsonFileName, 'utf8'));
 
         toc.push(makeTocEntry(
             'content',
@@ -124,8 +124,8 @@ content.getToc = function (app, res, loggedInUserId) {
         return res.status(500).json({ message: 'Internal Server Error. Table of Content not initialized.' });
 
     // This is fairly expensive. TODO: This should be cached.
-    var groups = utils.loadGroups(app);
-    var groupRights = {};
+    const groups = utils.loadGroups(app);
+    const groupRights = {};
     // Initialize for not logged in users
     for (let i = 0; i < groups.groups.length; ++i) {
         groupRights[groups.groups[i].id] = false;
@@ -138,7 +138,7 @@ content.getToc = function (app, res, loggedInUserId) {
                 return utils.fail(res, 400, 'Bad Request. Unknown User ID.');
             if (userInfo.groups) {
                 for (let i = 0; i < groups.groups.length; ++i) {
-                    var groupId = groups.groups[i].id;
+                    const groupId = groups.groups[i].id;
                     groupRights[groupId] = users.hasUserGroup(app, userInfo, groupId);
                 }
             }
@@ -151,10 +151,10 @@ content.getToc = function (app, res, loggedInUserId) {
 };
 
 function filterToc(groupRights) {
-    var userToc = [];
+    const userToc = [];
     for (let i = 0; i < content._toc.length; ++i) {
-        var tocEntry = content._toc[i];
-        var addThis = false;
+        const tocEntry = content._toc[i];
+        let addThis = false;
         if (!tocEntry.requiredGroup)
             addThis = true;
         if (!addThis && groupRights[tocEntry.requiredGroup])
@@ -215,10 +215,10 @@ content.getContent = function (app, res, loggedInUserId, pathUri) {
         return res.status(400).jsonp({ message: "Bad request. Baaad request." });
 
     // QUICK AND DIRTY?!
-    var contentPath = pathUri.replace('/', path.sep);
-    var staticDir = utils.getStaticDir();
+    const contentPath = pathUri.replace('/', path.sep);
+    const staticDir = utils.getStaticDir();
 
-    var filePath = path.join(staticDir, 'content', contentPath);
+    let filePath = path.join(staticDir, 'content', contentPath);
 
     if (content.isPublic(filePath.toLowerCase())) {
         let contentType = content.getContentType(filePath);
@@ -243,17 +243,17 @@ content.getContent = function (app, res, loggedInUserId, pathUri) {
     if (pathUri == "/")
         filePath = path.join(staticDir, 'index');
 
-    var mdFileName = filePath + '.md';
-    var jadeFileName = filePath + '.jade';
-    var metaName = filePath + '.json';
-    var mdExists = fs.existsSync(mdFileName);
-    var jadeExists = fs.existsSync(jadeFileName);
+    const mdFileName = filePath + '.md';
+    const jadeFileName = filePath + '.jade';
+    const metaName = filePath + '.json';
+    const mdExists = fs.existsSync(mdFileName);
+    const jadeExists = fs.existsSync(jadeFileName);
 
     if (!mdExists && !jadeExists)
         return res.status(404).jsonp({ message: 'Not found: ' + pathUri });
 
-    var contentType;
-    var fileName;
+    let contentType;
+    let fileName;
     if (mdExists) {
         fileName = mdFileName;
         contentType = 'text/markdown';
@@ -262,7 +262,7 @@ content.getContent = function (app, res, loggedInUserId, pathUri) {
         contentType = 'text/jade';
     }
 
-    var metaInfo = { showTitle: false };
+    let metaInfo = { showTitle: false };
     if (fs.existsSync(metaName)) {
         metaInfo = JSON.parse(fs.readFileSync(metaName, 'utf8'));
     }
@@ -283,7 +283,7 @@ content.getContent = function (app, res, loggedInUserId, pathUri) {
 function sendContent(res, metaInfo, fileName, contentType) {
     debug('sendContent()');
     // Yay! We're good!
-    var metaInfo64 = new Buffer(JSON.stringify(metaInfo)).toString("base64");
+    const metaInfo64 = new Buffer(JSON.stringify(metaInfo)).toString("base64");
     fs.readFile(fileName, function (err, content) {
         if (err)
             return utils.fail(res, 500, 'Unexpected error', err);

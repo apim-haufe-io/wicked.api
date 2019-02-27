@@ -1,5 +1,7 @@
 'use strict';
 
+/* global __dirname */
+
 const fs = require('fs');
 const path = require('path');
 const { debug, info, warn, error } = require('portal-env').Logger('portal-api:initializer');
@@ -94,7 +96,7 @@ function checkConfigHash(glob, callback) {
     versionizer.initConfigHash((err, configHash) => {
         if (err)
             return callback(err);
-        info(`Calculated config hash for this instance: ${configHash}`)
+        info(`Calculated config hash for this instance: ${configHash}`);
         return callback(null);
     });
 }

@@ -53,7 +53,7 @@ versionizer.getConfigHash = function () {
     if (!versionizer._configHash)
         throw new Error('Config hash retrieved without being initialized.');
     return versionizer._configHash;
-}
+};
 
 versionizer.checkVersions = function (req, res, next) {
     debug('checkVersions()');

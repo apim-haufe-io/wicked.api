@@ -104,7 +104,7 @@ applications.getSubscriptionByClientId = function (req, res) {
 // ===== IMPLEMENTATION =====
 
 
-var accessFlags = {
+const accessFlags = {
     NONE: 0,
     ADMIN: 1,
     COLLABORATE: 2,
@@ -164,15 +164,15 @@ applications.checkValidClientType = function (appInfo) {
         return true;
     }
     return false;
-}
+};
 
 applications.getAllowedAccess = function (app, appInfo, userInfo) {
     debug('getAllowedAccess()');
     if (userInfo.admin)
         return accessFlags.ADMIN;
     // Check roles
-    for (var i = 0; i < appInfo.owners.length; ++i) {
-        var owner = appInfo.owners[i];
+    for (let i = 0; i < appInfo.owners.length; ++i) {
+        const owner = appInfo.owners[i];
         if (owner.userId != userInfo.id)
             continue;
 
@@ -238,7 +238,7 @@ applications.getApplication = function (app, res, loggedInUserId, appId) {
             if (!appInfo)
                 return utils.fail(res, 404, 'Not found: ' + appId);
 
-            var access = applications.getAllowedAccess(app, appInfo, userInfo);
+            const access = applications.getAllowedAccess(app, appInfo, userInfo);
 
             if (access == accessFlags.NONE)
                 return utils.fail(res, 403, 'Not allowed.');
@@ -259,7 +259,7 @@ applications.getApplication = function (app, res, loggedInUserId, appId) {
                 // If we have more than one owner, we may allow deleting
                 if (appInfo.owners.length > 1) {
                     // More than one with role "owner"?
-                    var ownerCount = 0;
+                    let ownerCount = 0;
                     for (let i = 0; i < appInfo.owners.length; ++i) {
                         if (ownerRoles.OWNER == appInfo.owners[i].role)
                             ownerCount++;
@@ -288,8 +288,8 @@ applications.getApplication = function (app, res, loggedInUserId, appId) {
 applications.createApplication = function (app, res, loggedInUserId, appCreateInfo) {
     debug('createApplication(): loggedInUserId: ' + loggedInUserId);
     debug(appCreateInfo);
-    var appId = appCreateInfo.id.trim();
-    var redirectUri = appCreateInfo.redirectUri;
+    const appId = appCreateInfo.id.trim();
+    const redirectUri = appCreateInfo.redirectUri;
     // Load user information
     users.loadUser(app, loggedInUserId, (err, userInfo) => {
         if (err)
@@ -354,7 +354,7 @@ applications.patchApplication = function (app, res, loggedInUserId, appId, appPa
             if (!userInfo)
                 return utils.fail(res, 403, 'Not allowed. User invalid.');
 
-            var access = applications.getAllowedAccess(app, appInfo, userInfo);
+            const access = applications.getAllowedAccess(app, appInfo, userInfo);
             if (!((accessFlags.ADMIN & access) || (accessFlags.COLLABORATOR & access)))
                 return utils.fail(res, 403, 'Not allowed, not sufficient rights to application.');
             if (appId != appPatchInfo.id)
@@ -456,13 +456,13 @@ applications.addOwner = function (app, res, loggedInUserId, appId, ownerCreateIn
             if (!appInfo)
                 return res.status(404).jsonp({ message: 'Not found: ' + appId });
 
-            var access = applications.getAllowedAccess(app, appInfo, userInfo);
+            const access = applications.getAllowedAccess(app, appInfo, userInfo);
             // We want Admin Access for this
             if (!(accessFlags.ADMIN & access))
                 return utils.fail(res, 403, 'Not allowed. Only Owners and Admins may add owners.');
 
-            var email = ownerCreateInfo.email;
-            var role = ownerCreateInfo.role;
+            const email = ownerCreateInfo.email;
+            const role = ownerCreateInfo.role;
 
             users.loadUserByEmail(app, email, (err, userToAdd) => {
                 if (err)
@@ -517,7 +517,7 @@ applications.deleteOwner = function (app, res, loggedInUserId, appId, userEmail)
             if (!userInfo)
                 return res.status(403).jsonp({ message: 'Not allowed. User invalid.' });
 
-            var access = applications.getAllowedAccess(app, appInfo, userInfo);
+            const access = applications.getAllowedAccess(app, appInfo, userInfo);
             // We want Admin Access for this
             if (!(accessFlags.ADMIN & access))
                 return res.status(403).jsonp({ message: 'Not allowed. Only Owners and Admins may delete owners.' });
@@ -528,8 +528,8 @@ applications.deleteOwner = function (app, res, loggedInUserId, appId, userEmail)
                 if (!userToDelete)
                     return res.status(400).jsonp({ message: 'Bad request. User with email "' + userEmail + '" not found."' });
                 // Does this user know this application?
-                var index = -1;
-                for (var i = 0; i < userToDelete.applications.length; ++i) {
+                let index = -1;
+                for (let i = 0; i < userToDelete.applications.length; ++i) {
                     if (userToDelete.applications[i].id == appId) {
                         // Yes, found it
                         index = i;

@@ -225,20 +225,20 @@ class JsonMeta {
 
     cleanupDir(dir) {
         debug('cleanupDir(): ' + dir);
-        var fileList = [];
+        const fileList = [];
         this.gatherLockFiles(dir, fileList);
 
-        for (var i = 0; i < fileList.length; ++i) {
+        for (let i = 0; i < fileList.length; ++i) {
             debug('cleanupDir: Deleting ' + fileList[i]);
             fs.unlinkSync(fileList[i]);
         }
     }
 
     gatherLockFiles(dir, fileList) {
-        var fileNames = fs.readdirSync(dir);
-        for (var i = 0; i < fileNames.length; ++i) {
-            var fileName = path.join(dir, fileNames[i]);
-            var stat = fs.statSync(fileName);
+        const fileNames = fs.readdirSync(dir);
+        for (let i = 0; i < fileNames.length; ++i) {
+            const fileName = path.join(dir, fileNames[i]);
+            const stat = fs.statSync(fileName);
             if (stat.isDirectory())
                 this.gatherLockFiles(fileName, fileList);
             if (stat.isFile()) {
