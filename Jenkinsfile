@@ -2,6 +2,7 @@ pipeline {
     agent {
         docker {
             image 'haufelexware/wicked.build-agent:latest'
+            args '-u 0:0'
         }
     }
     triggers {
@@ -41,7 +42,6 @@ pipeline {
                     ]) {
                         env.DOCKER_TAG = env.BRANCH_NAME.replaceAll('/', '-')
                         sh './build.sh --push'
-
                     }
                 }
             }
