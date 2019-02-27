@@ -283,6 +283,9 @@ class PgUtils {
             callback = optionsOrCallback;
             options = {};
         }
+        if (!callback || typeof (callback) !== 'function') {
+            throw utils.makeError(500, 'getSingleBy: callback is not defined or not a function');
+        }
 
         if ((Array.isArray(fieldNameOrNames) && !Array.isArray(fieldValueOrValues)) ||
             (!Array.isArray(fieldNameOrNames) && Array.isArray(fieldValueOrValues)))
@@ -748,6 +751,10 @@ class PgUtils {
             isRetry = callback;
             callback = clientOrCallback;
         }
+        if (!callback || typeof (callback) !== 'function') {
+            throw utils.makeError(500, 'getPoolOrClient: callback is not defined or not a function.');
+        }
+
         if (this._pool) {
             debug('getPoolOrClient: Returning previously created connection pool');
             return callback(null, this._pool);

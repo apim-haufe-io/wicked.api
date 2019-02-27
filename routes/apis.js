@@ -154,8 +154,9 @@ apis.isValidApi = function (app, apiId) {
 
 apis.checkAccess = function (app, res, userId, apiId, callback) {
     debug('checkAccess(), userId: ' + userId + ', apiId: ' + apiId);
-    if (!callback || typeof (callback) !== 'function')
-        return callback(utils.makeError(500, 'checkAccess: callback is null or not a function'));
+    if (!callback || typeof (callback) !== 'function') {
+        throw utils.makeError(500, 'checkAccess: callback is null or not a function');
+    }
     var apiList = utils.loadApis(app);
     // Is it a valid API id?
     var apiIndex = -1;
