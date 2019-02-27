@@ -14,15 +14,16 @@ pipeline {
     }
 
     stages {
-        stage('Checkout') {
-            steps {
-                checkout scm
-            }
-        }
+        // stage('Checkout') {
+        //     steps {
+        //         checkout scm
+        //     }
+        // }
 
         stage('SonarQube analysis') {
             steps {
                 script {
+                    sh 'id'
                     def dockerTag = env.BRANCH_NAME.replaceAll('/', '-')
                     if (dockerTag == 'next') {
                         // requires SonarQube Scanner 2.8+
