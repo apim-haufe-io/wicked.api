@@ -2,7 +2,10 @@ pipeline {
     agent {
         docker {
             image 'haufelexware/wicked.build-agent:latest'
-            args '-u 0:0'
+            // This was a bad workaround to make it work the first time; now the build image
+            // contains a "dockerjenkins" group which, on the docker host, has the right
+            // permissions. The GID is 125.
+            // args '-u 0:0'
         }
     }
     triggers {
