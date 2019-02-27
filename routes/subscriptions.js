@@ -344,6 +344,8 @@ subscriptions.addSubscription = function (app, res, applications, loggedInUserId
                     auth: selectedApi.auth,
                     approved: !needsApproval,
                     trusted: isTrusted,
+                    allowedScopes: allowedScopes,
+                    allowedScopesMode: allowedScopesMode,
                     changedBy: loggedInUserId,
                     changedDate: utils.getUtc(),
                     _links: {

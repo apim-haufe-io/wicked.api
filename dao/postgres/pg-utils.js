@@ -102,7 +102,6 @@ class PgUtils {
 
     getMetadata(clientOrCallback, callback) {
         debug('getMetadata()');
-        const instance = this;
         this.sortOutClientAndCallback(clientOrCallback, callback, (client, callback) => {
             const labels = {
                 command: 'SELECT',
@@ -397,7 +396,6 @@ class PgUtils {
                 return callback(err);
             }
             const queries = instance.makeSqlQuery(entity, fieldNames, operators, orderBy, offset, limit, joinedFields, joinClause);
-            const query = queries.query;
 
             async.parallel({
                 rows: function (callback) { instance.queryPostgres(poolOrClient, entity, queries.query, fieldValues, callback); },
@@ -728,7 +726,6 @@ class PgUtils {
 
     count(entity, clientOrCallback, callback) {
         debug(`countRows(${entity}) `);
-        const instance = this;
         this.sortOutClientAndCallback(clientOrCallback, callback, (client, callback) => {
             const sql = `SELECT COUNT(*) as count FROM wicked.${entity} `;
             const labels = {
@@ -910,7 +907,6 @@ class PgUtils {
     }
 
     verifySchema(pool, callback) {
-        const instance = this;
         pool.query("SELECT schema_name FROM information_schema.schemata WHERE schema_name = 'wicked';", (err, results) => {
             if (err) {
                 error('COULD NOT QUERY FOR SCHEMAS!');
@@ -933,7 +929,6 @@ class PgUtils {
         debug('createWickedDatabase()');
         const client = new pg.Client(this.getPostgresOptions('postgres'));
         debug('createWickedDatabase: Connecting to "postgres" database');
-        const instance = this;
         client.connect((err) => {
             if (err) {
                 error('createWickedDatabase: Failed to connect to "postgres" database.');

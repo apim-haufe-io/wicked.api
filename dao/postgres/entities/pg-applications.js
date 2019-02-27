@@ -317,7 +317,6 @@ class PgApplications {
 
     deleteOwnerImpl(appId, deleteUserId, deletingUserId, callback) {
         debug(`deleteOwnerImpl(${appId}, ${deleteUserId}`);
-        const instance = this;
         this.pgUtils.deleteBy('owners', ['appId', 'userId'], [appId, deleteUserId], (err) => {
             if (err) {
                 return callback(err);

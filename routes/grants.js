@@ -178,7 +178,7 @@ function upsertGrants(app, res, loggedInUserId, userId, applicationId, apiId, ne
         };
 
         // Delegate to DAO to write this thing
-        dao.grants.upsert(userId, applicationId, apiId, loggedInUserId, newGrants, (err) => {
+        dao.grants.upsert(userId, applicationId, apiId, loggedInUserId, upsertData, (err) => {
             if (err) {
                 return utils.fail(res, 500, 'Grants: Could not upsert grants', err);
             }

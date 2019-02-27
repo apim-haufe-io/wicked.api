@@ -34,12 +34,12 @@ swaggerUtils.injectOpenAPIAuth = function (swaggerJson, globalSettings, apiInfo,
         if (!swaggerJson.components) {
             swaggerJson.components = {};
         }
-        const origSecuritySchemesParam = swaggerJson.components.securitySchemes ? utils.clone(swaggerJson.components.securitySchemes) : {};
+        // const origSecuritySchemesParam = swaggerJson.components.securitySchemes ? utils.clone(swaggerJson.components.securitySchemes) : {};
         // We will override the security definitions with our own ones
         swaggerJson.components.securitySchemes = {};
 
         const securityProperties = findSecurityProperties(swaggerJson);
-        const origSecurityProperties = securityProperties ? utils.clone(securityProperties) : [];
+        // const origSecurityProperties = securityProperties ? utils.clone(securityProperties) : [];
         debug(securityProperties);
         // Reset all security properties
         securityProperties.forEach(sp => sp.length = 0);
@@ -105,12 +105,12 @@ swaggerUtils.injectSwaggerAuth = function (swaggerJson, globalSettings, apiInfo,
         swaggerJson.security = apikeyParam; // Apply globally
     } else if (apiInfo.auth == "oauth2") {
         // securityDefinitions is specific for Swagger 2.0
-        const origSecurityDefinitions = swaggerJson.securityDefinitions ? utils.clone(swaggerJson.securityDefinitions) : {};
+        // const origSecurityDefinitions = swaggerJson.securityDefinitions ? utils.clone(swaggerJson.securityDefinitions) : {};
         // We will override the security definitions with our own ones
         swaggerJson.securityDefinitions = {};
 
         const securityProperties = findSecurityProperties(swaggerJson);
-        const origSecurityProperties = utils.clone(securityProperties);
+        // const origSecurityProperties = utils.clone(securityProperties);
         debug(securityProperties);
         // Reset all security properties
         securityProperties.forEach(sp => sp.length = 0);

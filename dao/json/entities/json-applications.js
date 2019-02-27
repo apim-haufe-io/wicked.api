@@ -215,7 +215,6 @@ class JsonApplications {
     createSync(appCreateInfo, creatingUserId) {
         debug('createSync()');
         const appId = appCreateInfo.id.trim();
-        const redirectUri = appCreateInfo.redirectUri;
         const instance = this;
         return instance.jsonUtils.withLockedAppsIndex(function () {
             const appsIndex = instance.loadAppsIndex();

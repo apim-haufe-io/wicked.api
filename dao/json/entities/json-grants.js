@@ -111,7 +111,6 @@ class JsonGrants {
 
         const grantsIndex = this.readGrants(userId);
         const prevIndex = grantsIndex.findIndex(g => g.apiId === apiId && g.applicationId === applicationId);
-        const now = (new Date()).toISOString();
         let prevGrants = null;
         if (prevIndex >= 0) {
             prevGrants = grantsIndex[prevIndex];
