@@ -144,6 +144,7 @@ class PgApplications {
                     id: appId,
                     name: appCreateInfo.name.substring(0, 128),
                     redirectUri: appCreateInfo.redirectUri,
+                    redirectUris: appCreateInfo.redirectUris,
                     confidential: !!appCreateInfo.confidential,
                     clientType: appCreateInfo.clientType,
                     mainUrl: appCreateInfo.mainUrl
@@ -339,3 +340,4 @@ class PgApplications {
 }
 
 module.exports = PgApplications;
+ 

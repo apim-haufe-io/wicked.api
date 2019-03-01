@@ -111,7 +111,7 @@ const accessFlags = {
     READ: 4
 };
 
-applications.isValidRedirectUri = function (redirectUri) {
+function isValidRedirectUri(redirectUri) {
     if (!redirectUri) {
         return false;
     }
@@ -149,7 +149,7 @@ applications.isValidRedirectUri = function (redirectUri) {
         return true;
     }
     return false;
-};
+}
 
 applications.checkValidClientType = function (appInfo) {
     if (appInfo.clientType) {
@@ -211,6 +211,7 @@ applications.getApplications = function (app, res, loggedInUserId, filter, order
                 if (err) {
                     return utils.fail(res, 500, 'getApplications: getAll failed', err);
                 }
+                appsIndex.forEach(a => normalizeRedirectUris(a));
                 res.json({
                     items: appsIndex,
                     count: countResult.count,
@@ -297,17 +298,98 @@ applications.getApplication = function (app, res, loggedInUserId, appId) {
                 appInfo._links.deleteApplication = { href: '/applications/' + appId, method: 'DELETE' };
                 appInfo._links.patchApplication = { href: '/applications/' + appId, method: 'PATCH' };
             }
+            normalizeRedirectUris(appInfo);
             res.json(appInfo);
         });
     });
 };
 
+// Normalizes the redirectUri and redirectUris properties.
+// As of 1.0.0-rc.2, the redirectUris is the "correct" property to use,
+// and redirectUri will only contain the first redirect URI for legacy
+// compatibility.
+function normalizeRedirectUris(appInfo) {
+    if (!appInfo.redirectUri && !appInfo.redirectUris) {
+        appInfo.redirectUris = [];
+        return;
+    }
+    if (!appInfo.redirectUri && appInfo.redirectUris) {
+        if (Array.isArray(appInfo.redirectUris)) {
+            if (appInfo.redirectUris.length > 0) {
+                appInfo.redirectUri = appInfo.redirectUris[0];
+                return;
+            }
+        } else if (typeof (appInfo.redirectUris) === 'string') {
+            warn(`Application ${appInfo.id} has invalid redirectUris (string)`);
+            appInfo.redirectUri = appInfo.redirectUris;
+            appInfo.redirectUris = [appInfo.redirectUris];
+            return;
+        }
+        warn(`Application ${appInfo.id} has invalid redirectUris (${typeof(appInfo.redirectUris)})`);
+        return;
+    }
+    if (appInfo.redirectUri && !appInfo.redirectUris) {
+        appInfo.redirectUris = [appInfo.redirectUri];
+        return;
+    }
+    // We have both redirectUris and redirectUri
+    if (Array.isArray(appInfo.redirectUris)) {
+        if (appInfo.redirectUris.length > 0) {
+            appInfo.redirectUri = appInfo.redirectUris[0];
+            return;
+        }
+        // 0-length array
+        appInfo.redirectUris = [appInfo.redirectUri];
+        return;
+    }
+    warn(`Application ${appInfo.id} has a non-null redirectUris field of unexpected type: ${typeof(appInfo.redirectUris)}, overriding with redirectUri.`);
+    appInfo.redirectUris = [appInfo.redirectUri];
+    return;
+}
+
+function checkRedirectUris(redirectUri, redirectUris, isPatch) {
+    if (redirectUri && !isValidRedirectUri(redirectUri)) {
+        return { redirectValid: false, redirectMessage: `redirectUri ${redirectUri} is not valid.` };
+    }
+    if (redirectUris) {
+        if (!Array.isArray(redirectUris)) {
+            return { redirectValid: false, redirectMessage: 'redirectUris is not an array' };
+        }
+        for (let i = 0; i < redirectUris.length; ++i) {
+            const ru = redirectUris[i];
+            if (typeof (ru) !== 'string') {
+                return { redirectValid: false, redirectMessage: 'property redirectUris contains a non-string value' };
+            }
+            if (!isValidRedirectUri(ru)) {
+                return { redirectValid: false, redirectMessage: `redirectUri ${ru} is not valid.` };
+            }
+        }
+        if (redirectUris.length == 0) {
+            // Treat empty arrays as null please (see below)
+            redirectUris = null;
+        }
+    }
+    let returnUri;
+    let returnUris;
+    if (!redirectUri && !redirectUris) {
+        returnUri = isPatch ? null : '';
+        returnUris = isPatch ? null : [];
+    } else if (redirectUri && !redirectUris) {
+        returnUri = redirectUri;
+        returnUris = [redirectUri];
+    } else if ((!redirectUri && redirectUris) || (redirectUri && redirectUris)) {
+        // If we're here, we know that redirectUris has at least one entry
+        // And that first entry "wins"
+        returnUri = redirectUris[0];
+        returnUris = redirectUris;
+    }
+    return { redirectValid: true, redirectUri: returnUri, redirectUris: returnUris };
+}
 
 applications.createApplication = function (app, res, loggedInUserId, appCreateInfo) {
     debug('createApplication(): loggedInUserId: ' + loggedInUserId);
     debug(appCreateInfo);
     const appId = appCreateInfo.id.trim();
-    const redirectUri = appCreateInfo.redirectUri;
     // Load user information
     users.loadUser(app, loggedInUserId, (err, userInfo) => {
         if (err) {
@@ -319,9 +401,11 @@ applications.createApplication = function (app, res, loggedInUserId, appCreateIn
         if (!userInfo.validated) {
             return utils.fail(res, 403, 'Not allowed. Email address not validated.');
         }
-        if (redirectUri && !applications.isValidRedirectUri(redirectUri)) {
-            return utils.fail(res, 400, 'redirectUri is not valid');
+        const { redirectValid, redirectMessage, redirectUri, redirectUris } = checkRedirectUris(appCreateInfo.redirectUri, appCreateInfo.redirectUris, false /* isPatch */);
+        if (!redirectValid) {
+            return utils.fail(res, 400, redirectMessage);
         }
+        debug(`createApplication: resolved redirectUris: ${redirectUri}, ${JSON.stringify(redirectUris)}`);
         if (!appCreateInfo.name || appCreateInfo.name.length < 1) {
             return utils.fail(res, 400, 'Friendly name of application cannot be empty.');
         }
@@ -338,7 +422,8 @@ applications.createApplication = function (app, res, loggedInUserId, appCreateIn
         const newAppInfo = {
             id: appId,
             name: appCreateInfo.name.substring(0, 128),
-            redirectUri: appCreateInfo.redirectUri,
+            redirectUri: redirectUri,
+            redirectUris: redirectUris,
             confidential: !!appCreateInfo.confidential,
             clientType: appCreateInfo.clientType,
             mainUrl: appCreateInfo.mainUrl
@@ -393,9 +478,9 @@ applications.patchApplication = function (app, res, loggedInUserId, appId, appPa
             if (appId != appPatchInfo.id) {
                 return utils.fail(res, 400, 'Changing application ID is not allowed. Sorry.');
             }
-            const redirectUri = appPatchInfo.redirectUri;
-            if (redirectUri && !applications.isValidRedirectUri(redirectUri)) {
-                return utils.fail(res, 400, 'redirectUri is not valid');
+            const { redirectValid, redirectMessage, redirectUri, redirectUris } = checkRedirectUris(appPatchInfo.redirectUri, appPatchInfo.redirectUris, true /* isPatch */);
+            if (!redirectValid) {
+                return utils.fail(res, 400, redirectMessage);
             }
 
             // Update app
@@ -407,6 +492,9 @@ applications.patchApplication = function (app, res, loggedInUserId, appId, appPa
             }
             if (redirectUri) {
                 appInfo.redirectUri = redirectUri;
+            }
+            if (redirectUris) {
+                appInfo.redirectUris = redirectUris;
             }
             if (appPatchInfo.hasOwnProperty('confidential')) {
                 appInfo.confidential = !!appPatchInfo.confidential;
@@ -614,8 +702,9 @@ applications.deleteOwner = function (app, res, loggedInUserId, appId, userEmail)
                 }
 
                 dao.applications.deleteOwner(appId, userToDelete.id, loggedInUserId, (err, updatedAppInfo) => {
-                    if (err){
-                        return utils.fail(res, 500, 'deleteOwner: DAO deleteOwner failed', err);}
+                    if (err) {
+                        return utils.fail(res, 500, 'deleteOwner: DAO deleteOwner failed', err);
+                    }
                     res.json(updatedAppInfo);
 
                     // Webhook
