@@ -37,12 +37,10 @@ subscriptions.getAllSubscriptions = function (app, res, loggedInUserId, filter, 
         }
         if (!userInfo.admin && !userInfo.approver) {
             return utils.fail(res, 403, 'Not allowed. This is admin/approver land.');
-<<<<<<< HEAD
+        }
         if(userInfo.approver) //add approver groups
             filter['api_group']=userInfo.groups.join('|');
-=======
-        }
->>>>>>> origin/next
+
         if (embed) {
             dao.subscriptions.getAll(filter, orderBy, offset, limit, noCountCache, (err, subsIndex, countResult) => {
                 if (err) {

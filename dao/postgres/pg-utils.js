@@ -397,11 +397,8 @@ class PgUtils {
         }
         if (options.joinedFields) {
             joinedFields = options.joinedFields;
-<<<<<<< HEAD
-=======
         }
 
->>>>>>> origin/next
         const instance = this;
         this.getPoolOrClient(client, (err, poolOrClient) => {
             if (err) {
