@@ -355,14 +355,21 @@ function checkRedirectUris(redirectUri, redirectUris, isPatch) {
         if (!Array.isArray(redirectUris)) {
             return { redirectValid: false, redirectMessage: 'redirectUris is not an array' };
         }
-        for (let i = 0; i < redirectUris.length; ++i) {
-            const ru = redirectUris[i];
+        const tmpUris = redirectUris;
+        redirectUris = [];
+        for (let i = 0; i < tmpUris.length; ++i) {
+            let ru = tmpUris[i];
             if (typeof (ru) !== 'string') {
                 return { redirectValid: false, redirectMessage: 'property redirectUris contains a non-string value' };
+            }
+            ru = ru.trim();
+            if (ru === '') {
+                continue;
             }
             if (!isValidRedirectUri(ru)) {
                 return { redirectValid: false, redirectMessage: `redirectUri ${ru} is not valid.` };
             }
+            redirectUris.push(ru);
         }
         if (redirectUris.length == 0) {
             // Treat empty arrays as null please (see below)
