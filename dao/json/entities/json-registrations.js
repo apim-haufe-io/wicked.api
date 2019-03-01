@@ -81,15 +81,17 @@ class JsonRegistrations {
 
     getPoolIndexFileName(poolId, namespace) {
         const regsDir = path.join(this.jsonUtils.getDynamicDir(), 'registrations');
-        if (namespace)
+        if (namespace) {
             return path.join(regsDir, `${poolId}_${namespace}.json`);
+        }
         return path.join(regsDir, `${poolId}.json`);
     }
 
     loadPoolIndex(poolId, namespace) {
         const indexFileName = this.getPoolIndexFileName(poolId, namespace);
-        if (fs.existsSync(indexFileName))
+        if (fs.existsSync(indexFileName)) {
             return JSON.parse(fs.readFileSync(indexFileName, 'utf8'));
+        }
         return [];
     }
 
@@ -105,8 +107,9 @@ class JsonRegistrations {
 
     loadUserRegistrations(userId) {
         const regsFileName = this.getUserRegistrationsFileName(userId);
-        if (fs.existsSync(regsFileName))
+        if (fs.existsSync(regsFileName)) {
             return JSON.parse(fs.readFileSync(regsFileName, 'utf8'));
+        }
         return [];
     }
 
@@ -117,22 +120,27 @@ class JsonRegistrations {
 
     static userEntryPredicate(poolId, namespace, userId) {
         return function (pi) {
-            if (pi.poolId !== poolId)
+            if (pi.poolId !== poolId) {
                 return false;
-            if (namespace && pi.namespace !== namespace)
+            }
+            if (namespace && pi.namespace !== namespace) {
                 return false;
-            if (pi.userId !== userId)
+            }
+            if (pi.userId !== userId) {
                 return false;
+            }
             return true;
         };
     }
 
     static poolEntryPredicate(poolId, namespace) {
         return function (r) {
-            if (r.poolId !== poolId)
+            if (r.poolId !== poolId) {
                 return false;
-            if (namespace && r.namespace !== namespace)
+            }
+            if (namespace && r.namespace !== namespace) {
                 return false;
+            }
             return true;
         };
     }
@@ -141,8 +149,9 @@ class JsonRegistrations {
         debug(`ensurePoolIndex(${poolId}, ${namespace}, ${userId})`);
         const poolIndex = this.loadPoolIndex(poolId, namespace);
         const userEntryIndex = poolIndex.findIndex(JsonRegistrations.userEntryPredicate(poolId, namespace, userId));
-        if (userEntryIndex >= 0)
+        if (userEntryIndex >= 0) {
             return;
+        }
         poolIndex.push({
             poolId: poolId,
             namespace: namespace,
@@ -192,19 +201,22 @@ class JsonRegistrations {
                 let reg;
                 if (namespace) {
                     reg = userRegs.rows.find(r => r.namespace === namespace); // jshint ignore:line
-                    if (!reg)
+                    if (!reg) {
                         throw utils.makeError(500, `Invalid internal state: No registration for user ${entry.userId} for pool ${poolId} and namespace ${namespace}`);
+                    }
                 } else {
-                    if (userRegs.rows.length !== 1)
+                    if (userRegs.rows.length !== 1) {
                         throw utils.makeError(500, `Invalid internal state: Multiple registrations for user ${entry.userId} for pool ${poolId}`);
+                    }
                     reg = userRegs.rows[0];
                 }
                 tmpArray.push(reg);
             }
         }
 
-        if (!orderBy)
+        if (!orderBy) {
             orderBy = 'name ASC';
+        }
 
         const { list, filterCount } = this.jsonUtils.filterAndPage(tmpArray, filter, orderBy, offset, limit);
         // Now return the list
@@ -217,8 +229,9 @@ class JsonRegistrations {
         const tmpArray = [];
         for (let i = 0; i < userRegs.length; ++i) {
             const thisReg = userRegs[i];
-            if (thisReg.poolId !== poolId)
+            if (thisReg.poolId !== poolId) {
                 continue;
+            }
             tmpArray.push(thisReg);
         }
         return { rows: tmpArray, count: tmpArray.length };
@@ -230,10 +243,11 @@ class JsonRegistrations {
         const regMap = {};
         for (let i = 0; i < userRegs.length; ++i) {
             const thisReg = userRegs[i];
-            if (regMap[thisReg.poolId])
+            if (regMap[thisReg.poolId]) {
                 regMap[thisReg.poolId].push(thisReg);
-            else
+            } else {
                 regMap[thisReg.poolId] = [thisReg];
+            }
         }
         return { pools: regMap };
     }
@@ -252,8 +266,9 @@ class JsonRegistrations {
         const userIndex = poolIndex.findIndex(JsonRegistrations.userEntryPredicate(poolId, namespace, userId));
         const userRegs = this.loadUserRegistrations(userId);
         const regIndex = userRegs.findIndex(JsonRegistrations.poolEntryPredicate(poolId, namespace));
-        if (userIndex < 0 || regIndex < 0)
+        if (userIndex < 0 || regIndex < 0) {
             throw utils.makeError(404, 'Not found');
+        }
         // Both are valid now
         poolIndex.splice(userIndex, 1);
         userRegs.splice(regIndex, 1);

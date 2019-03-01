@@ -79,17 +79,19 @@ class PgRegistrations {
         return this.pgUtils.getBy('registrations', 'userId', userId, {
             orderBy: 'pool_id ASC'
         }, (err, data, countResult) => {
-            if (err)
+            if (err) {
                 return callback(err);
+            }
             const tmp = {
                 pools: {}
             };
 
             data.forEach(r => {
-                if (tmp.pools[r.poolId])
+                if (tmp.pools[r.poolId]) {
                     tmp.pools[r.poolId].push(r);
-                else
+                } else {
                     tmp.pools[r.poolId] = [r];
+                }
             });
             return callback(null, tmp, countResult);
         });
@@ -101,28 +103,36 @@ class PgRegistrations {
         if (userData.namespace) {
             const namespace = userData.namespace;
             this.pgUtils.getBy('registrations', ['poolId', 'namespace', 'userId'], [poolId, namespace, userId], {}, (err, data) => {
-                if (err)
+                if (err) {
                     return callback(err);
-                if (data.length > 1)
+                }
+                if (data.length > 1) {
                     return callback(utils.makeError(500, `More than one entry in registrations for pool ${poolId}, namespace ${namespace} and user ${userId}`));
+                }
                 // Add the id of the previous record; it's needed here
-                if (data.length === 1)
+                if (data.length === 1) {
                     userData.id = data[0].id;
-                else // new record
+                } else {
+                    // new record
                     userData.id = utils.createRandomId();
+                }
                 return instance.pgUtils.upsert('registrations', userData, upsertingUserId, callback);
             });
         } else {
             this.pgUtils.getBy('registrations', ['poolId', 'userId'], [poolId, userId], {}, (err, data) => {
-                if (err)
+                if (err) {
                     return callback(err);
-                if (data.length > 1)
+                }
+                if (data.length > 1) {
                     return callback(utils.makeError(500, `More than one entry in registrations for pool ${poolId} and user ${userId}`));
+                }
                 // Add the id of the previous record; it's needed here
-                if (data.length === 1)
+                if (data.length === 1) {
                     userData.id = data[0].id;
-                else // new record
+                } else {
+                    // new record
                     userData.id = utils.createRandomId();
+                }
                 return instance.pgUtils.upsert('registrations', userData, upsertingUserId, callback);
             });
         }
@@ -130,8 +140,9 @@ class PgRegistrations {
 
     deleteImpl(poolId, userId, namespace, deletingUserId, callback) {
         debug(`deleteImpl(${poolId}, ${userId})`);
-        if (!namespace)
+        if (!namespace) {
             return this.pgUtils.deleteBy('registrations', ['poolId', 'userId'], [poolId, userId], callback);
+        }
         return this.pgUtils.deleteBy('registrations', ['poolId', 'userId', 'namespace'], [poolId, userId, namespace], callback);
     }
 }

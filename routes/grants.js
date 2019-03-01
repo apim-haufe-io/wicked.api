@@ -43,15 +43,19 @@ grants.delete('/:userId/applications/:applicationId/apis/:apiId', verifyWriteSco
 
 function verifyAccess(app, loggedInUserId, userId, callback) {
     debug(`verifyAccess(${loggedInUserId}, ${userId})`);
-    if (!loggedInUserId)
+    if (!loggedInUserId) {
         return callback(utils.makeError(403, 'Grants: Must be making call on behalf of a user (must be logged in).'));
+    }
     users.loadUser(app, loggedInUserId, (err, loggedInUserInfo) => {
-        if (err)
+        if (err) {
             return callback(utils.makeError(500, 'Grants: Could not load logged in user.', err));
-        if (!loggedInUserInfo)
+        }
+        if (!loggedInUserInfo) {
             return callback(utils.makeError(403, 'Grants: Not allowed.'));
-        if (!userId)
+        }
+        if (!userId) {
             return callback(utils.makeError(400, 'Grants: Invalid state - need context user.'));
+        }
         // Admins are allowed access
         if (!loggedInUserInfo.admin) {
             // We have a non-admin here
@@ -64,10 +68,12 @@ function verifyAccess(app, loggedInUserId, userId, callback) {
         // Looks fine so far, now we must check the user context. That user
         // also has to exist for this to make sense.
         users.loadUser(app, userId, (err, userInfo) => {
-            if (err)
+            if (err) {
                 return callback(utils.makeError(500, 'Grants: Could not load context user', err));
-            if (!userInfo)
+            }
+            if (!userInfo) {
                 return callback(utils.makeError(404, 'Grants: Context user not found.'));
+            }
             // OK, user exists, we'll be fine
             return callback(null);
         });
@@ -78,12 +84,14 @@ function getByUser(app, res, loggedInUserId, userId) {
     debug(`getByUser(${loggedInUserId}, ${userId})`);
 
     verifyAccess(app, loggedInUserId, userId, (err) => {
-        if (err)
+        if (err) {
             return utils.failError(res, err);
+        }
 
         dao.grants.getByUser(userId, (err, grantList, countResult) => {
-            if (err)
+            if (err) {
                 return utils.fail(res, 500, 'Grants: Could not load grants by user', err);
+            }
 
             return res.json({
                 items: grantList,
@@ -98,11 +106,13 @@ function deleteByUser(app, res, loggedInUserId, userId) {
     debug(`deleteByUser(${loggedInUserId}, ${userId})`);
 
     verifyAccess(app, loggedInUserId, userId, (err) => {
-        if (err)
+        if (err) {
             return utils.failError(res, err);
+        }
         dao.grants.deleteByUser(userId, loggedInUserId, (err) => {
-            if (err)
+            if (err) {
                 return utils.fail(res, 500, 'Grants: Could not delete all user grants', err);
+            }
             return res.status(204).json({ code: 204, message: 'Deleted all grants.' });
         });
     });
@@ -112,12 +122,14 @@ function getByUserApplicationAndApi(app, res, loggedInUserId, userId, applicatio
     debug(`getByUserApplicationAndApi(${loggedInUserId}, ${userId}, ${applicationId}, ${apiId})`);
 
     verifyAccess(app, loggedInUserId, userId, (err) => {
-        if (err)
+        if (err) {
             return utils.failError(res, err);
+        }
 
         dao.grants.getByUserApplicationAndApi(userId, applicationId, apiId, (err, grant) => {
-            if (err)
+            if (err) {
                 return utils.fail(res, 500, 'Grants: Could not load grants by user and API', err);
+            }
 
             // TODO: Paging links
             return res.json(grant);
@@ -140,19 +152,23 @@ function upsertGrants(app, res, loggedInUserId, userId, applicationId, apiId, ne
     }
 
     // If it's an invalid applicationI ID, we needn't go further
-    if (!utils.isValidApplicationId(applicationId))
+    if (!utils.isValidApplicationId(applicationId)) {
         return utils.fail(res, 400, utils.invalidApplicationIdMessage());
+    }
     // Check whether the application is present
     dao.applications.getById(applicationId, (err, appInfo) => {
-        if (err)
+        if (err) {
             return utils.fail(res, 500, 'Grants: Could not retrieve application information.', err);
-        if (!appInfo)
+        }
+        if (!appInfo) {
             return utils.fail(res, 404, 'Grants: Application not found.');
+        }
         // OK, we're fine so far
 
         const validationError = validateGrants(apiInfo, newGrants);
-        if (validationError)
+        if (validationError) {
             return utils.fail(res, 400, `Grants: Invalid request: ${validationError}`);
+        }
 
         const upsertData = {
             userId: userId,
@@ -162,9 +178,10 @@ function upsertGrants(app, res, loggedInUserId, userId, applicationId, apiId, ne
         };
 
         // Delegate to DAO to write this thing
-        dao.grants.upsert(userId, applicationId, apiId, loggedInUserId, newGrants, (err) => {
-            if (err)
+        dao.grants.upsert(userId, applicationId, apiId, loggedInUserId, upsertData, (err) => {
+            if (err) {
                 return utils.fail(res, 500, 'Grants: Could not upsert grants', err);
+            }
             return res.status(204).json({ code: 204, message: 'Upserted grants.' });
         });
     });
@@ -176,10 +193,12 @@ function upsertGrants(app, res, loggedInUserId, userId, applicationId, apiId, ne
 function validateGrants(apiInfo, grantInfo) {
     debug(`validateGrants(...)`);
     debug(grantInfo);
-    if (!grantInfo.grants)
+    if (!grantInfo.grants) {
         return 'The supplied grants do not contain a "grants" property.';
-    if (!Array.isArray(grantInfo.grants))
+    }
+    if (!Array.isArray(grantInfo.grants)) {
         return 'The supplied grants property is not an array.';
+    }
 
     // If we have grants, check that the API has scope definitions
     if (grantInfo.grants.length > 0) {
@@ -193,14 +212,17 @@ function validateGrants(apiInfo, grantInfo) {
     for (let i = 0; i < grantInfo.grants.length; ++i) {
         const g = grantInfo.grants[i];
         const gType = typeof (g);
-        if (gType !== 'object')
+        if (gType !== 'object') {
             return `The items im the grants property are expected to be 'object', is '${gType}'`;
-        if (!g.scope)
+        }
+        if (!g.scope) {
             return 'All items in the grants array must contain a "scope" property.';
+        }
 
         // Okay, so far it's well formed, let's check whether the scope is actually present in the API
-        if (!apiInfo.settings.scopes[g.scope])
+        if (!apiInfo.settings.scopes[g.scope]) {
             return `The API ${apiInfo.id} doesn't have a scope called '${g.scope}.`;
+        }
     }
     // Yay, all's good
     return null;
@@ -212,12 +234,14 @@ function deleteGrants(app, res, loggedInUserId, userId, applicationId, apiId) {
     // We explicitly don't check whether application or API is present here; in case
     // we have "leftovers", we want to allow a user to delete those.
     verifyAccess(app, loggedInUserId, userId, (err) => {
-        if (err)
+        if (err) {
             return utils.failError(err);
+        }
 
         dao.grants.delete(userId, applicationId, apiId, loggedInUserId, (err) => {
-            if (err)
+            if (err) {
                 return utils.fail(res, 500, 'Grants: Could not delete grants.', err);
+            }
             return res.status(204).json({ code: 204, message: 'Deleted.' });
         });
     });

@@ -24,37 +24,44 @@ swaggerUtils.injectOpenAPIAuth = function (swaggerJson, globalSettings, apiInfo,
         deleteEmptySecurityProperties(swaggerJson);
 
         // Inject securitySchemes(Swagger 3.0)
-        if (!swaggerJson.components)
+        if (!swaggerJson.components) {
             swaggerJson.components = {};
+        }
         swaggerJson.components.securitySchemes = securitySchemesParam;
         swaggerJson.security = apikeyParam; // Apply globally
     } else if (apiInfo.auth == "oauth2") {
         // securitySchemesParam is specific for Swagger 3.0
-        if (!swaggerJson.components)
+        if (!swaggerJson.components) {
             swaggerJson.components = {};
-        const origSecuritySchemesParam = swaggerJson.components.securitySchemes ? utils.clone(swaggerJson.components.securitySchemes) : {};
+        }
+        // const origSecuritySchemesParam = swaggerJson.components.securitySchemes ? utils.clone(swaggerJson.components.securitySchemes) : {};
         // We will override the security definitions with our own ones
         swaggerJson.components.securitySchemes = {};
 
         const securityProperties = findSecurityProperties(swaggerJson);
-        const origSecurityProperties = securityProperties ? utils.clone(securityProperties) : [];
+        // const origSecurityProperties = securityProperties ? utils.clone(securityProperties) : [];
         debug(securityProperties);
         // Reset all security properties
         securityProperties.forEach(sp => sp.length = 0);
 
         for (let i = 0; i < apiInfo.authMethods.length; ++i) {
             const authMethod = lookupAuthMethod(globalSettings, apiInfo.id, apiInfo.authMethods[i]);
-            if (!authMethod)
+            if (!authMethod) {
                 continue;
+            }
             const flows = [];
-            if (apiInfo.settings.enable_authorization_code)
+            if (apiInfo.settings.enable_authorization_code) {
                 flows.push("authorizationCode");
-            if (apiInfo.settings.enable_implicit_grant)
+            }
+            if (apiInfo.settings.enable_implicit_grant) {
                 flows.push("implicit");
-            if (apiInfo.settings.enable_password_grant)
+            }
+            if (apiInfo.settings.enable_password_grant) {
                 flows.push("password");
-            if (apiInfo.settings.enable_client_credentials)
+            }
+            if (apiInfo.settings.enable_client_credentials) {
                 flows.push("clientCredentials");
+            }
 
             for (let j = 0; j < flows.length; ++j) {
                 injectOAuth2OpenAPI(swaggerJson, flows[j], authMethod, apiInfo);
@@ -67,7 +74,7 @@ swaggerUtils.injectOpenAPIAuth = function (swaggerJson, globalSettings, apiInfo,
     }
     // OpenAPI 3 uses "servers" instead of a basePath, host and schema
     swaggerJson.servers = [];
-    for (let i=0; i<requestPaths.length; ++i) {
+    for (let i = 0; i < requestPaths.length; ++i) {
         const p = requestPaths[i];
         swaggerJson.servers.push({
             url: `${globalSettings.network.schema}://${globalSettings.network.apiHost}${p}`
@@ -98,29 +105,32 @@ swaggerUtils.injectSwaggerAuth = function (swaggerJson, globalSettings, apiInfo,
         swaggerJson.security = apikeyParam; // Apply globally
     } else if (apiInfo.auth == "oauth2") {
         // securityDefinitions is specific for Swagger 2.0
-        const origSecurityDefinitions = swaggerJson.securityDefinitions ? utils.clone(swaggerJson.securityDefinitions) : {};
+        // const origSecurityDefinitions = swaggerJson.securityDefinitions ? utils.clone(swaggerJson.securityDefinitions) : {};
         // We will override the security definitions with our own ones
         swaggerJson.securityDefinitions = {};
 
         const securityProperties = findSecurityProperties(swaggerJson);
-        const origSecurityProperties = utils.clone(securityProperties);
+        // const origSecurityProperties = utils.clone(securityProperties);
         debug(securityProperties);
         // Reset all security properties
         securityProperties.forEach(sp => sp.length = 0);
 
         for (let i = 0; i < apiInfo.authMethods.length; ++i) {
             const authMethod = lookupAuthMethod(globalSettings, apiInfo.id, apiInfo.authMethods[i]);
-            if (!authMethod)
-                continue;
+            if (!authMethod) { continue; }
             const flows = [];
-            if (apiInfo.settings.enable_authorization_code)
+            if (apiInfo.settings.enable_authorization_code) {
                 flows.push("accessCode");
-            if (apiInfo.settings.enable_implicit_grant)
+            }
+            if (apiInfo.settings.enable_implicit_grant) {
                 flows.push("implicit");
-            if (apiInfo.settings.enable_password_grant)
+            }
+            if (apiInfo.settings.enable_password_grant) {
                 flows.push("password");
-            if (apiInfo.settings.enable_client_credentials)
+            }
+            if (apiInfo.settings.enable_client_credentials) {
                 flows.push("application");
+            }
 
             for (let j = 0; j < flows.length; ++j) {
                 injectOAuth2(swaggerJson, flows[j], authMethod, apiInfo);
@@ -163,10 +173,11 @@ function makeSwaggerUiScopes(apiInfo) {
     if (apiInfo.settings && apiInfo.settings.scopes) {
         for (let s in apiInfo.settings.scopes) {
             const thisScope = apiInfo.settings.scopes[s];
-            if (thisScope.description)
+            if (thisScope.description) {
                 scopeMap[s] = thisScope.description;
-            else
+            } else {
                 scopeMap[s] = s;
+            }
         }
     }
     return scopeMap;
@@ -179,18 +190,20 @@ function findSecurityProperties(swaggerJson) {
 }
 
 function findSecurityPropertiesRecursive(someProperty, securityList) {
-    if (typeof someProperty === 'string' || typeof someProperty === 'number')
+    if (typeof someProperty === 'string' || typeof someProperty === 'number') {
         return;
+    }
     if (Array.isArray(someProperty)) {
         for (let i = 0; i < someProperty.length; ++i) {
             findSecurityPropertiesRecursive(someProperty[i], securityList);
         }
     } else if (typeof someProperty === 'object') {
         for (let k in someProperty) {
-            if (k === 'security')
+            if (k === 'security') {
                 securityList.push(someProperty[k]);
-            else
+            } else {
                 findSecurityPropertiesRecursive(someProperty[k], securityList);
+            }
         }
     } else {
         debug(`Unknown typeof someProperty: ${typeof someProperty}`);
@@ -198,8 +211,9 @@ function findSecurityPropertiesRecursive(someProperty, securityList) {
 }
 
 function deleteEmptySecurityProperties(someProperty) {
-    if (typeof someProperty === 'string' || typeof someProperty === 'number')
+    if (typeof someProperty === 'string' || typeof someProperty === 'number') {
         return;
+    }
     if (Array.isArray(someProperty)) {
         for (let i = 0; i < someProperty.length; ++i) {
             deleteEmptySecurityProperties(someProperty[i]);
@@ -208,8 +222,9 @@ function deleteEmptySecurityProperties(someProperty) {
         for (let k in someProperty) {
             if (k === 'security') {
                 if (Array.isArray(someProperty[k])) {
-                    if (someProperty[k].length === 0)
+                    if (someProperty[k].length === 0) {
                         delete someProperty[k];
+                    }
                 } else {
                     warn('deleteEmptySecurityProperties: Non-Array security property');
                 }
@@ -236,7 +251,7 @@ function injectOAuth2OpenAPI(swaggerJson, oflow, authMethod, apiInfo) {
         scopes: makeSwaggerUiScopes(apiInfo)
     };
     securitySchemesParam[securitySchemaName].flows = mflows;
-   
+
     // TODO: Scopes on specific endpoints
     const securityDef = {};
     securityDef[securitySchemaName] = [];

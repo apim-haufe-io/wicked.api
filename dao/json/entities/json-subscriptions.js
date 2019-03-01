@@ -77,7 +77,7 @@ class JsonSubscriptions {
         //     return callback(err);
         // }
         // return callback(null, allApps.rows, { count: allSubs.count, cached: false });
-        
+
         // THIS IS NOT IMPLEMENTED FOR JSON:
         return callback(utils.makeError(501, 'This functionality is not implemented for the JSON data store. Please use Postgres if it is needed.'));
     }
@@ -150,8 +150,9 @@ class JsonSubscriptions {
         for (let i = 0; i < subs.length; ++i) {
             const thisSub = subs[i];
             // Write subs index by client ID
-            if (!thisSub.clientId)
+            if (!thisSub.clientId) {
                 continue;
+            }
             const clientId = thisSub.clientId;
             const fileName = path.join(subsIndexDir, clientId + '.json');
             fs.writeFileSync(fileName, JSON.stringify({
@@ -205,8 +206,9 @@ class JsonSubscriptions {
         const indexDir = this.getSubsIndexDir();
         const fileName = path.join(indexDir, clientId + '.json');
         debug('Trying to load ' + fileName);
-        if (!fs.existsSync(fileName))
+        if (!fs.existsSync(fileName)) {
             return null;
+        }
         return JSON.parse(fs.readFileSync(fileName, 'utf8'));
     }
 
@@ -227,16 +229,18 @@ class JsonSubscriptions {
         debug('loadSubscriptionIndexEntry()');
         const indexDir = this.getSubsIndexDir();
         const fileName = path.join(indexDir, clientId + '.json');
-        if (fs.existsSync(fileName))
+        if (fs.existsSync(fileName)) {
             fs.unlinkSync(fileName);
+        }
     }
 
     loadSubscriptionApiIndex(apiId) {
         debug('loadSubscriptionApiIndex(): ' + apiId);
         const indexDir = this.getSubsApiIndexDir();
         const fileName = path.join(indexDir, apiId + '.json');
-        if (!fs.existsSync(fileName))
+        if (!fs.existsSync(fileName)) {
             return null;
+        }
         return JSON.parse(fs.readFileSync(fileName, 'utf8'));
     }
 
@@ -335,8 +339,9 @@ class JsonSubscriptions {
         return this.jsonUtils.withLockedSubscriptions(appId, function () {
             const appSubs = instance.loadSubscriptions(appId);
             const subsIndex = appSubs.findIndex(s => s.id === subscriptionId);
-            if (subsIndex < 0)
+            if (subsIndex < 0) {
                 throw utils.makeError(404, 'Not found. Subscription to API "' + apiId + '" does not exist: ' + appId);
+            }
             const subscriptionData = appSubs[subsIndex];
             // We need to remove the subscription from the index, if necessary
             const clientId = subscriptionData.clientId;
@@ -348,8 +353,9 @@ class JsonSubscriptions {
             instance.saveSubscriptions(appId, appSubs);
 
             // Now check the clientId
-            if (clientId)
+            if (clientId) {
                 instance.deleteSubscriptionIndexEntry(clientId);
+            }
             // Delete the subscription from the API index
             instance.deleteSubscriptionApiIndexEntry(subscriptionData);
         });
@@ -372,8 +378,9 @@ class JsonSubscriptions {
         return this.jsonUtils.withLockedSubscriptions(appId, function () {
             const appSubs = instance.loadSubscriptions(appId);
             const subsIndex = appSubs.findIndex(s => s.id == subsInfo.id);
-            if (subsIndex < 0)
+            if (subsIndex < 0) {
                 return utils.makeError(404, 'Not found. Subscription does not exist');
+            }
 
             appSubs[subsIndex] = subsInfo;
             const tempClientId = subsInfo.clientId;
@@ -399,8 +406,9 @@ class JsonSubscriptions {
                 break;
             }
         }
-        if (subsIndex < 0)
+        if (subsIndex < 0) {
             return null;
+        }
         return appSubs[subsIndex];
     }
 
@@ -413,8 +421,9 @@ class JsonSubscriptions {
     getByClientIdSync(clientId) {
         debug(`getByClientIdSync(${clientId})`);
         const indexEntry = this.loadSubscriptionIndexEntry(clientId);
-        if (!indexEntry)
-            return null; // Not found
+        if (!indexEntry) {
+            return null;
+        } // Not found
 
         const appSub = this.loadAndFindSubscription(indexEntry.application, indexEntry.api);
         if (!appSub) {

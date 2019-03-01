@@ -1,14 +1,14 @@
 'use strict';
 
-var fs = require('fs');
-var path = require('path');
-var { debug, info, warn, error } = require('portal-env').Logger('portal-api:approvals');
-var utils = require('./utils');
-var users = require('./users');
+const fs = require('fs');
+const path = require('path');
+const { debug, info, warn, error } = require('portal-env').Logger('portal-api:approvals');
+const utils = require('./utils');
+const users = require('./users');
 
-var dao = require('../dao/dao');
+const dao = require('../dao/dao');
 
-var approvals = require('express').Router();
+const approvals = require('express').Router();
 
 // ===== SCOPES =====
 
@@ -30,8 +30,9 @@ approvals.get('/:approvalId', verifyReadScope, function (req, res, next) {
 approvals.getApprovals = function (req, res, next, loggedInUserId) {
     debug('getApprovals()');
     getAllApprovals(req.app, loggedInUserId, (err, approvalInfos) => {
-        if (err)
+        if (err) {
             return utils.failError(res, err);
+        }
         res.json(approvalInfos);
     });
 };
@@ -39,11 +40,13 @@ approvals.getApprovals = function (req, res, next, loggedInUserId) {
 approvals.getApproval = function (req, res, next, loggedInUserId, approvalId) {
     debug(`getApproval(${approvalId})`);
     getAllApprovals(req.app, loggedInUserId, (err, approvalInfos) => {
-        if (err)
+        if (err) {
             return utils.failError(res, err);
+        }
         const approvalInfo = approvalInfos.find(a => a.id === approvalId);
-        if (!approvalInfo)
+        if (!approvalInfo) {
             return utils.fail(res, 404, 'Not found');
+        }
         return res.json(approvalInfo);
     });
 };
@@ -51,30 +54,36 @@ approvals.getApproval = function (req, res, next, loggedInUserId, approvalId) {
 function getAllApprovals(app, loggedInUserId, callback) {
     debug(`getAllApprovals(${loggedInUserId})`);
     checkRights(app, loggedInUserId, (err, userInfo) => {
-        if (err)
+        if (err) {
             return callback(err);
+        }
         loadAllApprovals(app, userInfo, callback);
     });
 }
 
 function checkRights(app, loggedInUserId, callback) {
-    if (!loggedInUserId)
+    if (!loggedInUserId) {
         return callback(utils.makeError(403, 'Not allowed'));
+    }
     users.loadUser(app, loggedInUserId, (err, userInfo) => {
-        if (err)
+        if (err) {
             return callback(utils.makeError(500, 'getApprovals: loadUser failed', err));
-        if (!userInfo)
+        }
+        if (!userInfo) {
             return callback(utils.makeError(403, 'Not allowed'));
-        if (!userInfo.admin && !userInfo.approver)
+        }
+        if (!userInfo.admin && !userInfo.approver) {
             return callback(utils.makeError(403, 'Not allowed'));
+        }
         return callback(null, userInfo);
     });
 }
 
 function loadAllApprovals(app, userInfo, callback) {
     dao.approvals.getAll((err, approvalInfos) => {
-        if (err)
+        if (err) {
             return callback(utils.makeError(500, 'getApprovals: DAO load approvals failed', err));
+        }
 
         const groupsJson = utils.loadGroups(app);
         const groups = groupsJson.groups;
@@ -104,11 +113,12 @@ function loadAllApprovals(app, userInfo, callback) {
         }
 
         approvalInfos = approvalInfos.filter(function (approval) {
-            if (userInfo.admin)
+            if (userInfo.admin) {
                 return true; // Show all approvals for admin
-            if (!approval.api.requiredGroup)
+            }
+            if (!approval.api.requiredGroup) {
                 return false; // API does not require a group; only admins can approve of public APIs.
-
+            }
             // If group id or alt_id of approver's group matches with requiredGroup of an API, return happy
             return (!!userGroups[approval.api.requiredGroup]);
         });

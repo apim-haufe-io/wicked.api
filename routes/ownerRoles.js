@@ -1,6 +1,6 @@
 'use strict';
 
-var ownerRoles = {
+const ownerRoles = {
     OWNER: "owner",
     COLLABORATOR: "collaborator",
     READER: "reader"

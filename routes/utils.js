@@ -1,5 +1,7 @@
 'use strict';
 
+/* global __dirname */
+
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
@@ -60,16 +62,18 @@ utils.getUtc = function () {
 utils.getJson = function (ob) {
     if (ob instanceof String || typeof ob === "string") {
         const obTrim = ob.trim();
-        if (obTrim.startsWith('{') || obTrim.startsWith('['))
+        if (obTrim.startsWith('{') || obTrim.startsWith('[')) {
             return JSON.parse(obTrim);
+        }
         return { warning: 'Expected JSON, received a plain string?', message: obTrim };
     }
     return ob;
 };
 
 utils.getText = function (ob) {
-    if (ob instanceof String || typeof ob === "string")
+    if (ob instanceof String || typeof ob === "string") {
         return ob;
+    }
     return JSON.stringify(ob, null, 2);
 };
 
@@ -99,8 +103,9 @@ utils.makeError = (statusCode, message) => {
 let _groups = null;
 utils.loadGroups = function () {
     debug('loadGroups()');
-    if (utils.isMigrationMode())
+    if (utils.isMigrationMode()) {
         throw new Error('You must not call loadGroups() in migration mode.');
+    }
     if (!_groups) {
         const groupsDir = path.join(utils.getStaticDir(), 'groups');
         const groupsFile = path.join(groupsDir, 'groups.json');
@@ -113,8 +118,9 @@ utils.loadGroups = function () {
 let _apis = null;
 utils.loadApis = function () {
     debug('loadApis()');
-    if (utils.isMigrationMode())
+    if (utils.isMigrationMode()) {
         throw new Error('You must not call loadApis() in migration mode.');
+    }
     if (!_apis) {
         const apisDir = path.join(utils.getStaticDir(), 'apis');
         const apisFile = path.join(apisDir, 'apis.json');
@@ -133,16 +139,18 @@ utils.getApi = function (apiId) {
     debug(`getApi(${apiId})`);
     const apiList = utils.loadApis();
     const apiIndex = apiList.apis.findIndex(a => a.id === apiId);
-    if (apiIndex < 0)
+    if (apiIndex < 0) {
         throw utils.makeError(404, `API ${apiId} is unknown`);
+    }
     return apiList.apis[apiIndex];
 };
 
 let _poolsMap = null;
 utils.getPools = function () {
     debug(`getPools()`);
-    if (utils.isMigrationMode())
+    if (utils.isMigrationMode()) {
         throw new Error('You must not call getPools() in migration mode.');
+    }
     if (!_poolsMap) {
         _poolsMap = {};
         // Load all the pools
@@ -159,8 +167,9 @@ utils.getPools = function () {
             const poolInfo = JSON.parse(fs.readFileSync(poolFile, 'utf8'));
             debug(poolInfo);
 
-            if (!poolInfo.properties || !Array.isArray(poolInfo.properties))
+            if (!poolInfo.properties || !Array.isArray(poolInfo.properties)) {
                 throw new Error(`Pool info for pool ${poolId} contains an invalid "properties" property; MUST be an array.`);
+            }
 
             _poolsMap[poolId] = poolInfo;
         }
@@ -171,10 +180,12 @@ utils.getPools = function () {
 utils.getPool = function (poolId) {
     debug(`getPool(${poolId})`);
     const pools = utils.getPools();
-    if (!utils.isPoolIdValid(poolId))
+    if (!utils.isPoolIdValid(poolId)) {
         throw utils.makeError(400, utils.validationErrorMessage('Pool ID'));
-    if (!utils.hasPool(poolId))
+    }
+    if (!utils.hasPool(poolId)) {
         throw utils.makeError(404, `The registration pool ${poolId} is not defined.`);
+    }
     return pools[poolId];
 };
 
@@ -187,18 +198,22 @@ utils.hasPool = function (poolId) {
 const validationRegex = /^[a-z0-9_-]+$/;
 utils.isNamespaceValid = (namespace) => {
     // Empty or null namespaces are valid
-    if (!namespace)
+    if (!namespace) {
         return true;
-    if (validationRegex.test(namespace))
+    }
+    if (validationRegex.test(namespace)) {
         return true;
+    }
     return false;
 };
 
 utils.isPoolIdValid = (poolId) => {
-    if (!poolId)
+    if (!poolId) {
         return false;
-    if (validationRegex.test(poolId))
+    }
+    if (validationRegex.test(poolId)) {
         return true;
+    }
     return false;
 };
 
@@ -208,8 +223,9 @@ utils.validationErrorMessage = (entity) => {
 
 const applicationRegex = /^[a-z0-9\-_]+$/;
 utils.isValidApplicationId = (appId) => {
-    if (!applicationRegex.test(appId))
+    if (!applicationRegex.test(appId)) {
         return false;
+    }
     return true;
 };
 
@@ -225,12 +241,14 @@ function injectRequiredGroups(apis) {
         return;
     }
     const portalApi = apis.apis.find(api => api.id === 'portal-api');
-    if (!portalApi)
+    if (!portalApi) {
         throw utils.makeError(500, 'injectAuthMethods: Internal API portal-api not found in internal APIs list');
+    }
     portalApi.requiredGroup = globals.api.apiUserGroup;
     const echoApi = apis.apis.find(api => api.id === 'echo');
-    if (!echoApi)
+    if (!echoApi) {
         throw utils.makeError(500, 'injectAuthMethods: Internal API echo not found in internal APIs list');
+    }
     echoApi.requiredGroup = globals.api.echoUserGroup;
 }
 
@@ -243,15 +261,17 @@ function injectAuthMethods(apis) {
         throw utils.makeError(500, 'injectAuthMethods: globals.json does not contain a portal.authMethods array.');
     }
     const portalApi = apis.apis.find(api => api.id === 'portal-api');
-    if (!portalApi)
+    if (!portalApi) {
         throw utils.makeError(500, 'injectAuthMethods: Internal API portal-api not found in internal APIs list');
+    }
     debug('Configuring auth methods for portal-api API:');
     debug(globals.portal.authMethods);
     portalApi.authMethods = utils.clone(globals.portal.authMethods);
 
     const echoApi = apis.apis.find(api => api.id === 'echo');
-    if (!echoApi)
+    if (!echoApi) {
         throw utils.makeError(500, 'injectAuthMethods: Internal API echo not found in internal APIs list');
+    }
     debug('Configuring auth methods for echo API:');
     echoApi.authMethods = utils.clone(globals.portal.authMethods);
 }
@@ -274,10 +294,9 @@ utils.loadPlans = function () {
 let _globalSettings = null;
 utils.loadGlobals = function () {
     debug('loadGlobals()');
-    if (utils.isMigrationMode())
+    if (utils.isMigrationMode()) {
         throw new Error('In migration mode, loadGlobals() must not be called.');
-    //    const globalsFile = path.join(utils.getStaticDir(app), 'globals.json');
-    //    return require(globalsFile);
+    }
     if (!_globalSettings) {
         const globalsFile = path.join(utils.getStaticDir(), 'globals.json');
         _globalSettings = JSON.parse(fs.readFileSync(globalsFile, 'utf8'));
@@ -338,10 +357,12 @@ utils.loadAuthServer = function (serverId) {
             // Name and id of the Auth Server is used to identify the generated
             // API within the Kong Adapter; if those are missing, add them automatically
             // to the answer.
-            if (!data.name)
+            if (!data.name) {
                 data.name = serverId;
-            if (!data.id)
+            }
+            if (!data.id) {
                 data.id = serverId;
+            }
 
             // Check a couple of standard end points for the auth methods
             appendAuthMethodEndpoints(data);
@@ -366,10 +387,11 @@ utils.loadAuthServerMap = function () {
         for (let i = 0; i < serverNames.length; ++i) {
             const authServerName = serverNames[i];
             const as = utils.loadAuthServer(authServerName);
-            if (as.exists && as.data)
+            if (as.exists && as.data) {
                 _authServerMap[authServerName] = as.data;
-            else
+            } else {
                 warn(`Could not load auth server with id ${authServerName}`);
+            }
         }
     }
     return _authServerMap;
@@ -414,16 +436,18 @@ function checkEndpoint(authServerId, authMethodId, config, endpointName, default
 function getConfigDate() {
     debug('getConfigDate()');
     const buildDatePath = path.join(utils.getStaticDir(), 'build_date');
-    if (!fs.existsSync(buildDatePath))
+    if (!fs.existsSync(buildDatePath)) {
         return "(no config date found)";
+    }
     return fs.readFileSync(buildDatePath, 'utf8');
 }
 
 function getLastCommit() {
     debug('getLastCommit()');
     const commitPath = path.join(utils.getStaticDir(), 'last_commit');
-    if (!fs.existsSync(commitPath))
+    if (!fs.existsSync(commitPath)) {
         return "(no last commit found)";
+    }
     return fs.readFileSync(commitPath, 'utf8');
 }
 
@@ -526,8 +550,9 @@ utils.loadEmailTemplate = function (app, templateName) {
     const templatesDir = resolveTemplatesDir();
     const emailTemplatesDir = path.join(templatesDir, 'email');
     const templateFile = path.join(emailTemplatesDir, templateName + '.mustache');
-    if (!fs.existsSync(templateFile))
+    if (!fs.existsSync(templateFile)) {
         throw new Error('File not found: ' + templateFile);
+    }
     return fs.readFileSync(templateFile, 'utf8');
 };
 
@@ -548,8 +573,9 @@ function getDecipher() {
 }
 
 utils.apiEncrypt = function (text) {
-    if (utils.isMigrationMode())
+    if (utils.isMigrationMode()) {
         return text;
+    }
     const cipher = getCipher();
     // Add random bytes so that it looks different each time.
     let cipherText = cipher.update(utils.createRandomId() + text, 'utf8', 'hex');
@@ -559,10 +585,12 @@ utils.apiEncrypt = function (text) {
 };
 
 utils.apiDecrypt = function (cipherText) {
-    if (utils.isMigrationMode())
+    if (utils.isMigrationMode()) {
         return cipherText;
-    if (!cipherText.startsWith('!'))
+    }
+    if (!cipherText.startsWith('!')) {
         return cipherText;
+    }
     cipherText = cipherText.substring(1); // Strip '!'
     const decipher = getDecipher();
     let text = decipher.update(cipherText, 'hex', 'utf8');
@@ -578,14 +606,17 @@ utils.getVersion = function () {
         if (fs.existsSync(packageFile)) {
             try {
                 const packageInfo = JSON.parse(fs.readFileSync(packageFile, 'utf8'));
-                if (packageInfo.version)
+                if (packageInfo.version) {
                     utils._packageVersion = packageInfo.version;
+                }
             } catch (ex) {
                 error(ex);
             }
         }
-        if (!utils._packageVersion) // something went wrong
+        if (!utils._packageVersion) {
+            // something went wrong
             utils._packageVersion = "0.0.0";
+        }
     }
     return utils._packageVersion;
 };
@@ -594,10 +625,11 @@ utils._gitLastCommit = null;
 utils.getGitLastCommit = function () {
     if (!utils._gitLastCommit) {
         const lastCommitFile = path.join(__dirname, '..', 'git_last_commit');
-        if (fs.existsSync(lastCommitFile))
+        if (fs.existsSync(lastCommitFile)) {
             utils._gitLastCommit = fs.readFileSync(lastCommitFile, 'utf8');
-        else
+        } else {
             utils._gitLastCommit = '(no last git commit found - running locally?)';
+        }
     }
     return utils._gitLastCommit;
 };
@@ -606,10 +638,11 @@ utils._gitBranch = null;
 utils.getGitBranch = function () {
     if (!utils._gitBranch) {
         const gitBranchFile = path.join(__dirname, '..', 'git_branch');
-        if (fs.existsSync(gitBranchFile))
+        if (fs.existsSync(gitBranchFile)) {
             utils._gitBranch = fs.readFileSync(gitBranchFile, 'utf8');
-        else
+        } else {
             utils._gitBranch = '(unknown)';
+        }
     }
     return utils._gitBranch;
 };
@@ -618,10 +651,11 @@ utils._buildDate = null;
 utils.getBuildDate = function () {
     if (!utils._buildDate) {
         const buildDateFile = path.join(__dirname, '..', 'build_date');
-        if (fs.existsSync(buildDateFile))
+        if (fs.existsSync(buildDateFile)) {
             utils._buildDate = fs.readFileSync(buildDateFile, 'utf8');
-        else
+        } else {
             utils._buildDate = '(unknown build date)';
+        }
     }
     return utils._buildDate;
 };
@@ -637,15 +671,17 @@ utils.getOffsetLimit = (req) => {
 
 utils.getNoCountCache = (req) => {
     const no_cache = req.query.no_cache;
-    if (no_cache && (no_cache == '1' || no_cache == 'true'))
+    if (no_cache && (no_cache == '1' || no_cache == 'true')) {
         return true;
+    }
     return false;
 };
 
 utils.getEmbed = (req) => {
     const embed = req.query.embed;
-    if (embed && (embed == '1' || embed == 'true'))
+    if (embed && (embed == '1' || embed == 'true')) {
         return true;
+    }
     return false;
 };
 
@@ -656,8 +692,9 @@ utils.getFilter = (req) => {
             const filter = JSON.parse(filterString);
             let invalidObject = false;
             for (let p in filter) {
-                if (typeof (filter[p]) !== 'string')
+                if (typeof (filter[p]) !== 'string') {
                     invalidObject = true;
+                }
             }
             if (invalidObject) {
                 warn(`Detected nested/invalid filter object, expected plain string properties: ${filterString}`);
@@ -693,15 +730,18 @@ utils.getOrderBy = (req) => {
 };
 
 utils.concatUrl = (a, b) => {
-    if (a.endsWith('/') && b.startsWith('/'))
+    if (a.endsWith('/') && b.startsWith('/')) {
         return a + b.substring(1);
-    if (a.endsWith('/') && !b.startsWith('/'))
+    }
+    if (a.endsWith('/') && !b.startsWith('/')) {
         return a + b;
+    }
     // !a.endsWith('/')
-    if (b.startsWith('/'))
+    if (b.startsWith('/')) {
         return a + b;
+    }
     return a + '/' + b;
-}
+};
 
 // Middleware to verify a scope
 utils.verifyScope = (requiredScope) => {
@@ -743,15 +783,16 @@ utils.getFunctionParams = (func) => {
     functionAsString = functionAsString.replace(REGEX_COMMENTS, '');
     functionAsString = functionAsString.match(REGEX_FUNCTION_PARAMS)[1];
     // Strip method name?
-    if (functionAsString.charAt(0) !== '(')
+    if (functionAsString.charAt(0) !== '(') {
         functionAsString = functionAsString.substring(functionAsString.indexOf('('));
+    }
     if (functionAsString.charAt(0) === '(') {
         functionAsString = functionAsString.slice(1, -1);
     } else {
         debug(`Does not start with "(", look at me: ${functionAsString}`);
     }
 
-    while (match = REGEX_PARAMETERS_VALUES.exec(functionAsString)) params.push([match[1], match[2]]); // jshint ignore:line
+    while (match = REGEX_PARAMETERS_VALUES.exec(functionAsString)) params.push([match[1], match[2]]); // eslint-disable-line
     return params;
 };
 

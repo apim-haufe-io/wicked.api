@@ -43,8 +43,9 @@ class PgApprovals {
         debug('deleteByAppAndApiImpl()');
         const instance = this;
         this.getAll((err, approvalList) => {
-            if (err)
+            if (err) {
                 return callback(err);
+            }
             const approvalInfo = approvalList.find(a => a.api.id === apiId && a.application.id === appId);
             if (approvalInfo) {
                 instance.pgUtils.deleteById('approvals', approvalInfo.id, callback);

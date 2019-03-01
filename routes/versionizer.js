@@ -21,8 +21,9 @@ versionizer.initConfigHash = function (callback) {
         const staticPath = utils.getStaticDir();
         const configTagFileName = path.join(staticPath, 'confighash');
         folderHash.hashElement('.', staticPath, {}, (err, configHash) => {
-            if (err)
+            if (err) {
                 return callback(err);
+            }
             // See https://github.com/marc136/node-folder-hash
             versionizer._configHash = configHash.hash;
             return callback(null, versionizer._configHash);
@@ -36,8 +37,9 @@ versionizer.writeConfigHashToMetadata = function (callback) {
     debug('writeConfigHashToMetadata()');
     dao.meta.setMetadata('config_hash', { hash: versionizer.getConfigHash() }, (err) => {
         dao.meta.getMetadata('config_hash', (err, persistedConfigHash) => {
-            if (err)
+            if (err) {
                 return callback(err);
+            }
             info(`Persisted config hash: ${persistedConfigHash.hash}`);
             return callback(null);
         });
@@ -50,10 +52,11 @@ versionizer.getConfigHashMetadata = function (callback) {
 };
 
 versionizer.getConfigHash = function () {
-    if (!versionizer._configHash)
+    if (!versionizer._configHash) {
         throw new Error('Config hash retrieved without being initialized.');
+    }
     return versionizer._configHash;
-}
+};
 
 versionizer.checkVersions = function (req, res, next) {
     debug('checkVersions()');
@@ -77,14 +80,16 @@ function isConfigHashValid(app, configHash) {
 
 function isUserAgentValid(userAgent) {
     const slashIndex = userAgent.indexOf('/');
-    if (slashIndex < 0)
+    if (slashIndex < 0) {
         return true;
+    }
     const agentString = userAgent.substring(0, slashIndex);
     const versionString = userAgent.substring(slashIndex + 1).trim();
 
     // Only check versions for wicked clients.
-    if (!agentString.startsWith('wicked'))
+    if (!agentString.startsWith('wicked')) {
         return true;
+    }
 
     return (versionString === utils.getVersion());
 }

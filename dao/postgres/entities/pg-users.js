@@ -78,13 +78,14 @@ class PgUsers {
         debug('getByIdImpl()');
         const instance = this;
         return this.pgUtils.getById('users', userId, (err, userInfo) => {
-            if (err)
+            if (err) {
                 return callback(err);
-            if (!userInfo)
+            }
+            if (!userInfo) {
                 return callback(null, null);
+            }
             instance.pgUtils.getBy('owners', 'userId', userId, {}, (err, ownerList) => {
-                if (err)
-                    return callback(err);
+                if (err) { return callback(err); }
                 userInfo.applications = ownerList.map(o => { return { id: o.appId }; });
                 return callback(null, userInfo);
             });
@@ -95,10 +96,12 @@ class PgUsers {
         debug('getByEmail()');
         const instance = this;
         this.getShortInfoByField('email', email, (err, shortUserInfo) => {
-            if (err)
+            if (err) {
                 return callback(err);
-            if (!shortUserInfo)
-                return callback(null, null); // Not found
+            }
+            if (!shortUserInfo) {
+                return callback(null, null);
+            } // Not found
             // Delegate to getByIdImpl
             return instance.getByIdImpl(shortUserInfo.id, callback);
         });
@@ -110,8 +113,9 @@ class PgUsers {
         const tmpUser = Object.assign({}, userInfo);
         // We don't persist this in the user object, but take it from the relation
         // to the application via the "owners" table.
-        if (tmpUser.applications)
+        if (tmpUser.applications) {
             delete tmpUser.applications;
+        }
         // Need to add developer group if validated?
         daoUtils.checkValidatedUserGroup(userInfo);
 
@@ -131,10 +135,12 @@ class PgUsers {
         debug('deleteImpl()');
         const instance = this;
         this.getById(userId, (err, userInfo) => {
-            if (err)
+            if (err) {
                 return callback(err);
-            if (!userInfo)
+            }
+            if (!userInfo) {
                 return callback(utils.makeError(404, 'Not found'));
+            }
             return instance.pgUtils.deleteById('users', userId, callback);
         });
     }
@@ -142,8 +148,9 @@ class PgUsers {
     getIndexImpl(offset, limit, callback) {
         debug(`getIndexImpl(offset: ${offset}, limit: ${limit})`);
         this.pgUtils.getBy('users', [], [], { offset: offset, limit: limit }, (err, userList, countResult) => {
-            if (err)
+            if (err) {
                 return callback(err);
+            }
             // This might be more efficient with a dedicated SELECT, but...
             const userIndex = userList.map(userInfo => PgUsers.makeShortInfo(userInfo));
             return callback(null, userIndex, countResult);
@@ -153,11 +160,13 @@ class PgUsers {
     getShortInfoByField(fieldName, fieldValue, callback) {
         debug(`getShortInfoByField(${fieldName}, ${fieldValue})`);
         this.pgUtils.getSingleBy('users', fieldName, fieldValue, (err, userInfo) => {
-            if (err)
+            if (err) {
                 return callback(err);
+            }
             // Not found
-            if (!userInfo)
+            if (!userInfo) {
                 return callback(null, null);
+            }
 
             return callback(null, PgUsers.makeShortInfo(userInfo));
         });

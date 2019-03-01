@@ -1,13 +1,13 @@
 'use strict';
 
-var path = require('path');
-var fs = require('fs');
-var mustache = require('mustache');
-var { debug, info, warn, error } = require('portal-env').Logger('portal-api:content');
-var users = require('./users');
-var utils = require('./utils');
+const path = require('path');
+const fs = require('fs');
+const mustache = require('mustache');
+const { debug, info, warn, error } = require('portal-env').Logger('portal-api:content');
+const users = require('./users');
+const utils = require('./utils');
 
-var content = require('express').Router();
+const content = require('express').Router();
 
 // ===== SCOPES =====
 
@@ -41,8 +41,9 @@ content.setup = function (app) {
     addContentToToc(app, content._toc);
 
     content._toc.sort(function (a, b) {
-        if (a.category == b.category)
+        if (a.category == b.category) {
             return (a.title.localeCompare(b.title));
+        }
         return a.category.localeCompare(b.category);
     });
 };
@@ -59,9 +60,9 @@ function makeTocEntry(category, url, title, subTitle, requiredGroup, tags) {
 }
 
 function addApisToToc(app, toc) {
-    var apiList = utils.loadApis(app);
-    for (var i = 0; i < apiList.apis.length; ++i) {
-        var thisApi = apiList.apis[i];
+    const apiList = utils.loadApis(app);
+    for (let i = 0; i < apiList.apis.length; ++i) {
+        const thisApi = apiList.apis[i];
         toc.push(makeTocEntry("api",
             "/apis/" + thisApi.id,
             thisApi.name,
@@ -72,41 +73,45 @@ function addApisToToc(app, toc) {
 }
 
 function addContentToToc(app, toc) {
-    var contentBase = path.join(utils.getStaticDir(), 'content');
+    const contentBase = path.join(utils.getStaticDir(), 'content');
 
     addContentDirToToc(app, contentBase, '/content/', toc);
 }
 
 function addContentDirToToc(app, dir, uriPart, toc) {
-    var fileNames = fs.readdirSync(dir);
-    for (var i = 0; i < fileNames.length; ++i) {
-        var fileName = fileNames[i];
-        if (fileName.toLowerCase().endsWith('.json'))
+    const fileNames = fs.readdirSync(dir);
+    for (let i = 0; i < fileNames.length; ++i) {
+        const fileName = fileNames[i];
+        if (fileName.toLowerCase().endsWith('.json')) {
             continue;
+        }
 
-        var stat = fs.statSync(path.join(dir, fileName));
+        const stat = fs.statSync(path.join(dir, fileName));
         if (stat.isDirectory()) {
             // Recurse please
             addContentDirToToc(app, path.join(dir, fileName), uriPart + fileName + '/', toc);
             continue;
         }
 
-        var isJadeFile = fileName.toLowerCase().endsWith('.jade');
-        var isMarkdownFile = fileName.toLowerCase().endsWith('.md');
-        if (!isJadeFile && !isMarkdownFile)
+        const isJadeFile = fileName.toLowerCase().endsWith('.jade');
+        const isMarkdownFile = fileName.toLowerCase().endsWith('.md');
+        if (!isJadeFile && !isMarkdownFile) {
             continue;
-        var strippedFileName = null;
-        if (isJadeFile)
+        }
+        let strippedFileName = null;
+        if (isJadeFile) {
             strippedFileName = fileName.substring(0, fileName.length - 5);
-        if (isMarkdownFile)
+        }
+        if (isMarkdownFile) {
             strippedFileName = fileName.substring(0, fileName.length - 3);
-        var jsonFileName = path.join(dir, strippedFileName + '.json');
+        }
+        const jsonFileName = path.join(dir, strippedFileName + '.json');
         if (!fs.existsSync(jsonFileName)) {
             debug('JADE or MD file without companion JSON file: ' + fileName);
             continue;
         }
 
-        var metaData = JSON.parse(fs.readFileSync(jsonFileName, 'utf8'));
+        const metaData = JSON.parse(fs.readFileSync(jsonFileName, 'utf8'));
 
         toc.push(makeTocEntry(
             'content',
@@ -120,25 +125,28 @@ function addContentDirToToc(app, dir, uriPart, toc) {
 
 content.getToc = function (app, res, loggedInUserId) {
     debug('getToc()');
-    if (!content._toc)
+    if (!content._toc) {
         return res.status(500).json({ message: 'Internal Server Error. Table of Content not initialized.' });
+    }
 
     // This is fairly expensive. TODO: This should be cached.
-    var groups = utils.loadGroups(app);
-    var groupRights = {};
+    const groups = utils.loadGroups(app);
+    const groupRights = {};
     // Initialize for not logged in users
     for (let i = 0; i < groups.groups.length; ++i) {
         groupRights[groups.groups[i].id] = false;
     }
     if (loggedInUserId) {
         users.loadUser(app, loggedInUserId, (err, userInfo) => {
-            if (err)
+            if (err) {
                 return utils.fail(res, 500, 'getToc: loadUser failed', err);
-            if (!userInfo)
+            }
+            if (!userInfo) {
                 return utils.fail(res, 400, 'Bad Request. Unknown User ID.');
+            }
             if (userInfo.groups) {
                 for (let i = 0; i < groups.groups.length; ++i) {
-                    var groupId = groups.groups[i].id;
+                    const groupId = groups.groups[i].id;
                     groupRights[groupId] = users.hasUserGroup(app, userInfo, groupId);
                 }
             }
@@ -151,17 +159,19 @@ content.getToc = function (app, res, loggedInUserId) {
 };
 
 function filterToc(groupRights) {
-    var userToc = [];
+    const userToc = [];
     for (let i = 0; i < content._toc.length; ++i) {
-        var tocEntry = content._toc[i];
-        var addThis = false;
-        if (!tocEntry.requiredGroup)
+        const tocEntry = content._toc[i];
+        let addThis = false;
+        if (!tocEntry.requiredGroup) {
             addThis = true;
-        if (!addThis && groupRights[tocEntry.requiredGroup])
+        }
+        if (!addThis && groupRights[tocEntry.requiredGroup]) {
             addThis = true;
-
-        if (addThis)
+        }
+        if (addThis) {
             userToc.push(tocEntry);
+        }
     }
     return userToc;
 }
@@ -176,28 +186,38 @@ content.isPublic = function (uriName) {
 
 content.getContentType = function (uriName) {
     if (uriName.endsWith('jpg') ||
-        uriName.endsWith('jpeg'))
+        uriName.endsWith('jpeg')) {
         return "image/jpeg";
-    if (uriName.endsWith('png'))
+    }
+    if (uriName.endsWith('png')) {
         return "image/png";
-    if (uriName.endsWith('gif'))
+    }
+    if (uriName.endsWith('gif')) {
         return "image/gif";
-    if (uriName.endsWith('css'))
+    }
+    if (uriName.endsWith('css')) {
         return "text/css";
+    }
+    if (uriName.endsWith('js')) {
+        return "text/javascript";
+    }
+
     return "text/markdown";
 };
 
 content.allowMustache = function (uriName) {
-    if (uriName.endsWith('css'))
+    if (uriName.endsWith('css')) {
         return true;
+    }
     return false;
 };
 
 // Ahem. Don't use too large files here.
 const _mustacheCache = {};
 function mustacheFile(filePath) {
-    if (_mustacheCache[filePath])
+    if (_mustacheCache[filePath]) {
         return _mustacheCache[filePath];
+    }
     const template = fs.readFileSync(filePath + '.mustache', 'utf8');
     const glob = utils.loadGlobals();
     const viewModel = {
@@ -209,16 +229,18 @@ function mustacheFile(filePath) {
 
 content.getContent = function (app, res, loggedInUserId, pathUri) {
     debug('getContent(): ' + pathUri);
-    if (!/^[a-zA-Z0-9\-_\/\.]+$/.test(pathUri))
+    if (!/^[a-zA-Z0-9\-_\/\.]+$/.test(pathUri)) {
         return res.status(404).jsonp({ message: "Not found: " + pathUri });
-    if (/\.\./.test(pathUri))
+    }
+    if (/\.\./.test(pathUri)) {
         return res.status(400).jsonp({ message: "Bad request. Baaad request." });
+    }
 
     // QUICK AND DIRTY?!
-    var contentPath = pathUri.replace('/', path.sep);
-    var staticDir = utils.getStaticDir();
+    const contentPath = pathUri.replace('/', path.sep);
+    const staticDir = utils.getStaticDir();
 
-    var filePath = path.join(staticDir, 'content', contentPath);
+    let filePath = path.join(staticDir, 'content', contentPath);
 
     if (content.isPublic(filePath.toLowerCase())) {
         let contentType = content.getContentType(filePath);
@@ -240,20 +262,22 @@ content.getContent = function (app, res, loggedInUserId, pathUri) {
     }
 
     // Special case: index
-    if (pathUri == "/")
+    if (pathUri == "/") {
         filePath = path.join(staticDir, 'index');
+    }
 
-    var mdFileName = filePath + '.md';
-    var jadeFileName = filePath + '.jade';
-    var metaName = filePath + '.json';
-    var mdExists = fs.existsSync(mdFileName);
-    var jadeExists = fs.existsSync(jadeFileName);
+    const mdFileName = filePath + '.md';
+    const jadeFileName = filePath + '.jade';
+    const metaName = filePath + '.json';
+    const mdExists = fs.existsSync(mdFileName);
+    const jadeExists = fs.existsSync(jadeFileName);
 
-    if (!mdExists && !jadeExists)
+    if (!mdExists && !jadeExists) {
         return res.status(404).jsonp({ message: 'Not found: ' + pathUri });
+    }
 
-    var contentType;
-    var fileName;
+    let contentType;
+    let fileName;
     if (mdExists) {
         fileName = mdFileName;
         contentType = 'text/markdown';
@@ -262,17 +286,19 @@ content.getContent = function (app, res, loggedInUserId, pathUri) {
         contentType = 'text/jade';
     }
 
-    var metaInfo = { showTitle: false };
+    let metaInfo = { showTitle: false };
     if (fs.existsSync(metaName)) {
         metaInfo = JSON.parse(fs.readFileSync(metaName, 'utf8'));
     }
     if (metaInfo.requiredGroup) {
         users.loadUser(app, loggedInUserId, (err, userInfo) => {
-            if (err)
+            if (err) {
                 return utils.fail(res, 500, 'getContent: loadUser failed', err);
+            }
             if (!userInfo || // requiredGroup but no user, can't be right
-                !users.hasUserGroup(app, userInfo, metaInfo.requiredGroup))
+                !users.hasUserGroup(app, userInfo, metaInfo.requiredGroup)) {
                 return utils.fail(res, 403, 'Not allowed.');
+            }
             sendContent(res, metaInfo, fileName, contentType);
         });
     } else {
@@ -283,10 +309,11 @@ content.getContent = function (app, res, loggedInUserId, pathUri) {
 function sendContent(res, metaInfo, fileName, contentType) {
     debug('sendContent()');
     // Yay! We're good!
-    var metaInfo64 = new Buffer(JSON.stringify(metaInfo)).toString("base64");
+    const metaInfo64 = new Buffer(JSON.stringify(metaInfo)).toString("base64");
     fs.readFile(fileName, function (err, content) {
-        if (err)
+        if (err) {
             return utils.fail(res, 500, 'Unexpected error', err);
+        }
         res.setHeader('X-MetaInfo', metaInfo64);
         res.setHeader('Content-Type', contentType);
         res.send(content);

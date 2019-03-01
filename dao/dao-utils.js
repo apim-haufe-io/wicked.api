@@ -18,15 +18,17 @@ daoUtils.isUserAdmin = (userInfo) => {
             let groupId = userInfo.groups[i];
             for (let groupIndex = 0; groupIndex < groups.groups.length; ++groupIndex) {
                 const group = groups.groups[groupIndex];
-                if (groupId != group.id)
+                if (groupId != group.id) {
                     continue;
+                }
                 if (group.adminGroup) {
                     isAdmin = true;
                     break;
                 }
             }
-            if (isAdmin)
+            if (isAdmin) {
                 break;
+            }
         }
     }
     return isAdmin;
@@ -45,15 +47,17 @@ daoUtils.isUserApprover = (userInfo) => {
             const groupId = userInfo.groups[i];
             for (let groupIndex = 0; groupIndex < groups.groups.length; ++groupIndex) {
                 const group = groups.groups[groupIndex];
-                if (groupId != group.id)
+                if (groupId != group.id) {
                     continue;
+                }
                 if (group.approverGroup) {
                     isApprover = true;
                     break;
                 }
             }
-            if (isApprover)
+            if (isApprover) {
                 break;
+            }
         }
     }
     return isApprover;
@@ -61,66 +65,70 @@ daoUtils.isUserApprover = (userInfo) => {
 
 daoUtils.checkValidatedUserGroup = (userInfo) => {
     debug('checkValidatedUserGroup()');
-    if (utils.isMigrationMode())
+    if (utils.isMigrationMode()) {
         return; // Do nothing
-    if (!userInfo.validated)
+    }
+    if (!userInfo.validated) {
         return;
+    }
     const globalSettings = utils.loadGlobals();
-    if (!globalSettings.validatedUserGroup)
+    if (!globalSettings.validatedUserGroup) {
         return;
+    }
     const devGroup = globalSettings.validatedUserGroup;
-    if (!userInfo.groups.find(function (group) { return group == devGroup; }))
+    if (!userInfo.groups.find(function (group) { return group == devGroup; })) {
         userInfo.groups.push(devGroup);
+    }
 };
 
 daoUtils.makeName = (userInfo) => {
-    if (userInfo.firstName && userInfo.lastName)
+    if (userInfo.firstName && userInfo.lastName) {
         return userInfo.firstName + ' ' + userInfo.lastName;
-    else if (!userInfo.firstName && userInfo.lastName)
+    } else if (!userInfo.firstName && userInfo.lastName) {
         return userInfo.lastName;
-    else if (userInfo.firstName && !userInfo.lastName)
+    } else if (userInfo.firstName && !userInfo.lastName) {
         return userInfo.firstName;
+    }
     return 'Unknown User';
 };
 
 daoUtils.decryptApiCredentials = (subsList) => {
     for (let i = 0; i < subsList.length; ++i) {
         const sub = subsList[i];
-        if (sub.apikey)
+        if (sub.apikey) {
             sub.apikey = utils.apiDecrypt(sub.apikey);
-        if (sub.clientId) // For old installations, this may still be encrypted
+        }
+        if (sub.clientId) {// For old installations, this may still be encrypted
             sub.clientId = utils.apiDecrypt(sub.clientId);
-        if (sub.clientSecret)
+        }
+        if (sub.clientSecret) {
             sub.clientSecret = utils.apiDecrypt(sub.clientSecret);
+        }
     }
 };
 
 daoUtils.encryptApiCredentials = (subsList) => {
     for (let i = 0; i < subsList.length; ++i) {
         const sub = subsList[i];
-        if (sub.apikey)
+        if (sub.apikey) {
             sub.apikey = utils.apiEncrypt(sub.apikey);
+        }
         // We don't encrypt the clientId (anymore); it's needed to retrieve subscriptions
         // by client ID, and it's not a real secret anyway.
         // if (sub.clientId)
         //     sub.clientId = utils.apiEncrypt(sub.clientId);
-        if (sub.clientSecret)
+        if (sub.clientSecret) {
             sub.clientSecret = utils.apiEncrypt(sub.clientSecret);
+        }
     }
-};
-
-// DAO Validation functions
-daoUtils.listParameters = (o) => {
-    const functionArray = [];
-    listParametersImpl([], functionArray, o);
-    return functionArray;
 };
 
 const listParametersImpl = (prefixArray, functionArray, o) => {
     for (let k in o) {
         const p = o[k];
-        if (prefixArray.length === 0 && k === 'meta')
+        if (prefixArray.length === 0 && k === 'meta') {
             continue;
+        }
         if (prefixArray.length > 0 && typeof (p) === 'function') {
             try {
                 const paramList = utils.getFunctionParams(p);
@@ -140,6 +148,13 @@ const listParametersImpl = (prefixArray, functionArray, o) => {
             listParametersImpl(moreArray, functionArray, p);
         }
     }
+};
+
+// DAO Validation functions
+daoUtils.listParameters = (o) => {
+    const functionArray = [];
+    listParametersImpl([], functionArray, o);
+    return functionArray;
 };
 
 function dumpSignatures(p1, p2) {
@@ -167,8 +182,9 @@ daoUtils.checkParameters = (desc, daoToCheck, functionList) => {
             }
             // Finally select the function to check
             tmpFunc = tmpFunc[funcToCheck.name];
-            if (!tmpFunc)
+            if (!tmpFunc) {
                 throw new Error(`Function ${funcDesc} was not found.`);
+            }
             const paramList = utils.getFunctionParams(tmpFunc);
 
             if (paramList.length !== funcToCheck.params.length) {
@@ -195,8 +211,9 @@ daoUtils.checkParameters = (desc, daoToCheck, functionList) => {
         }
     }
 
-    if (!success)
+    if (!success) {
         throw new Error('DAO sanity check did not pass');
+    }
 };
 
 // Grants utilities

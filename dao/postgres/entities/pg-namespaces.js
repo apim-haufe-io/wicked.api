@@ -62,15 +62,19 @@ class PgNamespaces {
         debug(`upsert(${poolId}, ${namespace})`);
         const instance = this;
         this.pgUtils.getBy('namespaces', ['poolId', 'namespace'], [poolId, namespace], {}, (err, data) => {
-            if (err)
+            if (err) {
                 return callback(err);
-            if (data.length > 1)
+            }
+            if (data.length > 1) {
                 return callback(utils.makeError(500, `More than one entry in namespaces for pool ${poolId} and namespace ${namespace}`));
+            }
             // Add the id of the previous record; it's needed here
-            if (data.length === 1)
+            if (data.length === 1) {
                 namespaceData.id = data[0].id;
-            else // new record
+            } else {
+                // new record
                 namespaceData.id = utils.createRandomId();
+            }
             return instance.pgUtils.upsert('namespaces', namespaceData, upsertingUserId, callback);
         });
     }

@@ -44,12 +44,14 @@ authMiddleware.rejectFromKong = function (req, res, next) {
 authMiddleware.verifyConfigKey = function (req, res, next) {
     debug('verifyConfigKey()');
     let configKey = req.get('Authorization');
-    if (!configKey)
+    if (!configKey) {
         return res.status(403).json({ message: 'Not allowed. Unauthorized.' });
+    }
     configKey = configKey.trim();
     const deployConfigKey = req.app.get('config_key').trim();
-    if (configKey !== deployConfigKey)
+    if (configKey !== deployConfigKey) {
         return res.status(403).json({ message: 'Not allowed. Unauthorized.' });
+    }
     // We're okay, let's do this.
     next();
 };
@@ -57,8 +59,9 @@ authMiddleware.verifyConfigKey = function (req, res, next) {
 // =======================
 
 function makeScopeMap(scope) {
-    if (!scope)
+    if (!scope) {
         return {};
+    }
     const scopeMap = {};
     const scopeList = scope.split(' ');
     for (let i = 0; i < scopeList.length; ++i) {

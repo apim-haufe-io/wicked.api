@@ -18,8 +18,9 @@ class JsonUtils {
     // USEFUL THINGS
     pageArray(array, offset, limit) {
         debug(`pageArray(..., ${offset}, ${limit})`);
-        if (offset === 0 && limit === 0)
+        if (offset === 0 && limit === 0) {
             return array;
+        }
         return array.slice(offset, offset + limit);
     }
 
@@ -45,11 +46,13 @@ class JsonUtils {
                 const row = rows[i];
                 let matches = true;
                 for (let prop in filter) {
-                    if (!filter[prop])
+                    if (!filter[prop]) {
                         continue;
+                    }
                     const filterValue = filter[prop].toLowerCase();
-                    if (!filterValue)
+                    if (!filterValue) {
                         continue;
+                    }
                     if (!row.hasOwnProperty(prop)) {
                         matches = false;
                         break;
@@ -78,18 +81,23 @@ class JsonUtils {
             const firstOrder = dir === 'ASC' ? -1 : 1;
             const lastOrder = dir === 'ASC' ? 1 : -1;
             filteredRows.sort((a, b) => {
-                if (!a.hasOwnProperty(sortField) && !b.hasOwnProperty(sortField))
+                if (!a.hasOwnProperty(sortField) && !b.hasOwnProperty(sortField)) {
                     return 0;
-                if (a.hasOwnProperty(sortField) && !b.hasOwnProperty(sortField))
+                }
+                if (a.hasOwnProperty(sortField) && !b.hasOwnProperty(sortField)) {
                     return firstOrder;
-                if (!a.hasOwnProperty(sortField) && b.hasOwnProperty(sortField))
+                }
+                if (!a.hasOwnProperty(sortField) && b.hasOwnProperty(sortField)) {
                     return firstOrder;
+                }
                 const aVal = a[sortField];
                 const bVal = b[sortField];
-                if (aVal < bVal)
+                if (aVal < bVal) {
                     return firstOrder;
-                if (aVal > bVal)
+                }
+                if (aVal > bVal) {
                     return lastOrder;
+                }
                 return 0;
             });
         }
@@ -108,8 +116,9 @@ class JsonUtils {
     }
 
     getDynamicDir() {
-        if (this.dynamicBasePath)
+        if (this.dynamicBasePath) {
             return this.dynamicBasePath;
+        }
         return utils.getApp().get('dynamic_config');
     }
 
@@ -121,8 +130,9 @@ class JsonUtils {
         const lockedUsers = [];
         try {
             for (let i = 0; i < userIdList.length; ++i) {
-                if (!this.lockUser(userIdList[i]))
+                if (!this.lockUser(userIdList[i])) {
                     throw utils.makeError(423, 'User with id ' + userIdList[i] + ' is locked. Try again later.');
+                }
                 lockedUsers.push(userIdList[i]);
             }
 
@@ -148,8 +158,9 @@ class JsonUtils {
         debug('withLockedUserIndex()');
         let lockedIndex = false;
         try {
-            if (!this.lockUserIndex())
+            if (!this.lockUserIndex()) {
                 throw utils.makeError(423, 'User index is currently locked. Try again later.');
+            }
             lockedIndex = true;
 
             const retVal = actionHook();
@@ -158,8 +169,13 @@ class JsonUtils {
 
             return retVal;
         } finally {
-            if (lockedIndex)
-                try { this.unlockUserIndex(); } catch (err) { error(err); }
+            if (lockedIndex) {
+                try {
+                    this.unlockUserIndex();
+                } catch (err) {
+                    error(err);
+                }
+            }
             debug('withLockedUserIndex() cleaned up');
         }
     }
@@ -168,8 +184,9 @@ class JsonUtils {
         debug('withLockedAppsIndex()');
         let lockedIndex = false;
         try {
-            if (!this.lockAppsIndex())
+            if (!this.lockAppsIndex()) {
                 throw utils.makeError(423, 'Application index is currently locked. Try again later.');
+            }
             lockedIndex = true;
 
             const retVal = actionHook();
@@ -178,8 +195,13 @@ class JsonUtils {
 
             return retVal;
         } finally {
-            if (lockedIndex)
-                try { this.unlockAppsIndex(); } catch (err) { error(err); }
+            if (lockedIndex) {
+                try {
+                    this.unlockAppsIndex();
+                } catch (err) {
+                    error(err);
+                }
+            }
             debug('withLockedAppsIndex() cleaned up');
         }
     }
@@ -188,8 +210,9 @@ class JsonUtils {
         debug('withLockedApp(): ' + appId);
         let lockedApp = false;
         try {
-            if (!this.lockApplication(appId))
+            if (!this.lockApplication(appId)) {
                 throw utils.makeError(423, 'Application is locked. Please try again later.');
+            }
             lockedApp = true;
 
             const retVal = actionHook();
@@ -198,8 +221,13 @@ class JsonUtils {
 
             return retVal;
         } finally {
-            if (lockedApp)
-                try { this.unlockApplication(appId); } catch (err) { error(err); }
+            if (lockedApp) {
+                try {
+                    this.unlockApplication(appId);
+                } catch (err) {
+                    error(err);
+                }
+            }
             debug('withLockedApp(): ' + appId + ' cleaned up');
         }
     }
@@ -208,8 +236,9 @@ class JsonUtils {
         debug('withLockedSubscriptions(): ' + appId);
         let lockedSubscriptions = false;
         try {
-            if (!this.lockSubscriptions(appId))
+            if (!this.lockSubscriptions(appId)) {
                 throw utils.makeError(423, 'Application subscriptions are locked. Try again later.');
+            }
             lockedSubscriptions = true;
 
             const retVal = actionHook();
@@ -218,8 +247,13 @@ class JsonUtils {
 
             return retVal;
         } finally {
-            if (lockedSubscriptions)
-                try { this.unlockSubscriptions(appId); } catch (err) { error(err); }
+            if (lockedSubscriptions) {
+                try {
+                    this.unlockSubscriptions(appId);
+                } catch (err) {
+                    error(err);
+                }
+            }
             debug('withLockedSubscriptions(): ' + appId + ' cleaned up');
         }
     }
@@ -228,8 +262,9 @@ class JsonUtils {
         debug('withLockedApprovals()');
         let lockedApprovals = false;
         try {
-            if (!this.lockApprovals())
+            if (!this.lockApprovals()) {
                 throw utils.makeError(423, 'Approvals index is locked. Try again later.');
+            }
             lockedApprovals = true;
 
             const retVal = actionHook();
@@ -238,8 +273,13 @@ class JsonUtils {
 
             return retVal;
         } finally {
-            if (lockedApprovals)
-                try { this.unlockApprovals(); } catch (err) { error(err); }
+            if (lockedApprovals) {
+                try {
+                    this.unlockApprovals();
+                } catch (err) {
+                    error(err);
+                }
+            }
             debug('withLockedApprovals() cleaned up');
         }
     }
@@ -248,8 +288,9 @@ class JsonUtils {
         debug('withLockedEvents(): ' + listenerId);
         let lockedEvents = false;
         try {
-            if (!this.lockEvents(listenerId))
+            if (!this.lockEvents(listenerId)) {
                 throw utils.makeError(423, 'Events for listener are locked. Try again later.');
+            }
             lockedEvents = true;
 
             const retVal = actionHook();
@@ -258,8 +299,13 @@ class JsonUtils {
 
             return retVal;
         } finally {
-            if (lockedEvents)
-                try { this.unlockEvents(listenerId); } catch (err) { error(err); }
+            if (lockedEvents) {
+                try {
+                    this.unlockEvents(listenerId);
+                } catch (err) {
+                    error(err);
+                }
+            }
             debug('withLockedEvents(): ' + listenerId + ' cleaned up');
         }
     }
@@ -268,8 +314,9 @@ class JsonUtils {
         debug('withLockedListeners()');
         let lockedListeners = false;
         try {
-            if (!this.lockListeners())
+            if (!this.lockListeners()) {
                 throw utils.makeError(423, 'Listener index locked. Try again later.');
+            }
             lockedListeners = true;
 
             const retVal = actionHook();
@@ -278,8 +325,13 @@ class JsonUtils {
 
             return retVal;
         } finally {
-            if (lockedListeners)
-                try { this.unlockListeners(); } catch (err) { error(err); }
+            if (lockedListeners) {
+                try {
+                    this.unlockListeners();
+                } catch (err) {
+                    error(err);
+                }
+            }
             debug('withLockedListeners() cleaned up');
         }
     }
@@ -288,8 +340,9 @@ class JsonUtils {
         debug('withLockedVerifications()');
         let lockedVerifications = false;
         try {
-            if (!this.lockVerifications())
+            if (!this.lockVerifications()) {
                 throw utils.makeError(423, 'Verification index locked. Try again later.');
+            }
             lockedVerifications = true;
 
             const retVal = actionHook();
@@ -298,8 +351,13 @@ class JsonUtils {
 
             return retVal;
         } finally {
-            if (lockedVerifications)
-                try { this.unlockVerifications(); } catch (err) { error(err); }
+            if (lockedVerifications) {
+                try {
+                    this.unlockVerifications();
+                } catch (err) {
+                    error(err);
+                }
+            }
             debug('withLockedVerifications() cleaned up');
         }
     }
@@ -308,8 +366,9 @@ class JsonUtils {
         debug('withLockedMetadata()');
         let lockedMetadata = false;
         try {
-            if (!this.lockMetadata())
+            if (!this.lockMetadata()) {
                 throw utils.makeError(423, 'Metadata locked. Try again later.');
+            }
             lockedMetadata = true;
 
             const retVal = actionHook();
@@ -318,24 +377,31 @@ class JsonUtils {
 
             return retVal;
         } finally {
-            if (lockedMetadata)
-                try { this.unlockMetadata(); } catch (err) { error(err); }
+            if (lockedMetadata) {
+                try {
+                    this.unlockMetadata();
+                } catch (err) {
+                    error(err);
+                }
+            }
             debug('withLockedMetadata() cleaned up');
         }
     }
 
     globalLock() {
         const globalLockFileName = path.join(this.getDynamicDir(), 'global.lock');
-        if (fs.existsSync(globalLockFileName))
+        if (fs.existsSync(globalLockFileName)) {
             throw utils.makeError(423, "utils.globalLock - System already is globally locked!");
+        }
         fs.writeFileSync(globalLockFileName, '');
         return true;
     }
 
     globalUnlock() {
         const globalLockFileName = path.join(this.getDynamicDir(), 'global.lock');
-        if (!fs.existsSync(globalLockFileName))
+        if (!fs.existsSync(globalLockFileName)) {
             throw utils.makeError(423, "utils.globalUnlock - System isn't locked, cannot unlock!");
+        }
         fs.unlinkSync(globalLockFileName);
         return true;
     }
@@ -346,18 +412,21 @@ class JsonUtils {
     }
 
     lockFile(subDir, fileName) {
-        debug(`lockFile(): ${subDir ? '/'  +subDir : ''}${fileName}`);
-        if (this.hasGlobalLock())
+        debug(`lockFile(): ${subDir ? '/' + subDir : ''}${fileName}`);
+        if (this.hasGlobalLock()) {
             return false;
+        }
         const baseDir = subDir ? path.join(this.getDynamicDir(), subDir) : this.getDynamicDir();
         const fullFileName = path.join(baseDir, fileName);
         const lockFileName = fullFileName + '.lock';
 
-        if (!fs.existsSync(fullFileName))
+        if (!fs.existsSync(fullFileName)) {
             throw utils.makeError(500, "utils.lockFile - File not found: " + fileName);
+        }
 
-        if (fs.existsSync(lockFileName))
+        if (fs.existsSync(lockFileName)) {
             return false;
+        }
 
         fs.writeFileSync(lockFileName, '');
         return true;
@@ -368,8 +437,9 @@ class JsonUtils {
         const baseDir = subDir ? path.join(this.getDynamicDir(), subDir) : this.getDynamicDir();
         const lockFileName = path.join(baseDir, fileName + '.lock');
 
-        if (fs.existsSync(lockFileName))
+        if (fs.existsSync(lockFileName)) {
             fs.unlinkSync(lockFileName);
+        }
     }
 
     // SPECIFIC LOCKS
@@ -470,7 +540,7 @@ class JsonUtils {
 
     unlockMetadata() {
         return this.unlockFile(null, 'meta.json');
-    } 
+    }
 }
 
 module.exports = JsonUtils;

@@ -2,6 +2,13 @@
 
 set -e
 
+ls -la
+if [[ $(id -u) == 0 ]]; then
+    echo "*** BUILD SCRIPT RUNNING AS root"
+    echo "*** Don't do this. Exiting."
+    exit 1
+fi
+
 if [ -z "$DOCKER_PREFIX" ]; then
     echo "WARNING: Env var DOCKER_PREFIX not set, assuming haufelexware/wicked."
     export DOCKER_PREFIX="haufelexware/wicked."

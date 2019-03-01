@@ -82,8 +82,9 @@ class JsonGrants {
         // Delegate to getByUserSync
         const grantList = this.getByUserSync(userId);
         const grantIndex = grantList.findIndex(g => g.apiId === apiId && g.applicationId === applicationId);
-        if (grantIndex < 0)
+        if (grantIndex < 0) {
             throw utils.makeError(404, `User ${userId} does not have a grants record for API ${apiId} for application ${applicationId}`);
+        }
         return grantList[grantIndex];
     }
 
@@ -110,15 +111,16 @@ class JsonGrants {
 
         const grantsIndex = this.readGrants(userId);
         const prevIndex = grantsIndex.findIndex(g => g.apiId === apiId && g.applicationId === applicationId);
-        const now = (new Date()).toISOString();
         let prevGrants = null;
-        if (prevIndex >= 0)
+        if (prevIndex >= 0) {
             prevGrants = grantsIndex[prevIndex];
+        }
         daoUtils.mergeGrantData(prevGrants, grantsInfo);
-        if (prevIndex >= 0)
+        if (prevIndex >= 0) {
             grantsIndex[prevIndex] = grantsInfo;
-        else
+        } else {
             grantsIndex.push(grantsInfo);
+        }
         this.writeGrants(userId, grantsIndex);
     }
 
@@ -127,8 +129,9 @@ class JsonGrants {
 
         const grantsIndex = this.readGrants(userId);
         const prevIndex = grantsIndex.findIndex(g => g.apiId === apiId && g.applicationId === applicationId);
-        if (prevIndex < 0)
+        if (prevIndex < 0) {
             throw utils.makeError(404, `User ${userId} does not have any grants for API ${apiId} and application ${applicationId}`);
+        }
         grantsIndex.splice(prevIndex, 1);
         this.writeGrants(userId, grantsIndex);
     }
@@ -160,8 +163,9 @@ class JsonGrants {
 
     readGrants(userId) {
         const grantsFile = this.getGrantsFile(userId);
-        if (!fs.existsSync(grantsFile))
+        if (!fs.existsSync(grantsFile)) {
             return [];
+        }
         return JSON.parse(fs.readFileSync(grantsFile, 'utf8'));
     }
 
@@ -169,10 +173,12 @@ class JsonGrants {
         const apiIdMap = {};
         for (let i = 0; i < grants.length; ++i) {
             const apiAppId = `${grants[i].apiId}#${grants[i].applicationId}`;
-            if (apiIdMap[apiAppId])
+            if (apiIdMap[apiAppId]) {
                 throw utils.makeError(500, `Grants: Invalid state, API#Application ${apiAppId} is duplicate`);
-            if (grants[i].userId !== userId)
+            }
+            if (grants[i].userId !== userId) {
                 throw utils.makeError(500, `Grants: User ID mismatch (${userId} != ${grants[i].userId})`);
+            }
             apiIdMap[apiAppId] = true;
         }
     }

@@ -130,12 +130,14 @@ class JsonUsers {
 
     loadUser(userId) {
         debug('loadUser(): ' + userId);
-        if (!userId)
+        if (!userId) {
             return null;
+        }
         const userDir = path.join(this.jsonUtils.getDynamicDir(), 'users');
         const userFileName = path.join(userDir, userId + '.json');
-        if (!fs.existsSync(userFileName))
+        if (!fs.existsSync(userFileName)) {
             return null;
+        }
 
         //throw "users.loadUser - User not found: " + userId;
         const userInfo = JSON.parse(fs.readFileSync(userFileName, 'utf8'));
@@ -151,8 +153,9 @@ class JsonUsers {
             const userShort = userIndex[i];
             if (email == userShort.email) {
                 const user = this.loadUser(userShort.id);
-                if (!user)
+                if (!user) {
                     throw Error("User found in index, but could not be loaded: " + userEmail + ", id: " + userShort.id);
+                }
                 return user;
             }
         }
@@ -222,8 +225,9 @@ class JsonUsers {
                     throw utils.makeError(409, 'A user with the given email address already exists.');
                 }
                 if (userCreateInfo.customId && userIndex[i].customId) {
-                    if (userCreateInfo.customId == userIndex[i].customId)
+                    if (userCreateInfo.customId == userIndex[i].customId) {
                         throw utils.makeError(409, 'A user with the given custom ID already exists.');
+                    }
                 }
             }
 
@@ -246,8 +250,9 @@ class JsonUsers {
             const freshUser = instance.loadUser(newId);
 
             // Delete the password, if present
-            if (freshUser.password)
+            if (freshUser.password) {
                 delete freshUser.password;
+            }
 
             return freshUser;
         });
@@ -269,8 +274,9 @@ class JsonUsers {
                 }
             }
 
-            if (index < 0)
+            if (index < 0) {
                 throw utils.makeError(404, 'Not found.');
+            }
 
             // Make sure the user does not have active applications
             let user = instance.loadUser(userId);
@@ -294,8 +300,9 @@ class JsonUsers {
             const userDir = path.join(instance.jsonUtils.getDynamicDir(), 'users');
             const userFileName = path.join(userDir, userId + '.json');
             // Delete user JSON
-            if (fs.existsSync(userFileName))
+            if (fs.existsSync(userFileName)) {
                 fs.unlinkSync(userFileName);
+            }
 
             return; // Yay
         });
@@ -311,8 +318,9 @@ class JsonUsers {
                 break;
             }
         }
-        if (index < 0)
+        if (index < 0) {
             return null;
+        }
         // throw utils.makeError(404, 'User with customId "' + customId + '" not found.');
         return userIndex[index];
     }
@@ -328,8 +336,9 @@ class JsonUsers {
                 break;
             }
         }
-        if (index < 0)
+        if (index < 0) {
             return null;
+        }
         // throw utils.makeError(404, 'User with email "' + email + '" not found.');
         return userIndex[index];
     }

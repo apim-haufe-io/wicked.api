@@ -52,10 +52,12 @@ class PgGrants {
     getByUserApplicationAndApiImpl(userId, applicationId, apiId, callback) {
         debug(`getByUserApplicationAndApiImpl(${userId}, ${applicationId}, ${apiId})`);
         this.pgUtils.getSingleBy('grants', ['userId', 'applicationId', 'apiId'], [userId, applicationId, apiId], (err, data) => {
-            if (err)
+            if (err) {
                 return callback(err);
-            if (!data)
+            }
+            if (!data) {
                 return callback(utils.makeError(404, `User ${userId} does not have a grants record for API ${apiId} for application ${applicationId}`));
+            }
             return callback(null, data);
         });
     }
@@ -79,8 +81,9 @@ class PgGrants {
         // getSingleBy returns either exactly one record, or null (if there is no matching record)
         const instance = this;
         this.pgUtils.getSingleBy('grants', ['userId', 'applicationId', 'apiId'], [userId, applicationId, apiId], (err, prevGrants) => {
-            if (err)
+            if (err) {
                 return callback(err);
+            }
             let nextGrants = {
                 userId: userId,
                 applicationId: applicationId,
@@ -102,8 +105,10 @@ class PgGrants {
         debug(`deleteImpl(${userId}, ${applicationId}, ${apiId})`);
         const instance = this;
         this.getByUserApplicationAndApiImpl(userId, applicationId, apiId, (err, data) => {
-            if (err) // This can be a 404 for example
+            if (err) {
+                // This can be a 404 for example
                 return callback(err);
+            }
             instance.pgUtils.deleteBy('grants', ['userId', 'applicationId', 'apiId'], [userId, applicationId, apiId], callback);
         });
     }

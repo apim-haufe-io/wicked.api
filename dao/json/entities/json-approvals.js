@@ -132,8 +132,9 @@ class JsonApprovals {
         debug('loadApprovals()');
         const approvalsDir = path.join(this.jsonUtils.getDynamicDir(), 'approvals');
         const approvalsFile = path.join(approvalsDir, '_index.json');
-        if (!fs.existsSync(approvalsFile))
+        if (!fs.existsSync(approvalsFile)) {
             throw new Error('Internal Server Error - Approvals index not found.');
+        }
         return JSON.parse(fs.readFileSync(approvalsFile, 'utf8'));
     }
 

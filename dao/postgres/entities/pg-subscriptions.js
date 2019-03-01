@@ -91,8 +91,9 @@ class PgSubscriptions {
     getByAppIdImpl(appId, callback) {
         debug('getByAppIdImpl()');
         this.pgUtils.getBy('subscriptions', ['applications_id'], [appId], {}, (err, subsList) => {
-            if (err)
+            if (err) {
                 return callback(err);
+            }
             daoUtils.decryptApiCredentials(subsList);
             return callback(null, subsList);
         });
@@ -150,9 +151,10 @@ class PgSubscriptions {
         };
         
         return this.pgUtils.getBy('subscriptions', fields, values, options, (err, subsList, countResult) => {
-            if (err)
+            if (err) {
                 return callback(err);
-            daoUtils.decryptApiCredentials(subsList);    
+            }
+            daoUtils.decryptApiCredentials(subsList);
             return callback(null, subsList, countResult);
         });
     }
@@ -161,8 +163,9 @@ class PgSubscriptions {
     getIndexImpl(offset, limit, callback) {
         debug(`getIndex(offset: ${offset}, limit: ${limit})`);
         this.pgUtils.getBy('subscriptions', [], [], { orderBy: 'id ASC' }, (err, subsList, countResult) => {
-            if (err)
+            if (err) {
                 return callback(err);
+            }
             const subIdList = subsList.map(sub => { return { id: sub.id }; });
             return callback(null, subIdList, countResult);
         });
@@ -171,8 +174,9 @@ class PgSubscriptions {
     getByApiImpl(apiId, offset, limit, callback) {
         debug('getByApiImpl()');
         this.pgUtils.getBy('subscriptions', ['api_id'], [apiId], { offset: offset, limit: limit }, (err, subsList, countResult) => {
-            if (err)
+            if (err) {
                 return callback(err);
+            }
             daoUtils.decryptApiCredentials(subsList);
             return callback(null, subsList, countResult);
         });
@@ -180,10 +184,12 @@ class PgSubscriptions {
 
     returnSingleSubs(callback) {
         return function (err, subsInfo) {
-            if (err)
+            if (err) {
                 return callback(err);
-            if (!subsInfo)
+            }
+            if (!subsInfo) {
                 return callback(null, null);
+            }
             daoUtils.decryptApiCredentials([subsInfo]);
             return callback(null, subsInfo);
         };
@@ -211,8 +217,9 @@ class PgSubscriptions {
         debug('createImpl()');
         daoUtils.encryptApiCredentials([newSubscription]);
         this.pgUtils.upsert('subscriptions', newSubscription, creatingUserId, (err) => {
-            if (err)
+            if (err) {
                 return callback(err);
+            }
             return callback(null, newSubscription);
         });
     }
@@ -222,8 +229,9 @@ class PgSubscriptions {
         // This is actually just save...
         daoUtils.encryptApiCredentials([subsInfo]);
         this.pgUtils.upsert('subscriptions', subsInfo, patchingUserId, (err) => {
-            if (err)
+            if (err) {
                 return callback(err);
+            }
             return callback(null, subsInfo);
         });
     }

@@ -5,7 +5,7 @@
 const express = require('express');
 const http = require('http');
 
-var { debug, info, warn, error } = require('portal-env').Logger('portal-api:echo');
+const { debug, info, warn, error } = require('portal-env').Logger('portal-api:echo');
 
 const ECHO_PORT = process.env.ECHO_PORT ? process.env.ECHO_PORT : 3009;
 
@@ -16,8 +16,9 @@ echoApp.use(function (req, res, next) {
 
     const scope = req.get('x-authenticated-scope');
     let scopes = [];
-    if (scope)
+    if (scope) {
         scopes = scope.split(' ');
+    }
     const method = req.method.toLowerCase();
     switch (method) {
         case 'get':
@@ -30,8 +31,9 @@ echoApp.use(function (req, res, next) {
             return res.status(400).json({ status: 400, error: `Bad request, invalid method ${req.method}` });
     }
     if (!scope || scopes.length === 0 ||
-        !scopes.find(s => s === method))
+        !scopes.find(s => s === method)) {
         return res.status(403).json({ status: 403, error: `User has not allowed accessing with scope '${method}'` });
+    }
 
     const response = {
         method: req.method,

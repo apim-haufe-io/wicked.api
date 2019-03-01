@@ -147,13 +147,15 @@ class JsonApplications {
     // =================================================
 
     static findOwner(appInfo) {
-        if (!appInfo.owners || appInfo.owners.length === 0)
+        if (!appInfo.owners || appInfo.owners.length === 0) {
             return null;
+        }
 
         for (let i = 0; i < appInfo.owners.length; ++i) {
             const owner = appInfo.owners[i];
-            if (owner.role === 'owner')
+            if (owner.role === 'owner') {
                 return owner;
+            }
         }
 
         warn(`Application ${appInfo.id} does not have an owner with role 'owner'.`);
@@ -183,8 +185,9 @@ class JsonApplications {
             appInfoList.push(appInfo);
         }
 
-        if (!orderBy)
+        if (!orderBy) {
             orderBy = 'id ASC';
+        }
 
         const filterResult = this.jsonUtils.filterAndPage(appInfoList, filter, orderBy, offset, limit);
 
@@ -212,15 +215,15 @@ class JsonApplications {
     createSync(appCreateInfo, creatingUserId) {
         debug('createSync()');
         const appId = appCreateInfo.id.trim();
-        const redirectUri = appCreateInfo.redirectUri;
         const instance = this;
         return instance.jsonUtils.withLockedAppsIndex(function () {
             const appsIndex = instance.loadAppsIndex();
             // Check for dupes
             for (let i = 0; i < appsIndex.length; ++i) {
                 const appInfo = appsIndex[i];
-                if (appInfo.id === appId)
+                if (appInfo.id === appId) {
                     throw utils.makeError(409, 'Application ID "' + appId + '" already exists.');
+                }
             }
 
             // In special cases, we may want to create an application without owners (migration)
@@ -248,6 +251,7 @@ class JsonApplications {
                 id: appId,
                 name: appCreateInfo.name.substring(0, 128),
                 redirectUri: appCreateInfo.redirectUri,
+                redirectUris: appCreateInfo.redirectUris,
                 confidential: !!appCreateInfo.confidential,
                 clientType: appCreateInfo.clientType,
                 mainUrl: appCreateInfo.mainUrl,
@@ -256,11 +260,12 @@ class JsonApplications {
                     self: { href: '/applications/' + appId }
                 }
             };
-            
-            if(appCreateInfo.description)
+
+            if (appCreateInfo.description) {
                 newApp.description = appCreateInfo.description.substring(0, APP_MAX_LENGTH_DESCRIPTION);
+            }
             daoUtils.migrateApplicationData(newApp);
-           
+
             if (userInfo) {
                 // Push new application to user
                 userInfo.applications.push({
@@ -295,11 +300,13 @@ class JsonApplications {
 
         const appInfo = this.loadApplication(appId);
         // This shouldn't happen, as it's checked in the generic code as well
-        if (!appInfo)
+        if (!appInfo) {
             throw utils.makeError(404, `Application ${appId} not found.`);
+        }
         const ownerIdList = [];
-        for (let i = 0; i < appInfo.owners.length; ++i)
+        for (let i = 0; i < appInfo.owners.length; ++i) {
             ownerIdList.push(appInfo.owners[i].userId);
+        }
 
         const instance = this;
         // Ohhh, this is really bad, but deleting an application triggers
@@ -320,14 +327,16 @@ class JsonApplications {
                             }
                         }
 
-                        if (index < 0)
+                        if (index < 0) {
                             throw "Application with id " + appId + " was not found in index.";
+                        }
                         appsIndex.splice(index, 1);
 
                         for (let i = 0; i < ownerIdList.length; ++i) {
                             const ownerInfo = instance.jsonUsers.loadUser(ownerIdList[i]);
-                            if (!ownerInfo)
+                            if (!ownerInfo) {
                                 throw utils.makeError(500, "In DELETE applications: Could not find owner " + ownerIdList[i]);
+                            }
                             // Remove application from applications list
                             let found = true;
                             while (found) {
@@ -338,10 +347,11 @@ class JsonApplications {
                                         break;
                                     }
                                 }
-                                if (index >= 0)
+                                if (index >= 0) {
                                     ownerInfo.applications.splice(index, 1);
-                                else
+                                } else {
                                     found = false;
+                                }
                             }
                             try {
                                 delete ownerInfo.name;
@@ -359,22 +369,25 @@ class JsonApplications {
                         const appsDir = instance.jsonUtils.getAppsDir();
                         const appsFileName = path.join(appsDir, appId + '.json');
 
-                        if (fs.existsSync(appsFileName))
+                        if (fs.existsSync(appsFileName)) {
                             fs.unlinkSync(appsFileName);
+                        }
 
                         // And its subcriptions
                         // Delete all subscriptions from the subscription indexes (if applicable)
                         const appSubs = instance.jsonSubscriptions.loadSubscriptions(appId);
                         for (let i = 0; i < appSubs.length; ++i) {
                             const appSub = appSubs[i];
-                            if (appSub.clientId)
+                            if (appSub.clientId) {
                                 instance.jsonSubscriptions.deleteSubscriptionIndexEntry(appSub.clientId);
+                            }
                             instance.jsonSubscriptions.deleteSubscriptionApiIndexEntry(appSub);
                         }
                         // And now delete the subscription file
                         const subsFileName = path.join(appsDir, appId + '.subs.json');
-                        if (fs.existsSync(subsFileName))
+                        if (fs.existsSync(subsFileName)) {
                             fs.unlinkSync(subsFileName);
+                        }
 
                         // Now we'll try to clean up the approvals, if needed
                         instance.jsonApprovals.deleteByAppSync(appId);
@@ -391,8 +404,9 @@ class JsonApplications {
     getOwnersSync(appId) {
         debug('getOwnersSync()');
         const appInfo = this.loadApplication(appId);
-        if (!appInfo)
+        if (!appInfo) {
             throw utils.makeError(404, 'Unknown application, cannot return owners.');
+        }
         return appInfo.owners;
     }
 
@@ -402,8 +416,9 @@ class JsonApplications {
         return instance.jsonUtils.withLockedApp(appId, function () {
             return instance.jsonUtils.withLockedUser(addUserId, function () {
                 const userInfo = instance.jsonUsers.loadUser(addUserId);
-                if (!userInfo)
+                if (!userInfo) {
                     throw utils.makeError(500, `addOwnerSync(): Could not load user with id ${addUserId}`);
+                }
                 userInfo.applications.push({
                     id: appId,
                     _links: {
@@ -451,10 +466,11 @@ class JsonApplications {
                             break;
                         }
                     }
-                    if (index >= 0)
+                    if (index >= 0) {
                         appInfo.owners.splice(index, 1);
-                    else
+                    } else {
                         found = false;
+                    }
                 }
                 found = true;
                 while (found) {
@@ -465,10 +481,11 @@ class JsonApplications {
                             break;
                         }
                     }
-                    if (index >= 0)
+                    if (index >= 0) {
                         userToDelete.applications.splice(index, 1);
-                    else
+                    } else {
                         found = false;
+                    }
                 }
 
                 // Persist user
@@ -500,8 +517,9 @@ class JsonApplications {
         debug('loadApplication(): ' + appId);
         const appsDir = this.jsonUtils.getAppsDir();
         const appsFileName = path.join(appsDir, appId + '.json');
-        if (!fs.existsSync(appsFileName))
+        if (!fs.existsSync(appsFileName)) {
             return null;
+        }
         //throw "applications.loadApplication - Application not found: " + appId;
         const appInfo = JSON.parse(fs.readFileSync(appsFileName, 'utf8'));
         daoUtils.migrateApplicationData(appInfo);
@@ -513,10 +531,11 @@ class JsonApplications {
         debug(appInfo);
         const appsDir = this.jsonUtils.getAppsDir();
         const appsFileName = path.join(appsDir, appInfo.id + '.json');
-        if (userId)
+        if (userId) {
             appInfo.changedBy = userId;
-        else if (appInfo.changedBy)
+        } else if (appInfo.changedBy) {
             delete appInfo.changedBy;
+        }
         appInfo.changedDate = utils.getUtc();
         daoUtils.migrateApplicationData(appInfo);
         fs.writeFileSync(appsFileName, JSON.stringify(appInfo, null, 2), 'utf8');

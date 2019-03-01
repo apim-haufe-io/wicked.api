@@ -67,8 +67,9 @@ class JsonNamespaces {
     getByPoolSync(poolId, filter, orderBy, offset, limit) {
         debug(`getByPoolSync(${poolId})`);
         const ns = this.loadNamespaces(poolId);
-        if (!orderBy)
+        if (!orderBy) {
             orderBy = 'description ASC';
+        }
         const { list, filterCount } = this.jsonUtils.filterAndPage(ns, filter, orderBy, offset, limit);
         // Now return the list
         return { rows: list, count: filterCount };
@@ -89,10 +90,11 @@ class JsonNamespaces {
         const thisIndex = ns.findIndex(n => n.namespace === namespace);
         namespaceData.poolId = poolId;
         namespaceData.namespace = namespace;
-        if (thisIndex >= 0)
+        if (thisIndex >= 0) {
             ns[thisIndex] = namespaceData;
-        else
+        } else {
             ns.push(namespaceData);
+        }
         this.saveNamespaces(poolId, ns);
         return;
     }
@@ -122,8 +124,9 @@ class JsonNamespaces {
     loadNamespaces(poolId) {
         debug(`loadNamespaces(${poolId})`);
         const fileName = this.makeNamespacesFileName(poolId);
-        if (fs.existsSync(fileName))
+        if (fs.existsSync(fileName)) {
             return JSON.parse(fs.readFileSync(fileName, 'utf8'));
+        }
         return [];
     }
 

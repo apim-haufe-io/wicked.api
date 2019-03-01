@@ -1,5 +1,7 @@
 'use strict';
 
+/* global setImmediate */
+
 const async = require('async');
 const ncp = require('ncp');
 const rimraf = require('rimraf');
@@ -65,8 +67,9 @@ class DaoMigrator {
             source: callback => this.createDao(this._config.source, false, false, callback),
             target: callback => this.createDao(this._config.target, this._config.wipeTarget, true, callback)
         }, (err, results) => {
-            if (err)
+            if (err) {
                 return callback(err);
+            }
 
             const sourceDao = results.source;
             const targetDao = results.target;
@@ -82,8 +85,9 @@ class DaoMigrator {
         debug('cleanup()');
         info('Cleaning up');
         async.eachSeries(this._cleanupHooks, (hook, callback) => hook(callback), (err) => {
-            if (err)
+            if (err) {
                 error(err);
+            }
             return callback(passthroughErr);
         });
     }
@@ -104,13 +108,15 @@ class DaoMigrator {
     printWarnings() {
         for (let i = 0; i < this._warnings.length; ++i) {
             const w = this._warnings[i];
-            if (w.type)
+            if (w.type) {
                 error(`${w.type}: ${w.message}`);
-            else
+            } else {
                 error(`WARNING: ${w.message}`);
+            }
             error(w.description);
-            if (w.payload)
+            if (w.payload) {
                 error(w.payload);
+            }
         }
     }
 
@@ -127,10 +133,11 @@ class DaoMigrator {
     validateMeta(source, migrationConfig, callback) {
         debug('validateMeta()');
         this._migrationFromLegacy = source.meta.isLegacyData();
-        if (this._migrationFromLegacy)
+        if (this._migrationFromLegacy) {
             info('Migrating from a legacy wicked < 1.0.0 data source');
-        else
+        } else {
             info('Migrating from a wicked >= 1.0.0 data source');
+        }
         return callback(null);
     }
 
@@ -140,11 +147,13 @@ class DaoMigrator {
 
     static getCustomIdPrefix(customId) {
         const colonIndex = customId.indexOf(':');
-        if (colonIndex < 0)
+        if (colonIndex < 0) {
             return null;
+        }
         const prefix = customId.substring(0, colonIndex);
-        if (prefix.indexOf(' ') >= 0)
+        if (prefix.indexOf(' ') >= 0) {
             return null;
+        }
         return prefix;
     }
 
@@ -154,8 +163,9 @@ class DaoMigrator {
     }
 
     mapCustomId(customId) {
-        if (!customId)
+        if (!customId) {
             return null;
+        }
         const prefix = DaoMigrator.getCustomIdPrefix(customId);
         if (!prefix) {
             const defaultPrefix = this._config.customIdMappings.defaultPrefix;
@@ -182,28 +192,33 @@ class DaoMigrator {
         const customIdPrefixSet = new Set();
         pagePerUser(source, (userId, callback) => {
             source.users.getById(userId, (err, userInfo) => {
-                if (err)
+                if (err) {
                     return callback(err);
-                if (!userInfo.customId)
+                }
+                if (!userInfo.customId) {
                     return callback(null);
+                }
                 const prefix = DaoMigrator.getCustomIdPrefix(userInfo.customId);
                 if (!prefix) {
                     hasEmptyCustomIdPrefixes = true;
                 } else {
-                    if (prefix !== 'internal' && !customIdPrefixSet.has(prefix))
+                    if (prefix !== 'internal' && !customIdPrefixSet.has(prefix)) {
                         customIdPrefixSet.add(prefix);
+                    }
                 }
                 callback(null);
             });
         }, (err) => {
-            if (err)
+            if (err) {
                 return callback(err);
+            }
             // Validate that all prefixes have a mapping, and in case we have empty
             // prefixes, validate that there's a default prefix mapping.
 
             // If we don't have any users with a customId, we are finished
-            if (!hasEmptyCustomIdPrefixes && customIdPrefixSet.size === 0)
+            if (!hasEmptyCustomIdPrefixes && customIdPrefixSet.size === 0) {
                 return callback(null);
+            }
 
             let success = true;
             if (hasEmptyCustomIdPrefixes) {
@@ -252,8 +267,9 @@ class DaoMigrator {
             }
 
 
-            if (!success)
+            if (!success) {
                 return callback(new Error('validateSourceUsers failed; see warning list.'));
+            }
             return callback(null);
         });
     }
@@ -272,8 +288,9 @@ class DaoMigrator {
 
         const instance = this;
         buildDupeAppsSet(source, (err, dupeAppsSet) => {
-            if (err)
+            if (err) {
                 return callback(err);
+            }
             this._dupeAppsSet = dupeAppsSet;
             async.eachSeries(steps, (step, callback) => setImmediate(step, instance, source, target, callback), callback);
         });
@@ -288,18 +305,21 @@ class DaoMigrator {
     static migrateUser(instance, source, target, userId, callback) {
         debug(`migrateUser(${userId})`);
         source.users.getById(userId, (err, userInfo) => {
-            if (err)
+            if (err) {
                 return callback(err);
+            }
             info(`Migrating user ${userInfo.id}`);
             if (instance.isLegacyMigration()) {
                 userInfo.customId = instance.mapCustomId(userInfo.customId);
             }
 
             target.users.create(userInfo, (err) => {
-                if (err)
+                if (err) {
                     return callback(err);
-                if (instance.isLegacyMigration())
+                }
+                if (instance.isLegacyMigration()) {
                     return DaoMigrator.createWickedRegistration(target, userInfo, callback);
+                }
                 return callback(null);
             });
         });
@@ -326,11 +346,13 @@ class DaoMigrator {
         debug(`migrateRegistrationsForUser(${userId})`);
         info(`Migrating registrations for user ${userId}`);
         source.registrations.getByUser(userId, (err, userRegs) => {
-            if (err)
+            if (err) {
                 return callback(err);
+            }
             const poolArray = [];
-            for (let poolId in userRegs.pools)
+            for (let poolId in userRegs.pools) {
                 poolArray.push(poolId);
+            }
             async.eachSeries(poolArray, (poolId, callback) => {
                 const regInfo = userRegs.pools[poolId];
                 debug(`Migrating registration for pool ${poolId} for user "${regInfo.name}" (${regInfo.userId})`);
@@ -358,8 +380,9 @@ class DaoMigrator {
 
     static migrateApplication(instance, source, target, appId, callback) {
         source.applications.getById(appId, (err, appInfo) => {
-            if (err)
+            if (err) {
                 return callback(err);
+            }
             if (!appInfo) {
                 warn(`migrateApplication: Could not load application with id ${appId}`);
                 return callback(null);
@@ -377,13 +400,15 @@ class DaoMigrator {
             }
             appInfo.id = appInfo.id.toLowerCase();
             target.applications.create(appInfo, null, (err, _) => {
-                if (err)
+                if (err) {
                     return callback(err);
+                }
 
                 // And now we add the owners
                 async.eachSeries(ownerList, (ownerInfo, callback) => {
-                    if (err)
+                    if (err) {
                         return callback(err);
+                    }
                     target.applications.addOwner(appInfo.id, ownerInfo.userId, ownerInfo.role, appInfo.changedBy, callback);
                 }, callback);
             });
@@ -410,8 +435,9 @@ class DaoMigrator {
                 }
                 subsInfo.application = subsInfo.application.toLowerCase();
                 info(`Migrating subscription to API ${subsInfo.api} for application ${subsInfo.application}`);
-                if (err)
+                if (err) {
                     return callback(err);
+                }
                 target.subscriptions.create(subsInfo, subsInfo.changedBy, callback);
             }, callback);
         });
@@ -422,8 +448,9 @@ class DaoMigrator {
         info('Migrating Approvals');
         // The approvals endpoint does not support paging
         source.approvals.getAll((err, approvalList) => {
-            if (err)
+            if (err) {
                 return callback(err);
+            }
 
             async.eachSeries(approvalList, (approvalInfo, callback) => {
                 if (instance._skippedSubscriptions.has(approvalInfo.subscriptionId)) {
@@ -442,41 +469,50 @@ class DaoMigrator {
     sanityCheckConfig() {
         debug('sanityCheckConfig()');
         const c = this._config;
-        if (!c.source)
+        if (!c.source) {
             throw new Error('configuration does not contain a "source" property.');
-        if (!c.target)
+        }
+        if (!c.target) {
             throw new Error('configuration does not contain a "target" property.');
+        }
         this.validateDaoConfig(c.source);
         this.validateDaoConfig(c.target);
     }
 
     validateDaoConfig(c) {
         debug('validateDaoConfig()');
-        if (c.type === 'json')
+        if (c.type === 'json') {
             return this.validateJsonConfig(c);
-        else if (c.type === 'postgres')
+        } else if (c.type === 'postgres') {
             return this.validatePostgresConfig(c);
+        }
         throw new Error(`validateDaoConfig: unknown DAO type ${c.type}`);
     }
 
     validateJsonConfig(c) {
         debug('validateJsonConfig()');
-        if (!c.config || !c.config.basePath)
+        if (!c.config || !c.config.basePath) {
             throw new Error('JSON configuration does not contain a "config" or "config.basePath" property.');
+        }
     }
 
     validatePostgresConfig(c) {
         debug('validatePostgresConfig()');
-        if (!c.config)
+        if (!c.config) {
             throw new Error('Postgres configuration does not contain a "config" property.');
-        if (!c.config.host)
+        }
+        if (!c.config.host) {
             throw new Error('Postgres configuration does not contain a "config.host" property.');
-        if (!c.config.port)
+        }
+        if (!c.config.port) {
             throw new Error('Postgres configuration does not contain a "config.port" property.');
-        if (!c.config.user)
+        }
+        if (!c.config.user) {
             throw new Error('Postgres configuration does not contain a "config.user" property.');
-        if (!c.config.password)
+        }
+        if (!c.config.password) {
             throw new Error('Postgres configuration does not contain a "config.password" property.');
+        }
         if (!c.config.database) {
             warn('Using default database name "wicked".');
             c.config.database = 'wicked';
@@ -488,23 +524,26 @@ class DaoMigrator {
     }
 
     createDaoByType(config, isTarget, callback) {
-        if (config.type === 'json')
+        if (config.type === 'json') {
             return this.createJsonDao(config, isTarget, callback);
-        else if (config.type === 'postgres')
+        } else if (config.type === 'postgres') {
             return this.createPostgresDao(config, callback);
+        }
         return callback(new Error(`Unknown DAO type ${config.type}`));
     }
 
     createDao(config, wipeDao, isTarget, callback) {
         debug('createDao()');
         this.createDaoByType(config, isTarget, (err, dao) => {
-            if (err)
+            if (err) {
                 return callback(err);
+            }
 
             const wipeIfNecessary = (_, callback) => {
                 debug('wipeIfNecessary()');
-                if (wipeDao)
+                if (wipeDao) {
                     return dao.meta.wipe(callback);
+                }
                 debug('wipeIfNecessary(): Not necessary');
                 return callback(null);
             };
@@ -513,8 +552,9 @@ class DaoMigrator {
             const checks = [wipeIfNecessary, ...initChecks];
 
             async.eachSeries(checks, (check, callback) => check(null, callback), (err) => {
-                if (err)
+                if (err) {
                     return callback(err);
+                }
                 info(`Successfully created ${config.type} DAO.`);
                 return callback(null, dao);
             });
@@ -532,8 +572,9 @@ class DaoMigrator {
                 rimraf(tmpDir, callback);
             });
             ncp(daoConfig.config.basePath, tmpDir, (err) => {
-                if (err)
+                if (err) {
                     return callback(err);
+                }
                 debug(`createJsonDao(): Successfully copied files to ${tmpDir}`);
                 return callback(null, new JsonDao(tmpDir));
             });
@@ -557,8 +598,9 @@ function page(count, iterator, callback) {
     async.timesSeries(iterations, (n, callback) => {
         const offset = n * LIMIT;
         let limit = LIMIT;
-        if (count - offset < LIMIT)
+        if (count - offset < LIMIT) {
             limit = count - offset;
+        }
         debug(`page(offset: ${offset}, limit: ${limit})`);
         return iterator(offset, limit, callback);
     }, callback);
@@ -567,16 +609,18 @@ function page(count, iterator, callback) {
 function pagePerUser(source, iterator, callback) {
     debug(`pagePerUser()`);
     source.users.getCount((err, userCount) => {
-        if (err)
+        if (err) {
             return callback(null);
+        }
         debug(`User count: ${userCount}`);
 
         const dupeMap = new Set();
 
         page(userCount, (offset, limit, callback) => {
             source.users.getIndex(offset, limit, (err, userIndex) => {
-                if (err)
+                if (err) {
                     return callback(err);
+                }
                 async.eachSeries(userIndex, (userInfo, callback) => {
                     if (dupeMap.has(userInfo.id)) {
                         warn(`pagePerUser(): Detected duplicate user id ${userInfo.id} in index, skipping.`);
@@ -593,15 +637,17 @@ function pagePerUser(source, iterator, callback) {
 function pagePerApplication(source, iterator, callback) {
     debug(`pagePerApplication()`);
     source.applications.getCount((err, appCount) => {
-        if (err)
+        if (err) {
             return callback(err);
+        }
         debug(`Application count: ${appCount}`);
 
         const dupeMap = new Set();
         page(appCount, (offset, limit, callback) => {
             source.applications.getIndex(offset, limit, (err, appIndex) => {
-                if (err)
+                if (err) {
                     return callback(err);
+                }
                 async.eachSeries(appIndex, (appInfo, callback) => {
                     const lowerAppId = appInfo.id.toLowerCase();
                     if (dupeMap.has(lowerAppId)) {
@@ -618,16 +664,18 @@ function pagePerApplication(source, iterator, callback) {
 
 function buildDupeAppsSet(source, callback) {
     source.applications.getCount((err, appCount) => {
-        if (err)
+        if (err) {
             return callback(err);
+        }
         debug(`Application count: ${appCount}`);
 
         const appMap = new Map();
         const dupeMap = new Set();
         page(appCount, (offset, limit, callback) => {
             source.applications.getIndex(offset, limit, (err, appIndex) => {
-                if (err)
+                if (err) {
                     return callback(err);
+                }
                 for (let i = 0; i < appIndex.length; ++i) {
                     const appId = appIndex[i].id;
                     const a = appIndex[i].id.toLowerCase();
@@ -643,8 +691,9 @@ function buildDupeAppsSet(source, callback) {
                 return callback(null);
             });
         }, (err) => {
-            if (err)
+            if (err) {
                 return callback(err);
+            }
             return callback(null, dupeMap);
         });
     });

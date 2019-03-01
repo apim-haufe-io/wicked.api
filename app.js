@@ -24,14 +24,10 @@ const grants = require('./routes/grants');
 const pools = require('./routes/pools');
 const systemhealth = require('./routes/systemhealth');
 const templates = require('./routes/templates');
-// const deploy = require('./routes/deploy');
 const kill = require('./routes/kill');
 const authServers = require('./routes/authServers');
 const versionizer = require('./routes/versionizer');
 const pgUtils = require('./dao/postgres/pg-utils');
-
-//const routes = require('./routes/index');
-//const users = require('./routes/users');
 
 const app = express();
 
@@ -39,8 +35,9 @@ const app = express();
 utils.init(app);
 
 app.use(function (req, res, next) {
-    if (app.shuttingDown)
+    if (app.shuttingDown) {
         return res.status(503).json({ message: 'Shutting down. Try again soon.' });
+    }
     next();
 });
 app.use(correlationIdHandler);
@@ -60,10 +57,6 @@ if (app.get('env') == 'development') {
     debug('Configuring logger.');
     app.use(logger('{"date":":date[clf]","method":":method","url":":url","remote-addr":":remote-addr","user-id":":user-id","version":":http-version","status":":status","content-length":":res[content-length]","referrer":":referrer","response-time":":response-time","correlation-id":":correlation-id"}'));
 }
-
-// // ------- DEPLOYMENT - IMPORT/EXPORT -------
-// 
-// app.use('/deploy', deploy);
 
 // ------- METRICS COLLECTION MIDDLEWARE -------
 

@@ -1,17 +1,17 @@
 'use strict';
 
-var fs = require('fs');
-var path = require('path');
-var { debug, info, warn, error } = require('portal-env').Logger('portal-api:subscriptions');
-var utils = require('./utils');
-var users = require('./users');
-var ownerRoles = require('./ownerRoles');
-var approvals = require('./approvals');
-var webhooks = require('./webhooks');
+const fs = require('fs');
+const path = require('path');
+const { debug, info, warn, error } = require('portal-env').Logger('portal-api:subscriptions');
+const utils = require('./utils');
+const users = require('./users');
+const ownerRoles = require('./ownerRoles');
+const approvals = require('./approvals');
+const webhooks = require('./webhooks');
 
-var subscriptions = require('express').Router();
-var dao = require('../dao/dao');
-var daoUtils = require('../dao/dao-utils');
+const subscriptions = require('express').Router();
+const dao = require('../dao/dao');
+const daoUtils = require('../dao/dao-utils');
 
 const READ_SUBSCRIPTIONS = 'read_subscriptions';
 const verifySubscriptionsReadScope = utils.verifyScope(READ_SUBSCRIPTIONS);
@@ -29,18 +29,25 @@ subscriptions.get('/', verifySubscriptionsReadScope, function (req, res, next) {
 subscriptions.getAllSubscriptions = function (app, res, loggedInUserId, filter, orderBy, offset, limit, noCountCache, embed) {
     debug('getAllSubscriptions()');
     users.loadUser(app, loggedInUserId, (err, userInfo) => {
-        if (err)
+        if (err) {
             return utils.fail(res, 500, 'getAllSubscriptions: Could not load user.', err);
-        if (!userInfo)
+        }
+        if (!userInfo) {
             return utils.fail(res, 403, 'Not allowed.');
-        if (!userInfo.admin && !userInfo.approver)
+        }
+        if (!userInfo.admin && !userInfo.approver) {
             return utils.fail(res, 403, 'Not allowed. This is admin/approver land.');
+<<<<<<< HEAD
         if(userInfo.approver) //add approver groups
             filter['api_group']=userInfo.groups.join('|');
+=======
+        }
+>>>>>>> origin/next
         if (embed) {
             dao.subscriptions.getAll(filter, orderBy, offset, limit, noCountCache, (err, subsIndex, countResult) => {
-                if (err)
+                if (err) {
                     return utils.fail(res, 500, 'getAllSubscriptions: getAll failed', err);
+                }
                 res.json({
                     items: subsIndex,
                     count: countResult.count,
@@ -51,8 +58,9 @@ subscriptions.getAllSubscriptions = function (app, res, loggedInUserId, filter, 
             });
         } else {
             dao.subscriptions.getIndex(offset, limit, (err, subsIndex, countResult) => {
-                if (err)
+                if (err) {
                     return utils.fail(res, 500, 'getAllSubscriptions: getIndex failed', err);
+                }
                 res.json({
                     items: subsIndex,
                     count: countResult.count,
@@ -67,9 +75,10 @@ subscriptions.getAllSubscriptions = function (app, res, loggedInUserId, filter, 
 
 subscriptions.getOwnerRole = function (appInfo, userInfo) {
     debug('getOwnerRole()');
-    for (var i = 0; i < appInfo.owners.length; ++i) {
-        if (appInfo.owners[i].userId == userInfo.id)
+    for (let i = 0; i < appInfo.owners.length; ++i) {
+        if (appInfo.owners[i].userId == userInfo.id) {
             return appInfo.owners[i].role;
+        }
     }
     // Unknown
     return null;
@@ -78,44 +87,55 @@ subscriptions.getOwnerRole = function (appInfo, userInfo) {
 subscriptions.getSubscriptions = function (app, res, applications, loggedInUserId, appId) {
     debug('getSubscriptions(): ' + appId);
     dao.applications.getById(appId, (err, appInfo) => {
-        if (err)
+        if (err) {
             return utils.fail(res, 500, 'getSubscriptions: Loading app failed', err);
-        if (!appInfo)
+        }
+        if (!appInfo) {
             return utils.fail(res, 404, 'Not found: ' + appId);
+        }
         users.loadUser(app, loggedInUserId, (err, userInfo) => {
-            if (err)
+            if (err) {
                 return utils.fail(res, 500, 'getSubscriptions: loadUser failed.', err);
-            if (!userInfo)
+            }
+            if (!userInfo) {
                 return utils.fail(res, 403, 'Not allowed. User invalid.');
+            }
 
-            var isAllowed = false;
-            var adminOrCollab = false;
+            let isAllowed = false;
+            let adminOrCollab = false;
             if (userInfo.admin || userInfo.approver) {
                 isAllowed = true;
                 adminOrCollab = true;
             }
             if (!isAllowed) {
                 // Check for App rights
-                var access = subscriptions.getOwnerRole(appInfo, userInfo);
-                if (access) // Any role will do for GET
+                const access = subscriptions.getOwnerRole(appInfo, userInfo);
+                if (access) {
+                    // Any role will do for GET
                     isAllowed = true;
+                }
                 if (ownerRoles.OWNER == access ||
-                    ownerRoles.COLLABORATOR == access)
+                    ownerRoles.COLLABORATOR == access) {
                     adminOrCollab = true;
+                }
             }
 
-            if (!isAllowed)
+            if (!isAllowed) {
                 return utils.fail(res, 403, 'Not allowed. User does not own application.');
+            }
             dao.subscriptions.getByAppId(appId, (err, subs) => {
-                if (err)
+                if (err) {
                     return utils.fail(res, 500, 'getSubscriptions: DAO get subscription failed', err);
-                for (let i = 0; i < subs.length; ++i)
+                }
+                for (let i = 0; i < subs.length; ++i) {
                     checkScopeSettings(subs[i]);
+                }
                 // Add some links if admin or collaborator
                 if (adminOrCollab) {
-                    for (var i = 0; i < subs.length; ++i) {
-                        if (!subs[i]._links)
+                    for (let i = 0; i < subs.length; ++i) {
+                        if (!subs[i]._links) {
                             subs[i]._links = {};
+                        }
                         subs[i]._links.deleteSubscription = {
                             href: '/applications/' + appId + '/subscriptions/' + subs[i].api,
                             method: 'DELETE'
@@ -132,98 +152,112 @@ subscriptions.addSubscription = function (app, res, applications, loggedInUserId
     debug('addSubscription(): ' + appId);
     debug(subsCreateInfo);
     dao.applications.getById(appId, (err, appInfo) => {
-        if (err)
+        if (err) {
             return utils.fail(res, 500, 'addSubscription: Loading app failed', err);
-        if (!appInfo)
+        }
+        if (!appInfo) {
             return utils.fail(res, 404, 'Not found: ' + appId);
+        }
         users.loadUser(app, loggedInUserId, (err, userInfo) => {
-            if (err)
+            if (err) {
                 return utils.fail(res, '500', 'addSubscription: loadUser failed', err);
-            if (!userInfo)
+            }
+            if (!userInfo) {
                 return utils.fail(res, 403, 'Not allowed. User invalid.');
-            if (!userInfo.validated)
+            }
+            if (!userInfo.validated) {
                 return utils.fail(res, 403, 'Not allowed. Email address not validated.');
+            }
 
-            var isAllowed = false;
-            var isAdmin = false;
+            let isAllowed = false;
+            let isAdmin = false;
             if (userInfo.admin) {
                 isAllowed = true;
                 isAdmin = true;
             }
             if (!isAllowed) {
                 // Check for App rights
-                var access = subscriptions.getOwnerRole(appInfo, userInfo);
+                const access = subscriptions.getOwnerRole(appInfo, userInfo);
                 // OWNERs and COLLABORATORs may do this.
                 if (access &&
                     ((access == ownerRoles.OWNER) ||
-                        (access == ownerRoles.COLLABORATOR)))
+                        (access == ownerRoles.COLLABORATOR))) {
                     isAllowed = true;
+                }
             }
 
-            if (!isAllowed)
+            if (!isAllowed) {
                 return utils.fail(res, 403, 'Not allowed. Only owners and collaborators may add a subscription.');
+            }
 
-            if (appId != subsCreateInfo.application)
+            if (appId != subsCreateInfo.application) {
                 return utils.fail(res, 400, 'Bad request. App ID in body must match App ID in path.');
+            }
 
             debug('Adding Subscription allowed.');
 
-            var apis = utils.loadApis(app);
+            const apis = utils.loadApis(app);
             // Valid api name?
-            var apiIndex = -1;
+            let apiIndex = -1;
             for (let i = 0; i < apis.apis.length; ++i) {
                 if (apis.apis[i].id == subsCreateInfo.api) {
                     apiIndex = i;
                     break;
                 }
             }
-            if (apiIndex < 0)
+            if (apiIndex < 0) {
                 return utils.fail(res, 400, 'Bad request. Unknown API "' + subsCreateInfo.api + '".');
+            }
 
             // API deprecated? 
-            var selectedApi = apis.apis[apiIndex];
-            if (selectedApi.deprecated)
+            const selectedApi = apis.apis[apiIndex];
+            if (selectedApi.deprecated) {
                 return utils.fail(res, 400, 'API is deprecated. Subscribing not possible.');
+            }
 
             // Valid plan?
-            var foundPlan = false;
+            let foundPlan = false;
             for (let i = 0; i < selectedApi.plans.length; ++i) {
                 if (selectedApi.plans[i] == subsCreateInfo.plan) {
                     foundPlan = true;
                     break;
                 }
             }
-            if (!foundPlan)
+            if (!foundPlan) {
                 return utils.fail(res, 400, 'Bad request. Invalid plan "' + subsCreateInfo.plan + '".');
+            }
 
             debug('Subscription plan and API known.');
 
-            var apiPlans = utils.loadPlans(app).plans;
-            var apiPlanIndex = -1;
+            const apiPlans = utils.loadPlans(app).plans;
+            let apiPlanIndex = -1;
             for (let i = 0; i < apiPlans.length; ++i) {
                 if (apiPlans[i].id == subsCreateInfo.plan) {
                     apiPlanIndex = i;
                     break;
                 }
             }
-            if (apiPlanIndex < 0)
+            if (apiPlanIndex < 0) {
                 return utils.fail(res, 500, 'Inconsistent API/Plan data. Plan not found: ' + subsCreateInfo.plan);
-            var apiPlan = apiPlans[apiPlanIndex];
+            }
+            const apiPlan = apiPlans[apiPlanIndex];
 
             // Required group? Or Admin, they may also.
             if (selectedApi.requiredGroup && !selectedApi.partner) {
                 // If the user is admin, hasUserGroup will always return true
                 let hasGroup = users.hasUserGroup(app, userInfo, selectedApi.requiredGroup);
-                if (!hasGroup)
+                if (!hasGroup) {
                     return res.status(403).jsonp({ message: 'Not allowed. User does not have access to the API.' });
+                }
             }
 
             // Now check required group for the selected plan
             if (apiPlan.requiredGroup) {
                 // If the user is admin, hasUserGroup will always return true
                 let hasGroup = users.hasUserGroup(app, userInfo, apiPlan.requiredGroup);
-                if (!hasGroup)
+                if (!hasGroup) {
                     return utils.fail(res, 403, 'Not allowed. User does not have access to the API Plan.');
+                }
             }
 
             // Is it an oauth2 implicit/authorization code API? If so, the app needs a redirectUri
@@ -233,16 +267,19 @@ subscriptions.addSubscription = function (app, res, applications, loggedInUserId
                 if (!appInfo.redirectUri &&
                     selectedApi.settings &&
                     !selectedApi.settings.enable_client_credentials &&
-                    !selectedApi.settings.enable_password_grant)
+                    !selectedApi.settings.enable_password_grant) {
                     return utils.fail(res, 400, 'Application does not have a redirectUri');
+                }
             }
 
             dao.subscriptions.getByAppId(appId, (err, appSubs) => {
-                if (err)
+                if (err) {
                     return utils.fail(res, 500, 'addSubscription: DAO load subscriptions failed', err);
-                for (var i = 0; i < appSubs.length; ++i) {
-                    if (appSubs[i].api == subsCreateInfo.api)
+                }
+                for (let i = 0; i < appSubs.length; ++i) {
+                    if (appSubs[i].api == subsCreateInfo.api) {
                         return utils.fail(res, 409, 'Application already has a subscription for API "' + subsCreateInfo.api + '".');
+                    }
                 }
 
                 debug('All set to add subscription.');
@@ -257,12 +294,12 @@ subscriptions.addSubscription = function (app, res, applications, loggedInUserId
                 // Or do we require approval? Admins never need approval. A trusted
                 // subscription always needs approval, if it's not an Admin creating
                 // it.
-                var needsApproval = !isAdmin && (apiPlan.needsApproval || wantsTrusted);
+                const needsApproval = !isAdmin && (apiPlan.needsApproval || wantsTrusted);
 
-                var apiKey = null;
-                var clientId = null;
-                var clientSecret = null;
-                var authMethod = "key-auth";
+                let apiKey = null;
+                let clientId = null;
+                let clientSecret = null;
+                let authMethod = "key-auth";
                 if (!needsApproval) {
                     debug('Subscription does not need approval, creating keys.');
                     if (selectedApi.auth && selectedApi.auth.startsWith("oauth2")) { // oauth2
@@ -272,8 +309,9 @@ subscriptions.addSubscription = function (app, res, applications, loggedInUserId
                     } else {
                         // Default to key-auth
                         apiKey = utils.createRandomId();
-                        if (subsCreateInfo.apikey)
+                        if (subsCreateInfo.apikey) {
                             apiKey = subsCreateInfo.apikey;
+                        }
                     }
                 } else {
                     debug('Subscription needs approval.');
@@ -312,6 +350,8 @@ subscriptions.addSubscription = function (app, res, applications, loggedInUserId
                     auth: selectedApi.auth,
                     approved: !needsApproval,
                     trusted: isTrusted,
+                    allowedScopes: allowedScopes,
+                    allowedScopesMode: allowedScopesMode,
                     changedBy: loggedInUserId,
                     changedDate: utils.getUtc(),
                     _links: {
@@ -323,8 +363,9 @@ subscriptions.addSubscription = function (app, res, applications, loggedInUserId
                 };
 
                 dao.subscriptions.create(newSubscription, loggedInUserId, (err, persistedSubscription) => {
-                    if (err)
+                    if (err) {
                         return utils.fail(res, 500, 'addSubscription: DAO create subscription failed', err);
+                    }
 
                     // If clientId/Secret are present, include unencrypted in response
                     if (clientId) {
@@ -336,7 +377,7 @@ subscriptions.addSubscription = function (app, res, applications, loggedInUserId
                         persistedSubscription.apikey = apiKey;
                     }
 
-                    
+
                     // Webhook it, man
                     webhooks.logEvent(app, {
                         action: webhooks.ACTION_ADD,
@@ -349,7 +390,7 @@ subscriptions.addSubscription = function (app, res, applications, loggedInUserId
                             planId: apiPlan.id
                         }
                     });
-                    
+
                     if (!needsApproval) {
                         // No approval needed, we can send the answer directly.
                         res.status(201).json(persistedSubscription);
@@ -409,47 +450,57 @@ subscriptions.addSubscription = function (app, res, applications, loggedInUserId
 subscriptions.getSubscription = function (app, res, applications, loggedInUserId, appId, apiId) {
     debug('getSubscription(): ' + appId + ', apiId: ' + apiId);
     dao.applications.getById(appId, (err, appInfo) => {
-        if (err)
+        if (err) {
             return utils.fail(res, 500, 'getSubscription: Loading app failed', err);
-        if (!appInfo)
+        }
+        if (!appInfo) {
             return utils.fail(res, 404, 'Not found: ' + appId);
+        }
         users.loadUser(app, loggedInUserId, (err, userInfo) => {
-            if (err)
+            if (err) {
                 return utils.fail(res, 500, 'getSubscription: loadUser failed', err);
-            if (!userInfo)
+            }
+            if (!userInfo) {
                 return utils.fail(res, 403, 'Not allowed. User invalid.');
+            }
 
-            var isAllowed = false;
-            var adminOrCollab = false;
+            let isAllowed = false;
+            let adminOrCollab = false;
             if (userInfo.admin) {
                 isAllowed = true;
                 adminOrCollab = true;
             }
             if (!isAllowed) {
                 // Check for App rights
-                var access = subscriptions.getOwnerRole(appInfo, userInfo);
-                if (access) // Any role will do for GET
+                const access = subscriptions.getOwnerRole(appInfo, userInfo);
+                if (access) {
+                    // Any role will do for GET
                     isAllowed = true;
+                }
                 if (ownerRoles.OWNER == access ||
-                    ownerRoles.COLLABORATOR == access)
+                    ownerRoles.COLLABORATOR == access) {
                     adminOrCollab = true;
+                }
             }
-            if (!isAllowed)
+            if (!isAllowed) {
                 return utils.fail(res, 403, 'Not allowed. User does not own application.');
+            }
 
             dao.subscriptions.getByAppAndApi(appId, apiId, (err, appSub) => {
-                if (err)
+                if (err) {
                     return utils.fail(res, 500, 'getSubscription: Could not get subscription by app and api', err);
+                }
                 // Did we find it?    
-                if (!appSub)
+                if (!appSub) {
                     return utils.fail(res, 404, 'API subscription not found for application. App: ' + appId + ', API: ' + apiId);
+                }
 
                 checkScopeSettings(appSub);
 
-                // var appSub = appSubs[subsIndex];
                 if (adminOrCollab) {
-                    if (!appSub._links)
+                    if (!appSub._links) {
                         appSub._links = {};
+                    }
                     appSub._links.deleteSubscription = {
                         href: '/applications/' + appId + '/subscriptions/' + appSub.api,
                         method: 'DELETE'
@@ -464,8 +515,8 @@ subscriptions.getSubscription = function (app, res, applications, loggedInUserId
 };
 
 function findSubsIndex(appSubs, apiId) {
-    var subsIndex = -1;
-    for (var i = 0; i < appSubs.length; ++i) {
+    let subsIndex = -1;
+    for (let i = 0; i < appSubs.length; ++i) {
         if (appSubs[i].api == apiId) {
             subsIndex = i;
             break;
@@ -475,9 +526,9 @@ function findSubsIndex(appSubs, apiId) {
 }
 
 function findApprovalIndex(approvalInfos, appId, apiId) {
-    var approvalIndex = -1;
-    for (var i = 0; i < approvalInfos.length; ++i) {
-        var appr = approvalInfos[i];
+    let approvalIndex = -1;
+    for (let i = 0; i < approvalInfos.length; ++i) {
+        const appr = approvalInfos[i];
         if (appr.application.id == appId &&
             appr.api.id == apiId) {
             approvalIndex = i;
@@ -490,46 +541,56 @@ function findApprovalIndex(approvalInfos, appId, apiId) {
 subscriptions.deleteSubscription = function (app, res, applications, loggedInUserId, appId, apiId) {
     debug('deleteSubscription(): ' + appId + ', apiId: ' + apiId);
     dao.applications.getById(appId, (err, appInfo) => {
-        if (err)
+        if (err) {
             return utils.fail(res, 500, 'deleteSubscription: Loading app failed', err);
-        if (!appInfo)
+        }
+        if (!appInfo) {
             return utils.fail(res, 404, 'Not found: ' + appId);
+        }
         users.loadUser(app, loggedInUserId, (err, userInfo) => {
-            if (err)
+            if (err) {
                 return utils.fail(res, 500, 'deleteSubscription: loadUser failed', err);
-            if (!userInfo)
+            }
+            if (!userInfo) {
                 return utils.fail(res, 403, 'Not allowed. User invalid.');
+            }
 
-            var isAllowed = false;
-            if (userInfo.admin || userInfo.approver)
+            let isAllowed = false;
+            if (userInfo.admin || userInfo.approver) {
                 isAllowed = true;
+            }
             if (!isAllowed) {
                 // Check for App rights
-                var access = subscriptions.getOwnerRole(appInfo, userInfo);
+                const access = subscriptions.getOwnerRole(appInfo, userInfo);
                 // OWNERs and COLLABORATORs may do this.
                 if (access &&
                     ((access == ownerRoles.OWNER) ||
                         (access == ownerRoles.COLLABORATOR))
-                )
+                ) {
                     isAllowed = true;
+                }
             }
 
-            if (!isAllowed)
+            if (!isAllowed) {
                 return utils.fail(res, 403, 'Not allowed. Only owners and collaborators may delete a subscription.');
+            }
 
             dao.subscriptions.getByAppId(appId, (err, appSubs) => {
-                if (err)
+                if (err) {
                     return utils.fail(res, 500, 'deleteSubscription: DAO get subscriptions failed', err);
-                var subsIndex = findSubsIndex(appSubs, apiId);
-                if (subsIndex < 0)
+                }
+                const subsIndex = findSubsIndex(appSubs, apiId);
+                if (subsIndex < 0) {
                     return utils.fail(res, 404, 'Not found. Subscription to API "' + apiId + '" does not exist: ' + appId);
+                }
 
                 const subscriptionId = appSubs[subsIndex].id;
                 const subscriptionData = appSubs[subsIndex];
 
                 dao.subscriptions.delete(appId, apiId, subscriptionId, (err) => {
-                    if (err)
+                    if (err) {
                         return utils.fail(res, 500, 'deleteSubscription: DAO delete subscription failed', err);
+                    }
                     res.status(204).send('');
 
                     webhooks.logEvent(app, {
@@ -554,33 +615,41 @@ subscriptions.patchSubscription = function (app, res, applications, loggedInUser
     debug('patchSubscription(): ' + appId + ', apiId: ' + apiId);
     debug(patchBody);
     users.loadUser(app, loggedInUserId, (err, userInfo) => {
-        if (err)
+        if (err) {
             return utils.fail(res, 500, 'patchSubscription: loadUser failed', err);
-        if (!userInfo)
+        }
+        if (!userInfo) {
             return utils.fail(res, 403, 'Not allowed.');
-        if (!userInfo.admin && !userInfo.approver)
+        }
+        if (!userInfo.admin && !userInfo.approver) {
             return utils.fail(res, 403, 'Not allowed. Only admins and approvers can patch a subscription.');
+        }
         dao.subscriptions.getByAppId(appId, (err, appSubs) => {
-            if (err)
+            if (err) {
                 return utils.fail(res, 500, 'patchSubscription: DAO load app subscriptions failed', err);
-            var subsIndex = findSubsIndex(appSubs, apiId);
-            if (subsIndex < 0)
+            }
+            const subsIndex = findSubsIndex(appSubs, apiId);
+            if (subsIndex < 0) {
                 return utils.fail(res, 404, 'Not found. Subscription to API "' + apiId + '" does not exist: ' + appId);
+            }
 
             let allowPatch = false;
-            if (patchBody.approved)
+            if (patchBody.approved) {
                 allowPatch = true;
-            if (patchBody.hasOwnProperty('trusted'))
+            }
+            if (patchBody.hasOwnProperty('trusted')) {
                 allowPatch = true;
+            }
             let allowScopePatch = false;
             if (userInfo.admin) {
                 if (patchBody.hasOwnProperty('allowedScopesMode') ||
-                    patchBody.hasOwnProperty('allowedScopes'))
+                    patchBody.hasOwnProperty('allowedScopes')) {
                     allowScopePatch = true;
+                }
             }
 
             if (allowPatch || allowScopePatch) {
-                var thisSubs = appSubs[subsIndex];
+                const thisSubs = appSubs[subsIndex];
                 // In case a clientId is created, we need to temporary store it here, too,
                 // as saveSubscriptions encrypts the ID.
                 let tempClientId = null;
@@ -613,15 +682,18 @@ subscriptions.patchSubscription = function (app, res, applications, loggedInUser
                 if (allowScopePatch) {
                     // Check that this is right
                     if (patchBody.allowedScopesMode) {
-                        if (!isValidAllowedScopesMode(patchBody.allowedScopesMode))
+                        if (!isValidAllowedScopesMode(patchBody.allowedScopesMode)) {
                             return utils.fail(res, 400, 'patchSubscription: Invalid allowedScopesMode, must be "all", "none", or "select"');
+                        }
                         thisSubs.allowedScopesMode = patchBody.allowedScopesMode;
-                        if (thisSubs.allowedScopesMode === 'select' && !thisSubs.allowedScopes)
+                        if (thisSubs.allowedScopesMode === 'select' && !thisSubs.allowedScopes) {
                             thisSubs.allowedScopes = []; // Default, in case not specified
+                        }
                     }
                     if (patchBody.allowedScopes && thisSubs.allowedScopesMode === 'select') {
-                        if (!isValidAllowedScopes(patchBody.allowedScopes))
+                        if (!isValidAllowedScopes(patchBody.allowedScopes)) {
                             return utils.fail(res, 400, 'patchSubscription: Invalid allowedScopes property, must be array of strings.');
+                        }
                         thisSubs.allowedScopes = patchBody.allowedScopes;
                     } else if (thisSubs.allowedScopesMode !== 'select') {
                         thisSubs.allowedScopes = [];
@@ -638,11 +710,13 @@ subscriptions.patchSubscription = function (app, res, applications, loggedInUser
 
                 // And persist the subscriptions
                 dao.subscriptions.patch(appId, thisSubs, loggedInUserId, (err, updatedSubsInfo) => {
-                    if (err)
+                    if (err) {
                         return utils.fail(res, 500, 'patchSubscription: DAO patch subscription failed', err);
+                    }
                     dao.approvals.deleteByAppAndApi(appId, apiId, (err) => {
-                        if (err)
+                        if (err) {
                             return utils.fail(res, 500, 'patchSubscription: DAO delete approvals failed', err);
+                        }
 
                         if (tempClientId) {
                             // Replace the ID and Secret for returning, otherwise we'd return the encrypted
@@ -707,21 +781,27 @@ function isValidAllowedScopes(allowedScopes) {
 subscriptions.getSubscriptionByClientId = function (app, res, applications, loggedInUserId, clientId) {
     debug('getSubscriptionByClientId()');
     users.loadUser(app, loggedInUserId, (err, userInfo) => {
-        if (err)
+        if (err) {
             return utils.fail(res, 500, 'getSubscriptionByClientId: loadUser failed', err);
-        if (!userInfo)
+        }
+        if (!userInfo) {
             return utils.fail(res, 403, 'Not allowed.');
-        if (!userInfo.admin)
+        }
+        if (!userInfo.admin) {
             return utils.fail(res, 403, 'Not allowed. Only admins may get subscriptions by client ID.');
+        }
         dao.subscriptions.getByClientId(clientId, (err, subsInfo) => {
-            if (err)
+            if (err) {
                 return utils.fail(res, 500, 'getSubscriptionByClient: DAO failed to load by client id', err);
-            if (!subsInfo)
+            }
+            if (!subsInfo) {
                 return utils.fail(res, 404, `Subscription with given client ID ${clientId} was not found.`);
+            }
             // Also load the application
             dao.applications.getById(subsInfo.application, (err, appInfo) => {
-                if (err)
+                if (err) {
                     return utils.fail(res, 500, `getSubscriptionByClientId: DAO failed to get application ${subsInfo.application}`, err);
+                }
                 if (!appInfo) {
                     const errorMessage = 'Inconsistent state. Please notify operator: Application app ' + subsInfo.application + ' not found.';
                     error("getSubscriptionByClientId(): " + errorMessage);
@@ -744,8 +824,9 @@ function checkScopeSettings(appSub) {
     debug(appSub);
     try {
         // Default settings for scopes, see https://github.com/Haufe-Lexware/wicked.haufe.io/issues/138
-        if (appSub.auth !== 'oauth2')
+        if (appSub.auth !== 'oauth2') {
             return;
+        }
         if (!appSub.allowedScopesMode) {
             appSub.allowedScopesMode = 'none';
             appSub.allowedScopes = [];

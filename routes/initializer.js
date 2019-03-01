@@ -1,5 +1,7 @@
 'use strict';
 
+/* global __dirname */
+
 const fs = require('fs');
 const path = require('path');
 const { debug, info, warn, error } = require('portal-env').Logger('portal-api:initializer');
@@ -28,9 +30,10 @@ initializer.checkDynamicConfig = (callback) => {
 
     const checks = [];
     checks.push(checkConfigHash);
-    for (let i = 0; i < daoChecks.length; ++i)
+    for (let i = 0; i < daoChecks.length; ++i) {
         checks.push(daoChecks[i]);
-    
+    }
+
     checks.push(addInitialUsers);
     checks.push(checkApiPlans);
     checks.push(checkSubscriptions);
@@ -53,12 +56,14 @@ initializer.checkDynamicConfig = (callback) => {
             let checkResults = [];
             for (let i = 0; i < results.length; ++i) {
                 if (results[i]) {
-                    for (let j = 0; j < results[i].length; ++j)
+                    for (let j = 0; j < results[i].length; ++j) {
                         checkResults.push(results[i][j]);
+                    }
                 }
             }
-            if (checkResults.length === 0)
+            if (checkResults.length === 0) {
                 checkResults = null;
+            }
             callback(err, checkResults);
         });
 };
@@ -70,8 +75,9 @@ initializer.writeSwaggerJsonFiles = function () {
     for (let i = 0; i < swaggerFiles.length; ++i) {
         const fileName = swaggerFiles[i];
         const apiName = fileName.substring(0, fileName.length - 5); // strip .yaml
-        if (!fileName.toLowerCase().endsWith('.yaml'))
+        if (!fileName.toLowerCase().endsWith('.yaml')) {
             continue;
+        }
         const fullFileName = path.join(swaggerDir, fileName);
         try {
             const swaggerYaml = yaml.safeLoad(fs.readFileSync(fullFileName, 'utf8'));
@@ -92,9 +98,10 @@ initializer.writeSwaggerJsonFiles = function () {
 function checkConfigHash(glob, callback) {
     debug('checkConfigHash()');
     versionizer.initConfigHash((err, configHash) => {
-        if (err)
+        if (err) {
             return callback(err);
-        info(`Calculated config hash for this instance: ${configHash}`)
+        }
+        info(`Calculated config hash for this instance: ${configHash}`);
         return callback(null);
     });
 }
@@ -109,8 +116,9 @@ function addInitialUsers(glob, callback) {
 
     async.mapSeries(glob.initialUsers, (thisUser, callback) => {
         dao.users.getById(thisUser.id, (err, userInfo) => {
-            if (err)
+            if (err) {
                 return callback(err);
+            }
             if (userInfo) {
                 debug('User "' + thisUser.email + "' already exists.");
                 return callback(null);
@@ -153,8 +161,9 @@ function checkApiPlans(glob, callback) {
         for (let i = 0; i < apis.apis.length; ++i) {
             const api = apis.apis[i];
             for (let p = 0; p < api.plans.length; ++p) {
-                if (!planMap[api.plans[p]])
+                if (!planMap[api.plans[p]]) {
                     messages.push('checkApiPlans: API "' + api.id + '" refers to an unknown plan: "' + api.plans[i] + '".');
+                }
             }
         }
     } catch (err) {
@@ -163,8 +172,9 @@ function checkApiPlans(glob, callback) {
     }
 
     let resultMessages = null;
-    if (messages.length > 0)
+    if (messages.length > 0) {
         resultMessages = messages;
+    }
     callback(internalErr, resultMessages);
 }
 
@@ -190,15 +200,17 @@ function checkSubscriptions(glob, callback) {
     // Work on 100 applications at once
     const PAGE = 100;
     dao.applications.getCount((err, appCount) => {
-        if (err)
+        if (err) {
             return callback(err);
+        }
 
         // Closures are perversly useful.
         const check = function (subsCheck, subs) {
             for (let i = 0; i < subs.length; ++i) {
                 const msg = subsCheck(apiMap, planMap, subs[i]);
-                if (msg)
+                if (msg) {
                     messages.push(msg);
+                }
             }
         };
 
@@ -206,13 +218,15 @@ function checkSubscriptions(glob, callback) {
         async.timesSeries(loops, (loop, callback) => {
             const offset = loop * PAGE;
             dao.applications.getIndex(offset, PAGE, (err, apps) => {
-                if (err)
+                if (err) {
                     return callback(err);
+                }
                 async.map(apps, (thisApp, callback) => {
                     debug(thisApp);
                     dao.subscriptions.getByAppId(thisApp.id, (err, subs) => {
-                        if (err)
+                        if (err) {
                             return callback(err);
+                        }
                         check(thatPlanIsValid, subs);
                         check(thatApiIsValid, subs);
                         check(thatApiPlanIsValid, subs);
@@ -233,9 +247,9 @@ function checkSubscriptions(glob, callback) {
                 error(err.stack);
             }
             let resultMessages = null;
-            if (messages.length > 0)
+            if (messages.length > 0) {
                 resultMessages = messages;
-
+            }
             // This is legacy functionality which is not necessary for future DAOs,
             // but we will need to keep it in for now.
             // Finish by writing the API to Application index
@@ -271,34 +285,46 @@ function buildPlanMap(plans) {
 }
 
 function thatPlanIsValid(apis, plans, sub) {
-    if (plans[sub.plan])
+    if (plans[sub.plan]) {
         return null;
+    }
     return 'PlanIsValid: Application "' + sub.application + '" has a subscription to invalid plan "' + sub.plan + '" for API "' + sub.api + '".';
 }
 
 function thatApiIsValid(apis, plans, sub) {
-    if (apis[sub.api])
+    if (apis[sub.api]) {
         return null;
+    }
     return 'ApiIsValid: Application "' + sub.application + '" has a subscription to invalid API "' + sub.api + '".';
 }
 
 function thatApiPlanIsValid(apis, plans, sub) {
-    if (!apis[sub.api] || !plans[sub.plan])
+    if (!apis[sub.api] || !plans[sub.plan]) {
         return null; // This is covered by the above two
+    }
     let found = false;
     const api = apis[sub.api];
     for (let i = 0; i < api.plans.length; ++i) {
-        if (api.plans[i] == sub.plan)
+        if (api.plans[i] == sub.plan) {
             found = true;
+        }
     }
-    if (found)
+    if (found) {
         return null;
+    }
     return 'ApiPlanIsValid: Application "' + sub.application + '" has a subscription to an invalid API Plan (plan not part of API "' + sub.api + '"): "' + sub.plan + '".';
 }
 
+// The following function returns "null" as in invariant. This is on
+// purpose, as we only need the side effect (pushing to the subscriptions arraay).
+// This is of course in itself a code smell. Hence, still we flag it to not be
+// checked by SonarQube.
+// NOSONAR
 function thatApiIndexIsWritten(apis, plans, sub) {
-    if (!apis[sub.api] || !plans[sub.plan])
-        return null; // Shouldn't be possible
+    if (!apis[sub.api] || !plans[sub.plan]) {
+        // Shouldn't be possible, but we still won't make it an error.
+        return null; 
+    }
     const api = apis[sub.api];
     api.subscriptions.push({
         application: sub.application,
