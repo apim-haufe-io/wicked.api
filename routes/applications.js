@@ -115,6 +115,9 @@ function isValidRedirectUri(redirectUri) {
     if (!redirectUri) {
         return false;
     }
+    if (typeof(redirectUri) !== 'string') {
+        return false;
+    }
     let url = null;
     try {
         url = new URL(redirectUri);
