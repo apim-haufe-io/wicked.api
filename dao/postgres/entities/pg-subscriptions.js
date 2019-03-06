@@ -101,7 +101,6 @@ class PgSubscriptions {
   
     getAllImpl(filter, orderBy, offset, limit, noCountCache, callback) {
         debug(`getAll(filter: ${filter}, orderBy: ${orderBy}, offset: ${offset}, limit: ${limit})`);
-        //return callback(new Error('PG.getAllImpl: Not implemented.'));
         const fields = [];
         const values = [];
         const operators = [];
