@@ -130,7 +130,6 @@ CREATE TABLE wicked.subscriptions (
     plan_id character varying(128) NOT NULL,
     api_id character varying(128) NOT NULL,
     client_id character varying(256),
-    api_group character varying(128),
     data jsonb
 );
 
