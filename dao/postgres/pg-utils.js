@@ -422,8 +422,9 @@ class PgUtils {
         debug(`addFilterOptions()`);
         for (let fieldName in filter) {
             fields.push(fieldName);
-            if (filter[fieldName].indexOf('|') > 0) {
-                values.push(`(${filter[fieldName]})`);
+            if (Array.isArray(filter[fieldName])) {
+                let vals = filter[fieldName].join('|');
+                values.push(`(${vals})`);
                 operators.push('SIMILAR TO');
             } else {
                 values.push(`%${filter[fieldName]}%`);

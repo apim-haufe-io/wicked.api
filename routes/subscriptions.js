@@ -39,7 +39,7 @@ subscriptions.getAllSubscriptions = function (app, res, loggedInUserId, filter, 
             return utils.fail(res, 403, 'Not allowed. This is admin/approver land.');
         }
         if (userInfo.approver) {
-            filter['api_group'] = userInfo.groups.join('|');
+            filter['api_group'] = userInfo.groups;
         }
 
         if (embed) {

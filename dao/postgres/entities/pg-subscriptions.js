@@ -98,47 +98,40 @@ class PgSubscriptions {
             return callback(null, subsList);
         });
     }
-  
+
     getAllImpl(filter, orderBy, offset, limit, noCountCache, callback) {
         debug(`getAll(filter: ${filter}, orderBy: ${orderBy}, offset: ${offset}, limit: ${limit})`);
         const fields = [];
         const values = [];
         const operators = [];
         const joinedFields = [
-           {
-                source: 'a.api_group',
-                as: 'api_group',
-                alias: 'apiGroup'
-            },       
             {
-                source: 'a.data->>\'approved\'',
-                as: 'approved',
-                alias: 'approved'
-            }, 
-            {
-                source: 'b.application_name',
+                source: 'b.data->>\'name\'',
                 as: 'application_name',
-                alias: 'applicationName'
+                alias: 'application_name'
             },
             {
-                source: 'b.owner',
+                source: 'e.owner',
                 as: 'owner',
                 alias: 'owner'
             },
             {
-                source: 'b.user',
+                source: 'e.user',
                 as: 'user',
                 alias: 'user'
             },
             {
-                source: 'b.userid',
-                as: 'userid',
-                alias: 'userid'
+                source: '(SELECT to_json(array_agg(row_to_json(tmp))) ' +
+                    ' FROM ( SELECT o.applications_id as applications_id, o.users_id as users_id, o.data->>\'role\' as role, o.data->>\'email\' as email, r.name' +
+                    '        FROM wicked.owners o INNER JOIN wicked.registrations r ON r.users_id = o.users_id ' +
+                    '        WHERE r.pool_id = \'wicked\') tmp ' +
+                    ' WHERE tmp.applications_id = b.id)',
+                as: 'owner_data',
+                alias: 'owner_data'
             }
-     
         ];
+
         this.pgUtils.addFilterOptions(filter, fields, values, operators, joinedFields);
-        // This may be one of the most complicated queries we have here...
         const options = {
             limit: limit,
             offset: offset,
@@ -146,9 +139,11 @@ class PgSubscriptions {
             operators: operators,
             noCountCache: noCountCache,
             joinedFields: joinedFields,
-            joinClause: 'INNER JOIN (SELECT string_agg(o.data->>\'email\', \', \') as owner, string_agg(r.name, \', \') as user, string_agg(r.users_id, \', \') as userid, p.data->> \'name\' as application_name , p.id FROM wicked.applications p, wicked.owners o, wicked.registrations r WHERE o.applications_id = p.id AND o.users_id = r.users_id GROUP BY application_name, p.id) b ON b.id = a.applications_id'
+            joinClause: 'INNER JOIN wicked.applications b ON b.id = a.applications_id '+
+                        'INNER JOIN (SELECT c.applications_id as applications_id, string_agg(c.data->>\'email\',\' \') as owner, string_agg(d.name,\' \') as user '+
+                        'FROM wicked.owners c, wicked.registrations d WHERE c.users_id = d.users_id GROUP BY applications_id) e on e.applications_id = b.id '
         };
-        
+
         return this.pgUtils.getBy('subscriptions', fields, values, options, (err, subsList, countResult) => {
             if (err) {
                 return callback(err);
