@@ -1255,6 +1255,51 @@ paths:
                 type: object
         404:
           description: Not found.
+
+  '/subscriptions':
+    get:
+      description: Retrieve a list of all subscriptions (admin/approvers)
+      security:
+      - accessCode: ['read_subscriptions']
+      - implicit: ['read_subscriptions']
+      - password: ['read_subscriptions']
+      tags:
+        - subscriptions
+      parameters:
+        - name: offset
+          in: query
+          type: number
+          required: false
+        - name: limit
+          in: query
+          type: number
+          required: false
+        - name: filter
+          in: query
+          type: string
+          required: false
+          description: URI-encoded JSON with filter terms (substring search), e.g. {"application_name":"demoapp"}. Only works with embed=1.
+        - name: order_by
+          in: query
+          type: string
+          required: false
+          description: Ordering of the list, e.g. "application_name ASC", or "application_name DESC". Only works with embed=1.
+        - name: embed
+          in: query
+          type: number
+          required: false
+          description: Pass embed=1 to embed the subscriptions data, otherwise only a list of IDs is passed on
+      responses:
+        200:
+          description: Successful request
+          schema:
+            title: ArrayOfSubscriptions
+            type: array
+            items:
+              $ref: '#/definitions/subscriptionType'
+        403:
+          description: Not allowed     
+
   '/webhooks/listeners':
     get:
       security:
