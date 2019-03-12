@@ -800,18 +800,48 @@ utils.clone = (ob) => {
     return JSON.parse(JSON.stringify(ob));
 };
 
-// utils.getFunctionParams2 = (func) => {
-//     return new RegExp(func.name + '\\s*\\((.*?)\\)').exec(func.toString().replace(/\n/g, ''))[1].replace(/\/\*.*?\*\//g, '').replace(/ /g, '');
-// };
+// Normalizes the redirectUri and redirectUris properties.
+// As of 1.0.0-rc.2, the redirectUris is the "correct" property to use,
+// and redirectUri will only contain the first redirect URI for legacy
+// compatibility.
+utils.normalizeRedirectUris = (appInfo) => {
+    if (!appInfo.redirectUri && !appInfo.redirectUris) {
+        appInfo.redirectUris = [];
+        return;
+    }
+    if (!appInfo.redirectUri && appInfo.redirectUris) {
+        if (Array.isArray(appInfo.redirectUris)) {
+            if (appInfo.redirectUris.length > 0) {
+                appInfo.redirectUri = appInfo.redirectUris[0];
+                return;
+            }
+        } else if (typeof (appInfo.redirectUris) === 'string') {
+            warn(`Application ${appInfo.id} has invalid redirectUris (string)`);
+            appInfo.redirectUri = appInfo.redirectUris;
+            appInfo.redirectUris = [appInfo.redirectUris];
+            return;
+        }
+        warn(`Application ${appInfo.id} has invalid redirectUris (${typeof(appInfo.redirectUris)})`);
+        return;
+    }
+    if (appInfo.redirectUri && !appInfo.redirectUris) {
+        appInfo.redirectUris = [appInfo.redirectUri];
+        return;
+    }
+    // We have both redirectUris and redirectUri
+    if (Array.isArray(appInfo.redirectUris)) {
+        if (appInfo.redirectUris.length > 0) {
+            appInfo.redirectUri = appInfo.redirectUris[0];
+            return;
+        }
+        // 0-length array
+        appInfo.redirectUris = [appInfo.redirectUri];
+        return;
+    }
+    warn(`Application ${appInfo.id} has a non-null redirectUris field of unexpected type: ${typeof(appInfo.redirectUris)}, overriding with redirectUri.`);
+    appInfo.redirectUris = [appInfo.redirectUri];
+    return;
+};
 
-// utils.getFunctionParams = (func) => {  
-//     return (func + '')
-//       .replace(/[/][/].*$/mg,'') // strip single-line comments
-//       .replace(/\s+/g, '') // strip white space
-//       .replace(/[/][*][^/*]*[*][/]/g, '') // strip multi-line comments  
-//       .split('){', 1)[0].replace(/^[^(]*[(]/, '') // extract the parameters  
-//       .replace(/=[^,]+/g, '') // strip any ES6 defaults  
-//       .split(',').filter(Boolean); // split & filter [""]
-// };
 
 module.exports = utils;
