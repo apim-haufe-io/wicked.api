@@ -4,6 +4,7 @@
 
 const path = require('path');
 const fs = require('fs');
+const url = require('url');
 const { debug, info, warn, error } = require('portal-env').Logger('portal-api:apis');
 const request = require('request');
 const async = require('async');
@@ -373,7 +374,8 @@ apis.getConfig = function (app, res, loggedInUserId, apiId) {
             if (!isAdmin) {
                 configReturn = {
                     api: {
-                        uris: configJson.api.uris
+                        uris: configJson.api.uris,
+                        protocol: url.parse(configJson.api.upstream_url).protocol 
                     }
                 };
             }
