@@ -375,6 +375,7 @@ apis.getConfig = function (app, res, loggedInUserId, apiId) {
                 configReturn = {
                     api: {
                         uris: configJson.api.uris,
+                        host: configJson.api.host,
                         protocol: url.parse(configJson.api.upstream_url).protocol 
                     }
                 };
