@@ -20,7 +20,13 @@ versionizer.initConfigHash = function (callback) {
     if (null === versionizer._configHash) {
         const staticPath = utils.getStaticDir();
         const configTagFileName = path.join(staticPath, 'confighash');
-        folderHash.hashElement('.', staticPath, {}, (err, configHash) => {
+        // See https://github.com/Haufe-Lexware/wicked.haufe.io/issues/190
+        const hashOptions = {
+            folders: {
+                exclude: ['.git']
+            }
+        };
+        folderHash.hashElement('.', staticPath, hashOptions, (err, configHash) => {
             if (err) {
                 return callback(err);
             }
