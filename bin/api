@@ -11,7 +11,20 @@ const { debug, info, warn, error } = require('portal-env').Logger('portal-api:se
 const http = require('http');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const envReader = require('portal-env'); // local npm module
+
+if (os.platform() === 'darwin') {
+    if (!process.env.NODE_ENV) {
+        process.env.NODE_ENV = 'portal_local';
+        app.set('env', 'portal_local');
+        warn('**** Defaulting in dev environment to NODE_ENV "portal_local"');
+    }
+    if (!process.env.PORTAL_CONFIG_BASE) {
+        process.env.PORTAL_CONFIG_BASE = '../wicked-sample-config/';
+        warn('**** Defaulting in dev environment to PORTAL_CONFIG_BASE "../wicked-sample-config/"');
+    }
+}
 
 const initializer = require('../routes/initializer.js');
 const utils = require('../routes/utils.js');

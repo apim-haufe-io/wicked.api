@@ -309,7 +309,7 @@ content.getContent = function (app, res, loggedInUserId, pathUri) {
 function sendContent(res, metaInfo, fileName, contentType) {
     debug('sendContent()');
     // Yay! We're good!
-    const metaInfo64 = new Buffer(JSON.stringify(metaInfo)).toString("base64");
+    const metaInfo64 = Buffer.from(JSON.stringify(metaInfo)).toString("base64");
     fs.readFile(fileName, function (err, content) {
         if (err) {
             return utils.fail(res, 500, 'Unexpected error', err);
