@@ -64,7 +64,7 @@ class PgMeta {
                 for (let i = metadata.version + 1; i <= CURRENT_DATABASE_VERSION; ++i) {
                     migrationSteps.push(i);
                 }
-              
+
                 async.mapSeries(migrationSteps, (stepNumber, callback) => {
                     const migrationSqlFile = path.join(__dirname, 'schemas', `migration-${stepNumber}.sql`);
                     instance.pgUtils.runSql(migrationSqlFile, (err) => {
@@ -74,7 +74,7 @@ class PgMeta {
                         }
                         metadata.version = stepNumber;
                         instance.pgUtils.setMetadata(metadata, callback);
-                        if (stepNumber == 3 ) {
+                        if (stepNumber === 3) {
                             this.populateSubscriptionApiGroup();
                         }
                     });
@@ -92,7 +92,7 @@ class PgMeta {
         });
     }
 
-    populateSubscriptionApiGroup(){
+    populateSubscriptionApiGroup() {
         const apis = utils.loadApis();
         for (let i = 0; i < apis.apis.length; ++i) {
             const api = apis.apis[i];
