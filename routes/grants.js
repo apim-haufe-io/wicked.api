@@ -221,7 +221,7 @@ function validateGrants(apiInfo, grantInfo) {
 
         // Okay, so far it's well formed, let's check whether the scope is actually present in the API
         if (!apiInfo.settings.scopes[g.scope]) {
-            return `The API ${apiInfo.id} doesn't have a scope called '${g.scope}.`;
+            return `The API ${apiInfo.id} doesn't have a scope called "${g.scope}".`;
         }
     }
     // Yay, all's good
