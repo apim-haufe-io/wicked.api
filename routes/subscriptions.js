@@ -808,6 +808,7 @@ subscriptions.getSubscriptionByClientId = function (app, res, applications, logg
                 }
 
                 checkScopeSettings(subsInfo);
+                utils.normalizeRedirectUris(appInfo);
 
                 return res.json({
                     subscription: subsInfo,

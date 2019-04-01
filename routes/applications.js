@@ -214,7 +214,7 @@ applications.getApplications = function (app, res, loggedInUserId, filter, order
                 if (err) {
                     return utils.fail(res, 500, 'getApplications: getAll failed', err);
                 }
-                appsIndex.forEach(a => normalizeRedirectUris(a));
+                appsIndex.forEach(a => utils.normalizeRedirectUris(a));
                 res.json({
                     items: appsIndex,
                     count: countResult.count,
@@ -301,54 +301,11 @@ applications.getApplication = function (app, res, loggedInUserId, appId) {
                 appInfo._links.deleteApplication = { href: '/applications/' + appId, method: 'DELETE' };
                 appInfo._links.patchApplication = { href: '/applications/' + appId, method: 'PATCH' };
             }
-            normalizeRedirectUris(appInfo);
+            utils.normalizeRedirectUris(appInfo);
             res.json(appInfo);
         });
     });
 };
-
-// Normalizes the redirectUri and redirectUris properties.
-// As of 1.0.0-rc.2, the redirectUris is the "correct" property to use,
-// and redirectUri will only contain the first redirect URI for legacy
-// compatibility.
-function normalizeRedirectUris(appInfo) {
-    if (!appInfo.redirectUri && !appInfo.redirectUris) {
-        appInfo.redirectUris = [];
-        return;
-    }
-    if (!appInfo.redirectUri && appInfo.redirectUris) {
-        if (Array.isArray(appInfo.redirectUris)) {
-            if (appInfo.redirectUris.length > 0) {
-                appInfo.redirectUri = appInfo.redirectUris[0];
-                return;
-            }
-        } else if (typeof (appInfo.redirectUris) === 'string') {
-            warn(`Application ${appInfo.id} has invalid redirectUris (string)`);
-            appInfo.redirectUri = appInfo.redirectUris;
-            appInfo.redirectUris = [appInfo.redirectUris];
-            return;
-        }
-        warn(`Application ${appInfo.id} has invalid redirectUris (${typeof(appInfo.redirectUris)})`);
-        return;
-    }
-    if (appInfo.redirectUri && !appInfo.redirectUris) {
-        appInfo.redirectUris = [appInfo.redirectUri];
-        return;
-    }
-    // We have both redirectUris and redirectUri
-    if (Array.isArray(appInfo.redirectUris)) {
-        if (appInfo.redirectUris.length > 0) {
-            appInfo.redirectUri = appInfo.redirectUris[0];
-            return;
-        }
-        // 0-length array
-        appInfo.redirectUris = [appInfo.redirectUri];
-        return;
-    }
-    warn(`Application ${appInfo.id} has a non-null redirectUris field of unexpected type: ${typeof(appInfo.redirectUris)}, overriding with redirectUri.`);
-    appInfo.redirectUris = [appInfo.redirectUri];
-    return;
-}
 
 function checkRedirectUris(redirectUri, redirectUris, isPatch) {
     if (redirectUri && !isValidRedirectUri(redirectUri)) {
