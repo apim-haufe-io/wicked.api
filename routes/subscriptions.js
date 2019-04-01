@@ -38,6 +38,10 @@ subscriptions.getAllSubscriptions = function (app, res, loggedInUserId, filter, 
         if (!userInfo.admin && !userInfo.approver) {
             return utils.fail(res, 403, 'Not allowed. This is admin/approver land.');
         }
+        if (userInfo.approver) {
+            filter['api_group'] = userInfo.groups;
+        }
+
         if (embed) {
             dao.subscriptions.getAll(filter, orderBy, offset, limit, noCountCache, (err, subsIndex, countResult) => {
                 if (err) {
@@ -337,6 +341,7 @@ subscriptions.addSubscription = function (app, res, applications, loggedInUserId
                     id: utils.createRandomId(),
                     application: subsCreateInfo.application,
                     api: subsCreateInfo.api,
+                    api_group: selectedApi.requiredGroup,
                     plan: subsCreateInfo.plan,
                     apikey: apiKey,
                     clientId: clientId,

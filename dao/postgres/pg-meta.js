@@ -5,8 +5,9 @@
 const async = require('async');
 const { debug, info, warn, error } = require('portal-env').Logger('portal-api:dao:pg:meta');
 const path = require('path');
+const utils = require('../../routes/utils');
 
-const CURRENT_DATABASE_VERSION = 2;
+const CURRENT_DATABASE_VERSION = 3;
 
 class PgMeta {
     constructor(pgUtils) {
@@ -63,6 +64,7 @@ class PgMeta {
                 for (let i = metadata.version + 1; i <= CURRENT_DATABASE_VERSION; ++i) {
                     migrationSteps.push(i);
                 }
+              
                 async.mapSeries(migrationSteps, (stepNumber, callback) => {
                     const migrationSqlFile = path.join(__dirname, 'schemas', `migration-${stepNumber}.sql`);
                     instance.pgUtils.runSql(migrationSqlFile, (err) => {
@@ -72,6 +74,9 @@ class PgMeta {
                         }
                         metadata.version = stepNumber;
                         instance.pgUtils.setMetadata(metadata, callback);
+                        if (stepNumber == 3 ) {
+                            this.populateSubscriptionApiGroup();
+                        }
                     });
                 }, (err) => {
                     if (err) {
@@ -85,6 +90,16 @@ class PgMeta {
                 return callback(null);
             }
         });
+    }
+
+    populateSubscriptionApiGroup(){
+        const apis = utils.loadApis();
+        for (let i = 0; i < apis.apis.length; ++i) {
+            const api = apis.apis[i];
+            const group = api.requiredGroup;
+            const id = api.id;
+            this.pgUtils.populateSubscriptionApiGroup([id, group]);
+        }
     }
 
     getMetadataImpl(propName, callback) {

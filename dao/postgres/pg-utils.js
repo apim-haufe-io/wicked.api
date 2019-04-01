@@ -122,6 +122,15 @@ class PgUtils {
         });
     }
 
+    populateSubscriptionApiGroup(parameters, callback) {
+        debug('populateSubscriptionApiGroup()');
+        this.getPoolOrClient((err, pool) => {
+            if (err)
+                return callback(err);
+            pool.query('UPDATE wicked.subscriptions SET api_group = $2 WHERE api_id = $1', parameters, callback);
+        });
+    }
+
     createMetadata(callback) {
         debug('createMetadata()');
         this.getPoolOrClient((err, pool) => {
@@ -413,8 +422,14 @@ class PgUtils {
         debug(`addFilterOptions()`);
         for (let fieldName in filter) {
             fields.push(fieldName);
-            values.push(`%${filter[fieldName]}%`);
-            operators.push('ILIKE');
+            if (Array.isArray(filter[fieldName])) {
+                let vals = filter[fieldName].join('|');
+                values.push(`(${vals})`);
+                operators.push('SIMILAR TO');
+            } else {
+                values.push(`%${filter[fieldName]}%`);
+                operators.push('ILIKE');
+            }
         }
     }
 
@@ -580,6 +595,7 @@ class PgUtils {
                 }
             }
         }
+
         let query = `SELECT ${mainPrefix}*${additionalFields} FROM wicked.${entity} ${tableName}`;
         if (joinClause) {
             query += ` ${joinClause}`;

@@ -104,14 +104,46 @@ class PgSubscriptions {
         const fields = [];
         const values = [];
         const operators = [];
-        this.pgUtils.addFilterOptions(filter, fields, values, operators);
+        const joinedFields = [
+            {
+                source: 'b.data->>\'name\'',
+                as: 'application_name',
+                alias: 'application_name'
+            },
+            {
+                source: 'e.owner',
+                as: 'owner',
+                alias: 'owner'
+            },
+            {
+                source: 'e.user',
+                as: 'user',
+                alias: 'user'
+            },
+            {
+                source: '(SELECT to_json(array_agg(row_to_json(tmp))) ' +
+                    ' FROM ( SELECT o.applications_id as applications_id, o.users_id as users_id, o.data->>\'role\' as role, o.data->>\'email\' as email, r.name' +
+                    '        FROM wicked.owners o INNER JOIN wicked.registrations r ON r.users_id = o.users_id ' +
+                    '        WHERE r.pool_id = \'wicked\') tmp ' +
+                    ' WHERE tmp.applications_id = b.id)',
+                as: 'owner_data',
+                alias: 'owner_data'
+            }
+        ];
+
+        this.pgUtils.addFilterOptions(filter, fields, values, operators, joinedFields);
         const options = {
             limit: limit,
             offset: offset,
             orderBy: orderBy ? orderBy : 'id ASC',
             operators: operators,
             noCountCache: noCountCache,
+            joinedFields: joinedFields,
+            joinClause: 'INNER JOIN wicked.applications b ON b.id = a.applications_id '+
+                        'INNER JOIN (SELECT c.applications_id as applications_id, string_agg(c.data->>\'email\',\' \') as owner, string_agg(d.name,\' \') as user '+
+                        'FROM wicked.owners c, wicked.registrations d WHERE c.users_id = d.users_id GROUP BY applications_id) e on e.applications_id = b.id '
         };
+
         return this.pgUtils.getBy('subscriptions', fields, values, options, (err, subsList, countResult) => {
             if (err) {
                 return callback(err);
@@ -120,6 +152,7 @@ class PgSubscriptions {
             return callback(null, subsList, countResult);
         });
     }
+
 
     getIndexImpl(offset, limit, callback) {
         debug(`getIndex(offset: ${offset}, limit: ${limit})`);

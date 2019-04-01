@@ -456,7 +456,6 @@ ALTER TABLE ONLY wicked.grants
 ALTER TABLE ONLY wicked.webhook_events
     ADD CONSTRAINT webhook_listeners_fkey FOREIGN KEY (webhook_listeners_id) REFERENCES wicked.webhook_listeners(id) ON DELETE CASCADE;
 
-
 -- Completed on 2018-04-30 14:45:37 CEST
 
 --
