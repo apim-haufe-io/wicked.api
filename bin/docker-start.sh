@@ -55,7 +55,7 @@ if [ ! -z "$GIT_REPO" ]; then
 
     echo Adding metadata to static directory...
     git log -1 > static/last_commit
-    date -u "+%Y-%m-%d %H:%M:%S" > static/build_date
+    git log -1 --format=%ci > static/build_date
 
     echo "Cleaning up old configuration (if applicable)"
     rm -rf /var/portal-api/static
