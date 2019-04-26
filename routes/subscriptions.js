@@ -386,7 +386,8 @@ subscriptions.addSubscription = function (app, res, applications, loggedInUserId
                             applicationId: appInfo.id,
                             apiId: selectedApi.id,
                             userId: userInfo.id,
-                            planId: apiPlan.id
+                            planId: apiPlan.id,
+                            group: selectedApi.requiredGroup
                         }
                     });
 
@@ -435,7 +436,8 @@ subscriptions.addSubscription = function (app, res, applications, loggedInUserId
                                     userId: userInfo.id,
                                     applicationId: appInfo.id,
                                     apiId: selectedApi.id,
-                                    planId: apiPlan.id
+                                    planId: apiPlan.id,
+                                    group: selectedApi.requiredGroup
                                 }
                             });
                         });
