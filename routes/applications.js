@@ -115,7 +115,7 @@ function isValidRedirectUri(redirectUri) {
     if (!redirectUri) {
         return false;
     }
-    if (typeof(redirectUri) !== 'string') {
+    if (typeof (redirectUri) !== 'string') {
         return false;
     }
     let url = null;
@@ -130,14 +130,17 @@ function isValidRedirectUri(redirectUri) {
         return false;
     }
 
-    if ((redirectUri.indexOf('#') < 0) &&
-        (
-            (redirectUri.startsWith('https://') && (redirectUri !== 'https://')) ||
-            (redirectUri.startsWith('http://localhost')) ||
-            (redirectUri.startsWith('http://127.0.0.1')) ||
-            (redirectUri.startsWith('http://portal.local')) ||
-            (redirectUri.startsWith('http://') && process.env.NODE_ENV.indexOf('local') >= 0) // Allow unsafe redirects for local development
-        )
+    if (process.env.ALLOW_ANY_REDIRECT_URI && process.env.ALLOW_ANY_REDIRECT_URI !== '') {
+        // https://github.com/Haufe-Lexware/wicked.haufe.io/issues/196
+        return true;
+    }
+
+    if (
+        (redirectUri.startsWith('https://') && (redirectUri !== 'https://')) ||
+        (redirectUri.startsWith('http://localhost')) ||
+        (redirectUri.startsWith('http://127.0.0.1')) ||
+        (redirectUri.startsWith('http://portal.local')) ||
+        (redirectUri.startsWith('http://') && process.env.NODE_ENV.indexOf('local') >= 0) // Allow unsafe redirects for local development
     ) {
         return true;
     }
