@@ -287,6 +287,11 @@ function lookupAuthMethod(globalSettings, apiId, authMethodRef) {
         warn(`lookupAuthMethodConfig: Auth method ${authMethodRef} is not enabled, skipping.`);
         return null;
     }
+    
+    if (authMethodOrig.protected) {
+        info(`lookupAuthMethodConfig: Auth method ${authMethodRef} is protected, skipping.`);
+        return null;
+    }
 
     const authMethod = utils.clone(authMethodOrig);
     const endpoints = [
