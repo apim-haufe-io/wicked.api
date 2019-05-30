@@ -3,7 +3,7 @@ pipeline {
         docker {
             image 'haufelexware/wicked.build-agent:latest'
             // Add docker group
-            args '--group-add 125'
+            args '--group-add 999'
         }
     }
     triggers {
