@@ -180,6 +180,7 @@ content.isPublic = function (uriName) {
     return uriName.endsWith('jpg') ||
         uriName.endsWith('jpeg') ||
         uriName.endsWith('png') ||
+        uriName.endsWith('js') ||
         uriName.endsWith('gif') ||
         uriName.endsWith('css');
 };
