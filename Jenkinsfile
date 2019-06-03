@@ -63,17 +63,17 @@ node('docker') {
     echo 'Building docker tag: ' + dockerTag
     env.DOCKER_TAG = dockerTag
 
-    stage('SonarQube analysis') {
-        if (dockerTag == 'next') {
-            // requires SonarQube Scanner 2.8+
-            def scannerHome = tool 'wicked-sonar';
-            withSonarQubeEnv('sonar') {
-                sh "${scannerHome}/bin/sonar-scanner"
-            }
-        } else {
-            echo 'Skipping SonarQube, not "next" branch.'
-        }
-    }
+    // stage('SonarQube analysis') {
+    //     if (dockerTag == 'next') {
+    //         // requires SonarQube Scanner 2.8+
+    //         def scannerHome = tool 'wicked-sonar';
+    //         withSonarQubeEnv('sonar') {
+    //             sh "${scannerHome}/bin/sonar-scanner"
+    //         }
+    //     } else {
+    //         echo 'Skipping SonarQube, not "next" branch.'
+    //     }
+    // }
 
     stage('Build and Push') {
         withCredentials([
