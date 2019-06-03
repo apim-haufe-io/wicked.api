@@ -52,7 +52,7 @@ properties([
     ])
 ])
 
-node('linux') {
+node('docker') {
 
     stage('Checkout') {
         checkout scm
