@@ -38,7 +38,7 @@ subscriptions.getAllSubscriptions = function (app, res, loggedInUserId, filter, 
         if (!userInfo.admin && !userInfo.approver) {
             return utils.fail(res, 403, 'Not allowed. This is admin/approver land.');
         }
-        if (userInfo.approver) {
+        if (userInfo.approver && !userInfo.admin) {
             filter['api_group'] = userInfo.groups;
         }
 
