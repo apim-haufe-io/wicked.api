@@ -1,7 +1,7 @@
 'use strict';
 
 const async = require('async');
-const { debug, info, warn, error } = require('portal-env').Logger('portal-api:dao:pg:applications');
+const { debug, info, warn, error } = require('portal-env').Logger('portal-api:dao:pg:applications'); // eslint-disable-line no-unused-vars
 
 const utils = require('../../../routes/utils');
 const daoUtils = require('../../dao-utils');

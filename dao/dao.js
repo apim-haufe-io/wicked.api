@@ -1,6 +1,6 @@
 'use strict';
 
-const { debug, info, warn, error } = require('portal-env').Logger('portal-api:dao');
+const { debug, info, warn, error } = require('portal-env').Logger('portal-api:dao'); // eslint-disable-line no-unused-vars
 const PgDao = require('./postgres/pg-dao');
 const JsonDao = require('./json/json-dao');
 const utils = require('../routes/utils');
@@ -10,7 +10,7 @@ const dao = () => { };
 
 dao._impl = null;
 dao._isReady = false;
-dao.init = (app) => {
+dao.init = (app) => { // eslint-disable-line no-unused-vars
     debug('initialize()');
 
     // Make sure we have all the right signatures in place for the DAOs;
@@ -171,6 +171,18 @@ dao.namespaces = {
     getByPoolAndNamespace: (poolId, namespace, callback) => { dao._impl.namespaces.getByPoolAndNamespace(poolId, namespace, callback); },
     upsert: (poolId, namespace, upsertingUserId, namespaceData, callback) => { dao._impl.namespaces.upsert(poolId, namespace, upsertingUserId, namespaceData, callback); },
     delete: (poolId, namespace, deletingUserId, callback) => { dao._impl.namespaces.delete(poolId, namespace, deletingUserId, callback); }
+};
+
+dao.accessTokens = {
+    getByAccessToken: (accessToken, callback) => { dao._impl.accessTokens.getByAccessToken(accessToken, callback); },
+    getByRefreshToken: (refreshToken, callback) => { dao._impl.accessTokens.getByRefreshToken(refreshToken, callback); },
+    getByAuthenticatedUserId: (authenticatedUserId, callback) => { dao._impl.accessTokens.getByAuthenticatedUserId(authenticatedUserId, callback); },
+    getByUserId: (userId, callback) => { dao._impl.accessTokens.getByUserId(userId, callback); },
+
+    insert: (tokenData, callback) => { dao._impl.accessTokens.insert(tokenData, callback); },
+    deleteByAccessToken: (accessToken, callback) => { dao._impl.accessTokens.deleteByAccessToken(accessToken, callback); },
+    deleteByRefreshToken: (refreshToken, callback) => { dao._impl.accessTokens.deleteByRefreshToken(refreshToken, callback); },
+    deleteByAuthenticatedUserId: (authenticatedUserId, callback) => { dao._impl.accessTokens.deleteByAuthenticatedUserId(authenticatedUserId, callback); }
 };
 
 module.exports = dao;

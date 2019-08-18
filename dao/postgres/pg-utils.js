@@ -179,7 +179,7 @@ class PgUtils {
             debug('listenToChannel - setting up listener PG client');
             // Initial setup
             instance._listenerClient = new pg.Client(instance.getPostgresOptions('wicked'));
-            instance._listenerClient.on('error', function (err, client) {
+            instance._listenerClient.on('error', function (err, client) { // eslint-disable-line no-unused-vars
                 error(`Postgres Event listener threw an error: ${err.message}`);
                 error(err.toString());
                 prom._pgListenerErrors.inc();
@@ -243,7 +243,7 @@ class PgUtils {
                     return payload(err);
                 }
                 debug('withTransaction: Starting transaction');
-                client.query('BEGIN;', (err, result) => {
+                client.query('BEGIN;', (err, result) => { // eslint-disable-line no-unused-vars
                     if (err) {
                         debug('withTransaction: FAILED starting transaction.');
                         release();
@@ -257,7 +257,7 @@ class PgUtils {
                             debug(err);
                             debug('withTransaction: But failed, will rollback');
                             // We'll rollback
-                            client.query('ROLLBACK;', (rollbackErr, result) => {
+                            client.query('ROLLBACK;', (rollbackErr, result) => { // eslint-disable-line no-unused-vars
                                 if (rollbackErr) {
                                     debug('withTransaction: ROLLBACK returned another error');
                                     debug(rollbackErr);
@@ -270,7 +270,7 @@ class PgUtils {
                         } else {
                             debug('withTransaction: And succeeded, will commit');
                             // We'll commit
-                            client.query('COMMIT;', (commitErr, result) => {
+                            client.query('COMMIT;', (commitErr, result) => { // eslint-disable-line no-unused-vars
                                 release();
                                 if (next && typeof (next) === 'function') {
                                     return next(commitErr);
@@ -371,7 +371,7 @@ class PgUtils {
         let noCountCache = false;
         let joinClause = null;
         let joinedFields = null;
-        fieldNames.forEach(f => operators.push('='));
+        fieldNames.forEach(f => operators.push('=')); // eslint-disable-line no-unused-vars
         if (options.client) {
             client = options.client;
         }
@@ -667,7 +667,7 @@ class PgUtils {
                 entity: entity
             };
             const end = prom._pgQueryHistogram.startTimer(labels);
-            client.query(sql, fieldValues, (err, result) => {
+            client.query(sql, fieldValues, (err, result) => { // eslint-disable-line no-unused-vars
                 if (err) {
                     prom._pgQueryErrors.inc(labels);
                     return callback(err);
@@ -720,7 +720,7 @@ class PgUtils {
                 entity: entity
             };
             const end = prom._pgQueryHistogram.startTimer(labels);
-            client.query(sql, fieldValues, (err, result) => {
+            client.query(sql, fieldValues, (err, result) => { // eslint-disable-line no-unused-vars
                 if (err) {
                     prom._pgQueryErrors.inc(labels);
                     return callback(err);
@@ -846,7 +846,7 @@ class PgUtils {
         // due to unhandled errors (says the documentation):
         // https://node-postgres.com/api/pool#-code-pool-on-39-error-39-err-error-client-client-gt-void-gt-void-code-
         const instance = this;
-        pool.on('error', function (err, client) {
+        pool.on('error', function (err, client) { // eslint-disable-line no-unused-vars
             if (err) {
                 // We can't actually do anything with this, but we want to log it.
                 error(`Postgres Pool emitted an error: ${err.message}`);

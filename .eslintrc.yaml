@@ -1,5 +1,5 @@
 env:
-  browser: true
+  browser: false
   commonjs: true
   es6: true
 extends: 'eslint:recommended'
@@ -21,7 +21,7 @@ rules:
     - error
     - always
   no-unused-vars:
-    - off
+    - warn
   # no-unreachable:
   #   - warn
   no-var:
@@ -36,3 +36,5 @@ rules:
 globals:
   process: true
   Buffer: true
+  setTimeout: true
+  setInterval: true

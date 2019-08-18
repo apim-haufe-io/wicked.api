@@ -1,6 +1,6 @@
 'use strict';
 
-const { debug, info, warn, error } = require('portal-env').Logger('portal-api:dao:utils');
+const { debug, info, warn, error } = require('portal-env').Logger('portal-api:dao:utils'); // eslint-disable-line no-unused-vars
 const utils = require('../routes/utils');
 
 const daoUtils = function () { };

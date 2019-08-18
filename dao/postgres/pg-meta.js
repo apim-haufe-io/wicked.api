@@ -3,11 +3,11 @@
 /* global __dirname */
 
 const async = require('async');
-const { debug, info, warn, error } = require('portal-env').Logger('portal-api:dao:pg:meta');
+const { debug, info, warn, error } = require('portal-env').Logger('portal-api:dao:pg:meta'); // eslint-disable-line no-unused-vars
 const path = require('path');
 const utils = require('../../routes/utils');
 
-const CURRENT_DATABASE_VERSION = 3;
+const CURRENT_DATABASE_VERSION = 4;
 
 class PgMeta {
     constructor(pgUtils) {

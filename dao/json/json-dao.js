@@ -9,6 +9,7 @@ const JsonWebhooks = require('./entities/json-webhooks');
 const JsonRegistrations = require('./entities/json-registrations');
 const JsonGrants = require('./entities/json-grants');
 const JsonNamespaces = require('./entities/json-namespaces');
+const JsonAccessTokens = require('./entities/json-accesstokens');
 const JsonMeta = require('./json-meta');
 const JsonUtils = require('./entities/json-utils');
 
@@ -27,9 +28,10 @@ class JsonDao {
         this.jsonRegistrations = new JsonRegistrations(this.jsonUtils);
         this.jsonWebhooks = new JsonWebhooks(this.jsonUtils);
         this.jsonNamespaces = new JsonNamespaces(this.jsonUtils);
+        this.jsonAccessTokens = new JsonAccessTokens(this.jsonUtils);
     }
 
-    init(app) {
+    init(app) { // eslint-disable-line no-unused-vars
     }
 
     get meta() { return this.jsonMeta; }
@@ -42,6 +44,7 @@ class JsonDao {
     get grants() { return this.jsonGrants; }
     get namespaces() { return this.jsonNamespaces; }
     get webhooks() { return this.jsonWebhooks; }
+    get accessTokens() { return this.jsonAccessTokens; }
 }
 
 module.exports = JsonDao;
