@@ -17,7 +17,19 @@ class PgApprovals {
     getAll(callback) {
         debug('getAll()');
         this.pgUtils.checkCallback(callback);
-        return this.pgUtils.getBy('approvals', [], [], {}, callback);
+        const joinedFields = [
+            {
+                source: 'json_build_object(\'id\', b.id, \'description\', b.data->>\'description\',' +
+                    '\'name\', b.data->>\'name\', \'trusted\', a.data->\'application\'->\'trusted\')',
+                as: 'application'
+            },
+        ];
+        const options = {
+            joinedFields: joinedFields,
+            joinClause:
+                'INNER JOIN wicked.applications b ON b.id = a.data->\'application\'->>\'id\''
+        };
+        return this.pgUtils.getBy('approvals', [], [], options, callback);
     }
 
     create(approvalInfo, callback) {
