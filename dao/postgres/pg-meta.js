@@ -7,7 +7,7 @@ const { debug, info, warn, error } = require('portal-env').Logger('portal-api:da
 const path = require('path');
 const utils = require('../../routes/utils');
 
-const CURRENT_DATABASE_VERSION = 3;
+const CURRENT_DATABASE_VERSION = 4;
 
 class PgMeta {
     constructor(pgUtils) {
@@ -74,7 +74,7 @@ class PgMeta {
                         }
                         metadata.version = stepNumber;
                         instance.pgUtils.setMetadata(metadata, callback);
-                        if (stepNumber === 3) {
+                        if (stepNumber === 4) {
                             this.populateSubscriptionApiGroup();
                         }
                     });
