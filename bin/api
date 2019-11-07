@@ -50,11 +50,13 @@ if (!configKey) {
     // Check if we have an *envkey file.
     let configKeyFileName = findEnvKeyFileName(staticConfigPath);
     if (configKeyFileName) {
-        info('Found config key file ' + configKeyFileName);
+        info('INFO: Found config key file ' + configKeyFileName);
         configKey = fs.readFileSync(configKeyFileName, 'utf8').trim();
     } else {
         info('INFO: PORTAL_CONFIG_KEY is not set, will not be able to decrypt encrypted environment variables.');
     }
+} else {
+    info('INFO: PORTAL_CONFIG_KEY is set, using environment variable.');
 }
 app.set('config_key', configKey);
 

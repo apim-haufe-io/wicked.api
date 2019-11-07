@@ -41,6 +41,30 @@ function initPrometheus() {
         name: 'wicked_api_pg_pool_errors',
         help: 'Number of errors emitted by the Postgres Pool'
     });
+    prom._pgPoolConnects = new promClient.Counter({
+        name: 'wicked_api_pg_pool_connects',
+        help: 'Number of connects to the database performed by the Postgres connection pool'
+    });
+    prom._pgPoolIdleCount = new promClient.Gauge({
+        name: 'wicked_api_pg_pool_idle_count',
+        help: 'Number of postgres connections idling in the connection pool'
+    });
+    prom._pgPoolWaitingCount = new promClient.Gauge({
+        name: 'wicked_api_pg_pool_waiting_count',
+        help: 'Number of postgres acquires waiting to be served (should be 0 or 1)'
+    });
+    prom._pgPoolTotalCount = new promClient.Gauge({
+        name: 'wicked_api_pg_pool_total_count',
+        help: 'Number of postgres connections in the connection pool'
+    });
+    prom._pgPoolAcquires = new promClient.Counter({
+        name: 'wicked_api_pg_pool_acquires',
+        help: 'Number of connection pool acquires'
+    });
+    prom._pgPoolRemoves = new promClient.Counter({
+        name: 'wicked_api_pg_pool_removes',
+        help: 'Number of removes from the Postgres connection pool'
+    });
     prom._pgListenerErrors = new promClient.Counter({
         name: 'wicked_api_pg_listener_errors',
         help: 'Number of errors emitted by the Postgres event listener'
@@ -864,6 +888,32 @@ class PgUtils {
                 prom._pgPoolErrors.inc();
                 return;
             }
+        });
+
+        function gatherStatistics() {
+            prom._pgPoolTotalCount.set(pool.totalCount);
+            prom._pgPoolIdleCount.set(pool.idleCount);
+            prom._pgPoolWaitingCount.set(pool.waitingCount);
+        }
+        pool.on('connect', function (client) {
+            // We don't actually want to do anything with the client, but just count the connect
+            // actions for display in Prometheus.
+            debug('Postgres connection was established.');
+            prom._pgPoolConnects.inc();
+            gatherStatistics();
+        });
+        pool.on('acquire', function (client) {
+            // We use the acquire event to forward the pool statistics to the Prometheus metrics
+            debug('Postgres connection was acquired from pool.');
+            prom._pgPoolAcquires.inc();
+            gatherStatistics();
+        });
+        pool.on('remove', function (client) {
+            // Count the removes from the connection pool; this shouldn't happen too many times,
+            // but it's interesting to look at the data.
+            debug('Postgres connection was removed from the connection pool');
+            prom._pgPoolRemoves.inc();
+            gatherStatistics();
         });
         // Try to connect to wicked database
         debug('getPoolOrClient: Trying to connect');
