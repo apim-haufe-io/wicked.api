@@ -1543,7 +1543,7 @@ paths:
         type: string
         required: true
         description: The ID of the namespace to retrieve
-      response:
+      responses:
         '200':
           description: Success
           schema:
@@ -1573,7 +1573,7 @@ paths:
         required: true
         description: The ID of the namespace to upsert
       - name: body
-        in: nody
+        in: body
         schema:
           $ref: '#/definitions/namespaceType'
         required: true
@@ -2010,6 +2010,10 @@ definitions:
         type: string
       redirectUri:
         type: string
+      redirectUris:
+        type: array
+        items:
+          type: string
       confidential:
         type: boolean
       clientType:
@@ -2039,6 +2043,12 @@ definitions:
       confidential:
         type: boolean
       redirectUri:
+        type: string
+      redirectUris:
+        type: array
+        items:
+          type: string
+      description:
         type: string
   ownerType:
     title: Owner
