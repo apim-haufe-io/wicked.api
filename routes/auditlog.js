@@ -155,23 +155,26 @@ async function populateUsersInfo(eventData) {
 
 auditlog.logEvent = function (app, eventData, callback) {
     debug('auditlog.logEvent()');
-    console.log(JSON.stringify(eventData));
-    populateUsersInfo(eventData).then(function(result) {
-        eventData.data.user = result.user;
-        eventData.data['updatedUser'] = result.updatedUser;
-        setTimeout(retryAuditLog, 0, app, 5, eventData, function (err) {
-            debug('retryAuditLog() called back');
-            // We have no results, we just want to check for errors
-            if (err) {
-                debug(err);
-                error(err);
-            }
-            if (callback) {
-                return callback(err);
-            }
-        });
-    });    
-  
+    const glob = utils.loadGlobals();
+    if (glob.auditlog && glob.auditlog.useAuditlog) {
+        populateUsersInfo(eventData).then(function(result) {
+            eventData.data.user = result.user;
+            eventData.data['updatedUser'] = result.updatedUser;
+            setTimeout(retryAuditLog, 0, app, 5, eventData, function (err) {
+                debug('retryAuditLog() called back');
+                // We have no results, we just want to check for errors
+                if (err) {
+                    debug(err);
+                    error(err);
+                }
+                if (callback) {
+                    return callback(err);
+                }
+            });
+        }); 
+    } else {
+        debug('auditlog Turned OFF');
+    }   
 };
 
 module.exports = auditlog;
