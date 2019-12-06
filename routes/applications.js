@@ -1,7 +1,5 @@
 'use strict';
 
-/* global URL */
-
 const { debug, info, warn, error } = require('portal-env').Logger('portal-api:applications');
 const utils = require('./utils');
 const users = require('./users');
@@ -466,10 +464,10 @@ applications.patchApplication = function (app, res, loggedInUserId, appId, appPa
             if (redirectUris) {
                 appInfo.redirectUris = redirectUris;
             }
-            if (appPatchInfo.hasOwnProperty('confidential')) {
+            if (appPatchInfo.confidential !== undefined) {
                 appInfo.confidential = !!appPatchInfo.confidential;
             }
-            if (appPatchInfo.hasOwnProperty('clientType')) {
+            if (appPatchInfo.clientType !== undefined) {
                 appInfo.clientType = appPatchInfo.clientType;
             }
             if (!applications.checkValidClientType(appInfo)) {

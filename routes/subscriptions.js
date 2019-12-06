@@ -38,7 +38,7 @@ subscriptions.getAllSubscriptions = function (app, res, loggedInUserId, filter, 
         if (!userInfo.admin && !userInfo.approver) {
             return utils.fail(res, 403, 'Not allowed. This is admin/approver land.');
         }
-        if (userInfo.approver) {
+        if (userInfo.approver && !userInfo.admin) {
             filter['api_group'] = userInfo.groups;
         }
 
@@ -411,7 +411,8 @@ subscriptions.addSubscription = function (app, res, applications, loggedInUserId
                             application: {
                                 id: appInfo.id,
                                 name: appInfo.name,
-                                trusted: wantsTrusted
+                                trusted: wantsTrusted,
+                                description: appInfo.description
                             },
                             plan: {
                                 id: apiPlan.id,
@@ -638,13 +639,13 @@ subscriptions.patchSubscription = function (app, res, applications, loggedInUser
             if (patchBody.approved) {
                 allowPatch = true;
             }
-            if (patchBody.hasOwnProperty('trusted')) {
+            if (patchBody.trusted !== undefined) {
                 allowPatch = true;
             }
             let allowScopePatch = false;
             if (userInfo.admin) {
-                if (patchBody.hasOwnProperty('allowedScopesMode') ||
-                    patchBody.hasOwnProperty('allowedScopes')) {
+                if ((patchBody.allowedScopesMode !== undefined) ||
+                    (patchBody.allowedScopes !== undefined)) {
                     allowScopePatch = true;
                 }
             }
@@ -675,7 +676,7 @@ subscriptions.patchSubscription = function (app, res, applications, loggedInUser
                     }
                 }
 
-                if (allowPatch && patchBody.hasOwnProperty('trusted')) {
+                if (allowPatch && (patchBody.trusted !== undefined)) {
                     // This can go both ways
                     thisSubs.trusted = !!patchBody.trusted;
                 }
